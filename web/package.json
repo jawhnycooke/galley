@@ -1,0 +1,49 @@
+{
+  "name": "galley-editor",
+  "private": true,
+  "version": "0.0.0",
+  "description": "galley's edit-mode browser bundle. DEV-TIME ONLY: the built output lives in internal/serve/assets and is committed; `just assets` rebuilds it. Nothing at runtime needs node.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc",
+    "fmt": "prettier --write \"*.mjs\" \"*.ts\"",
+    "fmt:check": "prettier --check \"*.mjs\" \"*.ts\"",
+    "lint": "eslint \"*.mjs\" \"*.ts\" --max-warnings 0",
+    "dead-code": "fallow dead-code",
+    "dupes": "fallow dupes",
+    "complexity": "fallow health",
+    "build:editor-js": "esbuild entry.ts --bundle --minify --format=iife --target=es2019 --charset=utf8 --outfile=../internal/serve/assets/editor.js",
+    "build:editor-css": "esbuild editor.css --bundle --minify --charset=utf8 --outfile=../internal/serve/assets/editor.css",
+    "build:mermaid": "esbuild mermaid-entry.ts --bundle --minify --format=iife --global-name=galleyMermaid --target=es2019 --charset=utf8 --outfile=../internal/serve/assets/mermaid.js",
+    "probe": "node probe.mjs",
+    "build": "npm run --silent build:editor-js && npm run --silent build:editor-css && npm run --silent build:mermaid && npm run --silent probe"
+  },
+  "dependencies": {
+    "@tiptap/core": "2.27.2",
+    "@tiptap/extension-code-block": "2.27.2",
+    "@tiptap/extension-collaboration": "2.27.2",
+    "@tiptap/extension-heading": "2.27.2",
+    "@tiptap/extension-image": "2.27.2",
+    "@tiptap/extension-link": "2.27.2",
+    "@tiptap/extension-table": "2.27.2",
+    "@tiptap/extension-table-cell": "2.27.2",
+    "@tiptap/extension-table-header": "2.27.2",
+    "@tiptap/extension-table-row": "2.27.2",
+    "@tiptap/pm": "2.27.2",
+    "@tiptap/starter-kit": "2.27.2",
+    "mermaid": "11.16.1",
+    "y-prosemirror": "1.3.7",
+    "y-websocket": "2.1.0",
+    "yjs": "13.6.32"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "eslint": "9.39.5",
+    "fallow": "2.74.0",
+    "globals": "17.11.0",
+    "playwright-core": "1.56.1",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.67.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/fallow/schema.json",
+  "entry": [
+    "entry.ts",
+    "mermaid-entry.ts",
+    "editor.css",
+    "probe.mjs",
+    "rounds-ux.mjs",
+    "typing.mjs",
+    "loop.mjs",
+    "page.mjs",
+    "codeblock.mjs",
+    "align.mjs",
+    "livestructure.mjs",
+    "undo.mjs",
+    "layers.mjs",
+    "preflight.mjs",
+    "schema.mjs",
+    "schemacheck.mjs",
+    "schemacorpus.mjs",
+    "eslint.config.mjs"
+  ]
+}

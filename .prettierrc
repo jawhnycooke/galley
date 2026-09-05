@@ -1,0 +1,30 @@
+# prettier's whole configuration, for markdown AND for web/.
+#
+# YAML RATHER THAN JSON, AND THAT IS THE POINT OF THE REWRITE. The file held
+# the same two keys as JSON and could carry no comment about either. prettier
+# reads `.prettierrc` as JSON *or* YAML, JSON is a subset of YAML, and this
+# codebase records why rather than what — so the reasoning that used to live in
+# the justfile recipe two directories away now lives beside the setting.
+
+# `just fmt-md` unwraps markdown prose: one line per paragraph, editors
+# soft-wrap. A hand-wrapped paragraph turns a one-word edit into five changed
+# lines and hides what actually changed.
+proseWrap: never
+
+# OFF FOR A MEASURED REASON. With it on, prettier reformats code INSIDE fenced
+# blocks, and it silently rewrote a js sample's quotes in a plan an implementer
+# copies verbatim.
+embeddedLanguageFormatting: 'off'
+
+overrides:
+  # SINGLE QUOTES IN web/, BECAUSE THAT IS WHAT web/ IS WRITTEN IN. prettier's
+  # default is double, and the first run over these 31,000 lines is a diff that
+  # will bury every future one — so the setting that decides how big it is, is
+  # worth measuring rather than defaulting. Measured: 18,367 changed lines at
+  # the default against 13,105 with this override, a 29% smaller diff that
+  # keeps the house style the whole directory already uses. Scoped to web/ and
+  # not set globally so it cannot reach .md, .json or any file added later
+  # under a different convention.
+  - files: 'web/**/*.{js,mjs,ts}'
+    options:
+      singleQuote: true

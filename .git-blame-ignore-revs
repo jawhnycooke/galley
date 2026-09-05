@@ -1,0 +1,18 @@
+# Revisions `git blame` should look THROUGH rather than at.
+#
+# A commit in this list touched no logic: it reformatted, and stopping blame
+# there answers "who last touched this line" with "the formatter", which is the
+# one answer nobody is ever asking. GitHub reads this file automatically. To
+# get the same locally, once per clone:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Nothing may be added here that changed behaviour. The whole value of the file
+# is that a reader can trust every SHA in it to be a no-op, and one entry that
+# is not makes the rest unusable.
+
+# prettier runs over web/ for the first time, and nothing else happens here
+# (2026-08-20). 31,000 lines, never formatted. Comment TEXT is byte-identical
+# across all 11,339 line-comment lines and the built bundle is byte-identical
+# to what was committed before it.
+e697e3a1302125bc13a5e2aea7b3cda441be3046

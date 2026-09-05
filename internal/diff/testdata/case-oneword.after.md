@@ -1,0 +1,1 @@
+**Some markdown is refused outright.** Seven constructs have no representation in the model, so `galley edit` will not open a document containing one — it stops with the construct and the line number rather than loading a document it would silently mangle on the way back out:

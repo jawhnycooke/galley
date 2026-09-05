@@ -1,0 +1,97 @@
+{
+  // THE TYPECHECK'S WHOLE CONFIGURATION, AND NOWHERE ELSE.
+  //
+  // `just types` delegates to `npm run typecheck`, which runs `tsc` with no
+  // flags at all, which reads this file. One spelling. The justfile already
+  // owns a second spelling of `npm run build` (see `just assets`, which passes
+  // --charset=utf8, bundles mermaid and runs probe.mjs where the npm script
+  // does none of those) and the two have drifted; a third instance is not the
+  // way to add a type checker.
+  //
+  // NO FILE WAS RENAMED WHEN THIS CONFIG WAS WRITTEN. The wire was the only
+  // contract slice 1 shipped; slice 2 was the conversion of web/*.js to
+  // web/*.ts, one file at a time, most-depended-first, each shipped on its
+  // own commits. That slice is done: every module under web/ is .ts (the
+  // harnesses' .mjs files are standalone by design and outside this program
+  // entirely — see allowImportingTsExtensions below). allowJs and checkJs,
+  // which used to let real .ts modules sit beside the plain JavaScript that
+  // had not moved yet, are retired with it. A .ts file is always checked.
+  "compilerOptions": {
+    // STRICT FROM THE FIRST FILE. Checking under a loose config and tightening
+    // later means paying the cost twice and, in between, shipping a type layer
+    // that reports safety it does not provide — the exact shape this
+    // repository records six of.
+    "strict": true,
+    "noEmit": true,
+
+    // AND `alwaysStrict` IS TURNED BACK OFF, WHICH IS NOT A HOLE IN `strict`.
+    //
+    // ESBUILD READS THIS FILE. It is the bundler, it looks for a tsconfig.json
+    // beside the entry point, and it honours `alwaysStrict` — so merely adding
+    // this config prepended `"use strict"` to internal/serve/assets/editor.js
+    // and mermaid.js, which are IIFE bundles that have never been strict-mode
+    // code. That is a REAL behaviour change to the shipped browser client,
+    // arriving as a side effect of adding a type checker, and this slice ships
+    // no behaviour change at all: when a gate moves, nobody can say whether
+    // the type or the change did it.
+    //
+    // Nothing is lost on the checking side. `alwaysStrict` governs how files
+    // are PARSED and what is EMITTED; every module here is an ES module and so
+    // already strict at runtime, and there is nothing to emit — `noEmit` is
+    // set two lines up. Making the bundle strict is a change worth making on
+    // its own, measured on its own, and it is not this one.
+    "alwaysStrict": false,
+
+    // The bundle is esbuild's and targets es2019; this describes the same
+    // language and the same host so `tsc` and the bundler cannot disagree
+    // about what exists. DOM because every checked module is a browser module.
+    "target": "es2019",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2020", "dom", "dom.iterable"],
+
+    // A MOVED FILE'S IMPORTERS SPELL `.ts`, AND `tsc` HAS TO BE TOLD THAT IS
+    // ALLOWED. Node's own ESM resolver does not guess extensions — the
+    // harnesses run `.mjs` files straight with plain `node`, with no bundler
+    // in between — so an importer of a renamed module must write the real
+    // extension or fail at runtime outside the bundle entirely; see
+    // web/card.js, web/versions.js and web/probe.mjs, none of which go
+    // through esbuild. `allowImportingTsExtensions` is safe here and only
+    // here because `noEmit` is already set two lines up — the pairing this
+    // flag requires — so there is no compiled output whose import paths
+    // would need rewriting.
+    "allowImportingTsExtensions": true,
+
+    // NOUNUSEDLOCALS EXISTS BECAUSE THE LINTER STOPPED REACHING THIS CODE.
+    //
+    // Before the conversion, `lint` ran eslint over "*.js" "*.mjs" — the
+    // browser client and the harnesses — and its `no-unused-vars` covered
+    // every module here. All 28 are `.ts` now, eslint's flat config has no
+    // `**/*.ts` block, and the lint script's glob is `*.mjs` alone: the gate
+    // still reports its four standing warnings and looks unchanged, but its
+    // entire product-code population is gone. A check that looks green
+    // because the thing it checked left is this repository's own
+    // most-repeated defect.
+    //
+    // Most of that rule set is subsumed by `strict` — no-undef, no-const-assign
+    // and the no-dupe-* family are all type errors now. `no-unused-vars` is the
+    // one that is not, and this is its equivalent. Deliberately NOT
+    // `noUnusedParameters`: the eslint rule ran with `args: 'none'`, so unused
+    // parameters were never flagged, and turning them on here would be a new
+    // gate wearing a restoration's clothes.
+    //
+    // It found four on the day it was added — an unused `ReviseView` in
+    // entry.ts and three unused type imports across suggestions.ts and
+    // trail.ts, every one introduced by the conversion itself.
+    "noUnusedLocals": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  // wire.d.ts is generated by a GO TEST (internal/serve/wire_test.go) and is
+  // the reason this config exists at all. "*.js" matched the JavaScript this
+  // slice converted and is dropped now that nothing under web/ answers it —
+  // the harnesses stay .mjs, which this glob was never written to reach.
+  "include": ["*.ts", "wire.d.ts"]
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "galley": {
+      "command": "galley",
+      "args": [
+        "channel"
+      ]
+    }
+  }
+}

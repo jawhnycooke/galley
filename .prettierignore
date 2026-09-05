@@ -1,0 +1,17 @@
+# Verbatim text — must stay byte-identical to its canonical source.
+LICENSE.md
+
+# Golden fixtures for the markdown parser's own tests. Reformatting these
+# rewrites the thing under test.
+internal/markdown/testdata/
+
+# Also a fixture, despite living with the specs: TestParse_OpensTheDesignSpec
+# asserts galley's table serialization is a FIXED POINT on this real file —
+# every "|" line must come back byte-identical. prettier and galley disagree
+# on empty table cells (prettier writes "| |", galley writes "|  |"), so
+# formatting this file fails that test.
+docs/superpowers/specs/2026-08-07-editor-redesign-design.md
+
+# Build output and dependencies.
+web/node_modules/
+internal/serve/assets/

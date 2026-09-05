@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>galley — a document two parties revise in rounds</title>
+<meta name="description" content="galley opens a Markdown draft in the browser. You edit it directly and leave instructions on passages; the agent revises the file itself. Every round is a version with a sentence-level diff. Local, one static binary, any agent that can edit a file.">
+<meta property="og:title" content="galley — a document two parties revise in rounds">
+<meta property="og:description" content="Edit the draft, instruct the agent, press Revise. The agent revises the .md file in place; you read what the round changed. Markdown in, Markdown out, no markup on disk.">
+<meta property="og:url" content="https://galley.tools">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="statusbar">
+  <div class="wrap">
+    <div class="sb-left">
+      <a class="sb-brand" href="/"><span class="dot">●</span> <b>galley</b></a>
+      <nav class="sb-nav" aria-label="Site">
+        <a href="/buy/">license</a>
+        <a href="mailto:court@subaud.io">contact</a>
+        <a href="https://muster.tools">muster</a>
+      </nav>
+    </div>
+    <span class="sb-meta">
+      <span class="sb-meta-text">local <span class="dot">·</span> fair core</span>
+      &nbsp; <button class="theme-toggle" id="tt" aria-label="Toggle color theme">theme</button>
+    </span>
+  </div>
+</div>
+
+<nav class="toc" aria-label="Sections">
+  <a href="#top">galley</a>
+  <a href="#for">what it's for</a>
+  <a href="#how">the round</a>
+  <a href="#cli">the cli</a>
+  <a href="#license">licensing</a>
+  <a href="#setup">setup</a>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow">A document two parties revise in rounds</p>
+    <p class="wordmark">
+      <svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect x="6" y="14" width="52" height="6" rx="3" fill="var(--muted)"/>
+        <path d="M 14 54 L 32 26 L 50 54" fill="none" stroke="var(--mark-amber)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      galley<span class="cursor" aria-hidden="true"></span>
+    </p>
+    <h1 class="lede">Edit the draft. Instruct the agent. Read what the round changed.</h1>
+    <p class="sub">
+      <span class="mstr">galley</span> opens a Markdown file in the browser. You make direct
+      edits — they apply immediately — and leave instructions on the passages you want the agent
+      to handle. <b>Revise</b> sends the round. The agent revises the <code>.md</code> file
+      itself; its changes land, they are not proposals. You read the diff, instruct again if
+      you need to, and <b>Approve</b> when it's right. Markdown in, Markdown out,
+      <b>no markup on disk</b>.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="mailto:court@subaud.io">Ask for a build →</a>
+      <a class="btn btn-ghost" href="#license">How licensing works →</a>
+    </div>
+
+    <div class="term" role="figure" aria-label="Terminal transcript of one round: edit, wait, ack.">
+      <div class="term-bar"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="title">~ galley</span></div>
+<pre><span class="c-dim">$</span> galley edit draft.md
+document  draft.md
+serving   <span class="c-you">http://127.0.0.1:51432</span>
+pull      `galley wait draft.md` — waits for Revise
+
+<span class="c-dim">$</span> galley wait draft.md
+<span class="live">●</span> revise   <span class="c-dim">a91f3c</span>
+1 instruction(s) on draft.md
+
+<span class="c-dim">&gt;</span> retries forever with a fixed 2s delay
+  <span class="c-sig">cap it — a budget, and jitter</span><span class="pulse"> ●</span>
+
+<span class="c-dim">$</span> <span class="c-dim">… the agent edits draft.md; every save streams to the browser …</span>
+<span class="c-dim">$</span> galley ack draft.md --state answered --note <span class="c-sig">"12 attempts over 48h, jittered"</span></pre>
+    </div>
+  </div>
+</header>
+
+<section id="for">
+  <div class="wrap">
+    <p class="kicker">what it's for</p>
+    <h2>The draft is the conversation.</h2>
+    <p class="lead">
+      An agent writes a plan, a spec, a PR description. You read it and you have notes. Pasting
+      them into a chat loses the place they belong; hand-editing the file loses the agent. In
+      <span class="mstr">galley</span> the document is where both of you work: you fix what's
+      faster to fix yourself, point at what isn't, and the agent answers by changing the file.
+      <b>A comment is an instruction discharged by the revision</b> — not a thread, not a
+      proposal you then have to accept.
+    </p>
+    <div class="toolgroups">
+      <div class="tg">
+        <h3>direct edits, applied</h3>
+        <p>Retype a sentence, cut a paragraph, fix the heading. Your edits are in the file the
+        moment you make them — <b>no accept, no reject, no suggestion mode</b>.</p>
+      </div>
+      <div class="tg">
+        <h3>instructions on passages</h3>
+        <p>Select a span and say what's wrong with it, or instruct the whole document. Revise
+        sends every instruction at once, <b>each one anchored to the text it's about</b>.</p>
+      </div>
+      <div class="tg">
+        <h3>the agent revises the file</h3>
+        <p>The agent edits the <code class="i">.md</code> with its own tools. While it holds the
+        round galley watches the file and <b>streams every save into your browser</b>; one
+        acknowledgement commits the round.</p>
+      </div>
+      <div class="tg">
+        <h3>every round is a version</h3>
+        <p>Your send is a version; the agent's return is the next. <b>History</b> shows each
+        one beside the instruction that produced it, with a sentence-level diff computed between
+        clean documents — <b>never stored in them</b>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="kicker">the round</p>
+    <h2>One mechanism: commit on send.</h2>
+    <p class="lead">
+      The reviewer holds the document in the browser; the agent holds it as a file. A round is
+      one exchange between them, and both sides of it are clean Markdown. Nothing galley adds
+      while you work — highlights, instruction notes — survives the press of Revise.
+    </p>
+    <div class="rows">
+      <div class="row">
+        <span class="k">revise</span>
+        <span class="d">Pressing <b>Revise</b> commits your version and sends the round: the
+        captured instructions, each with the quoted passage it anchors to.
+        <span class="m">A sent round is no longer pending — what the agent receives is what you
+        sent, not whatever you typed next.</span></span>
+      </div>
+      <div class="row">
+        <span class="k">the agent's turn</span>
+        <span class="d">The agent edits the file directly and saves as often as it likes; each
+        save appears in your browser. <code>galley ack --state answered</code> commits its
+        round, once, for the whole revision. <span class="m">Its changes are applied, not
+        proposed. There is nothing to accept.</span></span>
+      </div>
+      <div class="row">
+        <span class="k">what changed</span>
+        <span class="d">The diff is galley's own, computed between the two versions —
+        sentence-level, so a rewrite reads as one change rather than six fragments, and a typo
+        doesn't light up the paragraph. <span class="m">The agent can annotate a change with which instruction it
+        answers; the list itself is galley's, derived from the documents.</span></span>
+      </div>
+      <div class="row">
+        <span class="k">cannot</span>
+        <span class="d">If an instruction genuinely can't be done, <code>galley cannot --why</code>
+        records a round with the document unchanged. <span class="m">A report, not an argument.
+        You answer it with a different instruction.</span></span>
+      </div>
+      <div class="row">
+        <span class="k">approve</span>
+        <span class="d"><b>Approve</b> ends the review with the document as it stands. Versions
+        live in <code>.galley/versions/</code>, gitignored by default; instructions are recorded
+        in the ledger with the round that carried them.
+        <span class="m">The file on disk is only ever the document.</span></span>
+      </div>
+      <div class="row">
+        <span class="k">any agent</span>
+        <span class="d">Works with anything that can edit a file. <code>galley channel</code> is
+        an MCP server that pushes each Revise into a running session as a channel event
+        (Claude Code, launched with its channel flag);
+        <code>galley wait</code> is the same loop for a shell. <span class="m">Cold start
+        instead? <code>--on-revise</code> spawns a session with
+        <code>galley agent-prompt</code> as its instructions.</span></span>
+      </div>
+    </div>
+    <p class="note">
+      The reading commands — <code>comments</code>, <code>pending</code>, <code>wait</code>,
+      <code>ledger sync · rebuild · stats</code>, <code>license status</code> — speak
+      <code>--json</code>. The agent is whatever you bring; galley never calls a model.
+    </p>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap">
+    <p class="kicker">the cli</p>
+    <h2>Every step of the round is a command.</h2>
+    <div class="adr cliref">
+      <div class="row2">
+        <span class="k">galley edit &lt;doc.md&gt;</span>
+        <span class="d">Open a Markdown document in the browser as the rounds editor. Prints the
+        URL. <code>--on-revise '&lt;cmd&gt;'</code> runs a command when Revise is pressed;
+        <code>--on-settle</code> does the same when a live document goes quiet.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley wait &lt;doc.md&gt;</span>
+        <span class="d">Block until the reviewer sends a round, then print the captured
+        instructions with their quoted passages. <code>--since</code> re-arms from the last
+        fingerprint; <code>--timeout</code> gives up. <span class="m">The agent-side loop for a
+        session that is already in the room.</span></span>
+      </div>
+      <div class="row2">
+        <span class="k">galley pending &lt;doc.md&gt;</span>
+        <span class="d">List the instructions the reviewer has started for the <b>next</b> round —
+        through the running editor when there is one, from the file when there isn't.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley ack &lt;doc.md&gt; --state &lt;s&gt;</span>
+        <span class="d">Return the round: <code>received</code>, <code>working</code>,
+        <code>answered</code>, <code>declined</code>, or <code>failed</code>, with a
+        <code>--note</code> for the reviewer and an optional <code>--changes</code> list
+        naming which change answered which instruction.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley cannot &lt;doc.md&gt; --why "…"</span>
+        <span class="d">Report the one instruction that could not be done. Recorded as a round of
+        its own, document unchanged.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley revise &lt;doc.md&gt;</span>
+        <span class="d">Send the round from the command line — wakes whoever is listening, a
+        waiter or <code>--on-revise</code>. The same thing the button does.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley channel</span>
+        <span class="d">The MCP channel server. Started with the agent session, it attaches to
+        every editor the session opens under <code>--scope</code> and pushes each Revise,
+        settle, and Approve into the session as an event. Exposes <code>galley_ack</code> and
+        <code>galley_channel_status</code> as tools.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley agent-prompt &lt;doc.md&gt;</span>
+        <span class="d">Print the protocol for an agent starting cold — the text to hand a
+        session spawned by <code>--on-revise</code>. Static; galley never calls a model.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley ledger sync · rebuild · stats</span>
+        <span class="d">The memory of the loop. Decisions are logged as they are made;
+        <code>sync</code> brings the per-user index up to date, <code>stats</code> reads it.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley serve &lt;page.html&gt; · comments</span>
+        <span class="d">The older surface: serve a standalone HTML page as a live document and
+        collect comments beside it; <code>comments</code> prints them. Separate from the
+        Markdown rounds editor.</span>
+      </div>
+      <div class="row2">
+        <span class="k">galley version · license</span>
+        <span class="d">The build stamp; <code>license activate &lt;key&gt;</code> and
+        <code>license status</code>.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="license">
+  <div class="wrap">
+    <p class="kicker">licensing</p>
+    <h2>Fourteen days, then one payment.</h2>
+    <p class="lead">
+      <span class="mstr">galley</span> is <a href="https://fcl.dev">Fair Core</a> software
+      (FCL-1.0-ALv2): each release converts to Apache-2.0 two years after it ships. The
+      repository is private today — builds and keys come by mail.
+    </p>
+    <div class="modes">
+      <div class="mode">
+        <p class="t">14-day trial</p>
+        <p>Every build is <b>fully functional for 14 days</b>, stamped the first time you run
+        a licensed command. No key, no sign-up, nothing withheld.</p>
+      </div>
+      <div class="mode">
+        <p class="t">one-time license</p>
+        <p><b>$99</b>, once. <b>12 months of updates</b>. Every release
+        from inside your window keeps working forever — no subscription, no renewal to keep
+        what you have. Refunds are 14 days, no questions asked; <a href="/buy/">the licence page</a>
+        has the terms.</p>
+      </div>
+      <div class="mode">
+        <p class="t">verified offline</p>
+        <p>A key is a signed token your machine checks itself. <b>The binary never talks to a
+        server</b> — not to verify, not to count, not to phone home.</p>
+      </div>
+    </div>
+    <p class="note">
+      The license covers the review loop — <code>serve</code>, <code>comments</code>,
+      <code>edit</code>, <code>pending</code>, <code>cannot</code>, <code>revise</code>,
+      <code>wait</code>, <code>ack</code>. The rest is free for good: <code>agent-prompt</code>,
+      <code>channel</code>, <code>ledger</code>, <code>license</code>, <code>version</code>,
+      <code>help</code>. Only the loop stops when the trial does.
+    </p>
+    <p class="note">
+      Activation is one command: <code>galley license activate &lt;key&gt;</code>.
+      <code>galley license status</code> says where you stand. A license needs
+      <span class="mstr">galley</span> <b>0.4.0 or newer</b> — earlier builds run trial-only, so
+      update before you activate. Keys are minted by hand while the repository is private —
+      there is no checkout yet; mail <a href="mailto:court@subaud.io">court@subaud.io</a> and
+      one comes back.
+    </p>
+    <div class="cta codegap">
+      <a class="btn btn-primary" href="mailto:court@subaud.io">Request a key →</a>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <p class="kicker">setup</p>
+    <h2>One static binary.</h2>
+    <p class="lead">
+      No runtime, no npm, no service. Releases — signed and notarized macOS builds, Linux
+      builds, and the source under Fair Core — are cut and available on request while the
+      repository is private. There is no public download page yet. The 14-day trial in every
+      build is full-featured.
+    </p>
+    <pre class="code"><span class="cm"># macOS / Linux, arm64 &amp; amd64 — one static binary, nothing else to install</span>
+<span class="pr">$</span> galley edit draft.md</pre>
+    <p class="note">
+      Want a key or a build? <a href="mailto:court@subaud.io">court@subaud.io</a>.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <span>© 2026 Court Schuett · <span class="mm">galley.tools</span></span>
+    <span>sister tool: <a href="https://muster.tools">muster.tools</a> · <a href="mailto:court@subaud.io">contact</a> · <a href="/llms.txt">llms.txt</a></span>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+</body>
+</html>
