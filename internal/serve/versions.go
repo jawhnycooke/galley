@@ -546,24 +546,43 @@ type askView struct {
 	Answered bool   `json:"answered"`
 }
 
-// roundViewOf builds the browser's view of one round, everything derivable
-// from the round alone — At, Authors, Reason, Instruction, Answers, Asks. The
-// caller fills in Asked and Changed, which need the rest of the list.
-func roundViewOf(r versions.Round) roundView {
+// roundViewOf builds the browser's view of one round — At, Authors, Reason,
+// Instruction, Answers, Asks. `claimed` is the set of ask keys the agent's
+// changes named, and the caller supplies it because THE ASKS AND THE CHANGES
+// LIVE ON DIFFERENT ROUNDS: a `revise` round carries what the reviewer sent
+// and the `landed` round whose Answers points back at it carries what the
+// agent did. Read off one round alone, no ask was ever answered — which is
+// exactly what the first cut of this did, and every row read `not applied`
+// under a change that had plainly been made. The caller also fills in Asked
+// and Changed, which need the rest of the list.
+func roundViewOf(r versions.Round, claimed map[string]bool) roundView {
 	v := roundView{
 		N: r.N, At: r.At.UTC().Format(time.RFC3339), Authors: versions.Authors(r.Authors),
 		Reason: r.Reason, Instruction: r.Instruction, Answers: r.Answers,
-	}
-	claimed := map[string]bool{}
-	for _, c := range r.Changes {
-		for _, k := range c.Answers {
-			claimed[k] = true
-		}
 	}
 	for _, a := range r.Asks {
 		v.Asks = append(v.Asks, askView{Key: a.Key, Text: a.Text, Quote: a.Quote, Answered: claimed[a.Key]})
 	}
 	return v
+}
+
+
+// claimedAsks is every ask key the changes of the rounds answering round n
+// named — the landed round (or rounds) whose Answers is n. The revise round
+// itself carries no changes, so read there the set is always empty.
+func claimedAsks(rounds []versions.Round, n int) map[string]bool {
+	claimed := map[string]bool{}
+	for _, r := range rounds {
+		if r.Answers != n {
+			continue
+		}
+		for _, c := range r.Changes {
+			for _, k := range c.Answers {
+				claimed[k] = true
+			}
+		}
+	}
+	return claimed
 }
 
 type versionsView struct {
@@ -598,7 +617,7 @@ func (s *EditServer) handleVersions(w http.ResponseWriter, r *http.Request) {
 	}
 	view := versionsView{Doc: s.docName(), Rounds: []roundView{}}
 	for i, x := range rounds {
-		rv := roundViewOf(x)
+		rv := roundViewOf(x, claimedAsks(rounds, x.N))
 		rv.Asked = asked[x.Answers]
 		if i > 0 {
 			rv.Changed = s.changedRegions(rounds[i-1].N, x.N)

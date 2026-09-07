@@ -315,9 +315,19 @@ export const historyMethods = {
       const was = dedupeWas(
         changes.flatMap((c, i) => {
           const index = at[i];
-          return index === null || !c.del
+          // A change that only ADDED words gets no WAS strip — nothing "was"
+          // there — but it still names its block: the block wears the revised
+          // wash, and an ask the change claimed can be pinned under it.
+          return index === null
             ? []
-            : [{ index, was: c.del, note: diff.changes?.[c.k]?.note }];
+            : [
+                {
+                  index,
+                  was: c.del,
+                  note: diff.changes?.[c.k]?.note,
+                  asks: diff.changes?.[c.k]?.asks,
+                },
+              ];
         }),
       );
       for (const w of was) {

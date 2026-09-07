@@ -31,6 +31,9 @@ export interface WasSpec {
   index: number;
   was: string;
   note?: string;
+  /** The asks (by text) the change under this block claimed — the fallback
+   *  address for a sent ask whose own words the agent rewrote. */
+  asks?: string[];
 }
 interface RowsState {
   rows: RowSpec[];
@@ -133,9 +136,11 @@ export function dedupeWas(was: WasSpec[]): WasSpec[] {
   const best = new Map<number, WasSpec>();
   for (const w of was) {
     const now = best.get(w.index);
-    if (!now || w.was.length > now.was.length) {
-      best.set(w.index, w);
-    }
+    // One strip per block, the longest deletion — but every ask any of the
+    // block's changes claimed, so the losing entry's asks still find a row.
+    const asks = [...new Set([...(now?.asks ?? []), ...(w.asks ?? [])])];
+    const keep = !now || w.was.length > now.was.length ? w : now;
+    best.set(w.index, asks.length ? { ...keep, asks } : keep);
   }
   return [...best.values()].sort((a, b) => a.index - b.index);
 }
@@ -218,7 +223,9 @@ function wasDOM(w: WasSpec): HTMLElement {
   const s = document.createElement('s');
   s.textContent = w.was;
   strip.append(eyebrow, s);
-  wrap.append(strip);
+  if (w.was) {
+    wrap.append(strip);
+  }
   if (w.note) {
     const note = document.createElement('div');
     note.className = 'gly-agent-note';
@@ -276,7 +283,7 @@ function build(
   }
   for (const w of s.was) {
     const end = pinAt(doc, w.index);
-    if (end >= 0) {
+    if (end >= 0 && (w.was || w.note)) {
       decos.push(
         Decoration.widget(end, () => wasDOM(w), {
           side: 1,
@@ -401,7 +408,19 @@ function askBlockIndex(shell: AppShell, doc: PMNode, ask: AskView): number {
   const block = thread?.anchorKey
     ? shell.blocks.find((b) => b.key === thread.anchorKey)
     : undefined;
-  return block ? block.index : quoteBlockIndex(doc, ask.quote ?? '');
+  if (block) {
+    return block.index;
+  }
+  const byQuote = quoteBlockIndex(doc, ask.quote ?? '');
+  if (byQuote >= 0) {
+    return byQuote;
+  }
+  // The words the ask was on are gone — usually because the agent did what it
+  // was asked and rewrote them. The change that claimed the ask knows where
+  // it landed; without this an answered ask had no row at all, and the only
+  // rows left were the ones whose words survived, reading `not applied`.
+  const claimed = (shell.arrivalWas ?? []).find((w) => w.asks?.includes(ask.text));
+  return claimed ? claimed.index : -1;
 }
 
 // The word a sent ask's row reads, per spec §2-§4. Exported for probe.mjs:
