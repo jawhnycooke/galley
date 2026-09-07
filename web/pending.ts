@@ -13,7 +13,7 @@
 // `this` IS TYPED AGAINST `AppShell` (web/appshell.ts) — see that file's own
 // header for the this-typing decision this and every other mixin now shares.
 
-import { getJSON } from './net.ts';
+import { getJSON, postJSON } from './net.ts';
 import { runFor, markElement, runTop } from './runs.ts';
 import { flash } from './card.ts';
 import { verdictLabel } from './verdict.ts';
@@ -33,7 +33,7 @@ import type {
   SavedView,
   Thread,
 } from './appshell.ts';
-import type { InstructionView } from './wire';
+import type { InstructionView, ReviewerChange } from './wire';
 
 // instructionsToThreads is refreshPending's wire-shape adaptation, pulled
 // out because it touches no `this` — it is a pure map over exactly the
@@ -59,7 +59,94 @@ function instructionsToThreads(
   }));
 }
 
+// makeRevertFloat builds the one `× revert` pill that follows the pointer over
+// the deletion ghosts. ONE element for every ghost, moved rather than rebuilt,
+// for watchLit's reason at the other end: the ghosts are widget decorations
+// and ProseMirror destroys and remakes them on every redraw, so a button owned
+// by a ghost is a button that will not exist in a moment. It hangs off `body`
+// rather than off the paper because nothing galley draws is ever inserted into
+// `.ProseMirror` by hand — see rows.ts.
+function makeRevertFloat(app: AppShell): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'gly-revert-float';
+  b.textContent = '× revert';
+  b.title = 'revert this edit';
+  b.hidden = true;
+  b.addEventListener('mousedown', (e) => e.preventDefault());
+  b.addEventListener('click', () => {
+    const key = b.dataset.key || '';
+    b.hidden = true;
+    if (!key) {
+      return;
+    }
+    void postJSON('/_galley/revert', { key }).then((res) => {
+      if (res.ok) {
+        return app.refreshPending();
+      }
+      // THE SERVER'S OWN SENTENCE, for revertButton's reason (cards.ts): it
+      // refuses a revert it cannot do exactly, and that reason is the only
+      // thing that says why the words did not come back.
+      return res.text().then((said) => {
+        app.say(said.trim() || 'that edit could not be put back');
+      });
+    });
+  });
+  document.body.appendChild(b);
+  app.revertFloat = b;
+  return b;
+}
+
+// changeKeyFor answers which reviewer change a ghost is part of, by the text
+// that was removed — see ghostEl (trail.ts) for why that is the only handle a
+// ghost has. Exact first, then containment: the server's diff summarises a
+// whole edited run where a ghost is one keystroke's worth of it.
+function changeKeyFor(changes: ReviewerChange[], old: string): string {
+  const exact = changes.find((c) => c.key && (c.before || '') === old);
+  if (exact) {
+    return exact.key || '';
+  }
+  const within = changes.find((c) => c.key && (c.before || '').includes(old));
+  return within ? within.key || '' : '';
+}
+
 export const pendingMethods = {
+  // The `× revert` pill over a deletion ghost. Delegated on the paper for
+  // makeRevertFloat's reason, and bound ONCE — the listener outlives every
+  // redraw of the decorations it is about.
+  watchGhosts(this: AppShell): void {
+    const paper = this.editor.view.dom;
+    paper.addEventListener('mouseover', (e) => {
+      const ghost = (e.target as Element | null)?.closest<HTMLElement>(
+        '.gly-trail-ghost[data-old]',
+      );
+      if (!ghost) {
+        return;
+      }
+      const key = changeKeyFor(this.changes, ghost.dataset.old || '');
+      if (!key) {
+        // Nothing to revert THROUGH: the server has not diffed this keystroke
+        // into a change yet. No pill rather than a pill that does nothing.
+        return;
+      }
+      const btn = this.revertFloat ?? makeRevertFloat(this);
+      const r = ghost.getBoundingClientRect();
+      btn.style.top = `${r.top + window.scrollY - 22}px`;
+      btn.style.left = `${r.right + window.scrollX + 4}px`;
+      btn.dataset.key = key;
+      btn.hidden = false;
+    });
+    paper.addEventListener('mouseleave', (e) => {
+      // Unless the pointer went TO the pill — it is a `body` child sitting
+      // over the paper's own edge, so reaching for it leaves the paper, and
+      // hiding it there would be a button that cannot be pressed.
+      if (!this.revertFloat || e.relatedTarget === this.revertFloat) {
+        return;
+      }
+      this.revertFloat.hidden = true;
+    });
+  },
+
   // tick watches the two things the server can tell us that the websocket
   // cannot: when the projection last reached DISK, and when something rewrote
   // the file underneath us.
@@ -163,6 +250,12 @@ export const pendingMethods = {
         this.paintRevise();
         this.paintHold();
         this.paintRail();
+        // The rows are the anchored half of that same list, pinned inside the
+        // paper instead of beside it — see web/rows.ts. After paintRail for
+        // one reason only: they are painted from the same three fields it was
+        // (`comments`, `blocks`, the phase), so a single order keeps the rail
+        // and the rows from ever disagreeing about one poll.
+        this.paintRows();
         // An OPEN conversation is redrawn from the same fresh list every other
         // surface was just painted from — otherwise a reply the reviewer sent
         // from the bubble lands in the file and never appears in the only copy

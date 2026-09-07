@@ -146,6 +146,8 @@ import * as timeline from './timeline.ts';
 import type { TimelineUI } from './timeline.ts';
 import * as frame from './frame.ts';
 import type { FrameUI } from './frame.ts';
+import { rowMethods, rowsPlugin } from './rows.ts';
+import type { WasSpec } from './rows.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
@@ -540,6 +542,19 @@ function trailMode(getBlocks: () => BlockRef[]) {
   });
 }
 
+// The rows: the plugin that pins each instruction under the block it is about,
+// and tints that block. onRemove is handed in for suggestionMode's reason —
+// the App whose × deletes the instruction does not exist until the Editor
+// this extension is part of has been constructed. See rows.ts.
+function rowsMode(onRemove: (key: string) => void) {
+  return Extension.create({
+    name: 'galleyRows',
+    addProseMirrorPlugins() {
+      return [rowsPlugin(onRemove)];
+    },
+  });
+}
+
 // --- the app ---
 
 // The shell's own global contract: `edit.html`'s load handler calls
@@ -657,6 +672,11 @@ function init(opts?: { room?: string; wsURL?: string }): void {
       }),
       trailMode(() => (app ? app.blocks : [])),
       litMode(),
+      rowsMode((key) => {
+        if (app) {
+          app.removeInstruction(key);
+        }
+      }),
       // PAGE MODE ONLY: quiet the `⟦ shell N ⟧` marker paragraphs. A node
       // decoration restyles them inert (hidden via CSS, contenteditable=false
       // so the caret skips them) while leaving the nodes — and content.md —
@@ -887,6 +907,9 @@ class App implements AppState {
   theme: ThemeChoice;
   themeButton: HTMLButtonElement | null;
   readoutDot: HTMLSpanElement | null;
+  appliedKeys: Set<string> | null;
+  arrivalWas: WasSpec[] | null;
+  revertFloat: HTMLButtonElement | null;
 
   // --- fields private to this file's own methods (lit-run highlighting,
   //     the caret-restoring rebuild, run memoisation) — no mixin reads any
@@ -1105,6 +1128,11 @@ class App implements AppState {
     // Built lazily by makeReadoutDot on the first paintReadout — see
     // web/bar.ts.
     this.readoutDot = null;
+    // The arrival's news, absent until a round lands — see web/rows.ts. The
+    // revert pill is built lazily on the first hover over a ghost.
+    this.appliedKeys = null;
+    this.arrivalWas = null;
+    this.revertFloat = null;
     // Hold's state has to exist before makeMode paints the button.
     this.holding = false;
     this.held = new Set();
@@ -1206,6 +1234,8 @@ class App implements AppState {
     this.litHover = '';
     this.litFocus = '';
     this.watchLit();
+    // The `× revert` pill over a deletion ghost — see web/pending.ts.
+    this.watchGhosts();
     this.refusalTimer = 0;
     this.refusalTick = 0;
     this.refusalPending = null;
@@ -2477,6 +2507,10 @@ Object.assign(App.prototype, {
 // The one derived phase — see web/phase.ts's own header for why it is never
 // stored.
 Object.assign(App.prototype, { phase });
+// The rows pinned inside the paper — see web/rows.ts — mixed in for the same
+// reason. Only the `this`-bound half; the plugin and its pure `blockEnd` are
+// imported by name above.
+Object.assign(App.prototype, rowMethods);
 
 // A DECLARATION, NOT A CHECK — see this file's own header and
 // web/appshell.ts's for the whole argument. Every member of AppMethods

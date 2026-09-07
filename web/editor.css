@@ -721,6 +721,8 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   text-decoration-thickness: 1px;
   user-select: none;
   margin-right: 0.3em;
+  /* It offers a revert on hover now — see watchGhosts (web/pending.ts). */
+  cursor: pointer;
 }
 /* (0,3,0) against the resting rule's (0,2,0), so it wins outright rather than
    on source order — the trap this stylesheet records more than any other. */
@@ -4177,3 +4179,41 @@ main { padding-bottom: 220px; }
    recedes while one is being written — the selection composer's own dimming,
    asked on the other scope. Paint only: opacity takes no space. */
 body.gly-doc-composing .ProseMirror > * { opacity: .35; transition: opacity .3s; }
+
+/* --- the rows pinned inside the paper (web/rows.ts) ---
+
+   Every one of these paints a DECORATION, never an element this codebase put
+   into `.ProseMirror` by hand — see rows.ts's own header for why that
+   distinction is the whole design and not a style choice.
+
+   The tint is on the block ITSELF (a node decoration), so it follows the
+   paragraph as the reviewer edits it and needs no measuring pass. The negative
+   margins pull the wash out to the column's own edge without moving the text
+   inside it — a click that marks a block must not reflow the words under the
+   caret (the bar rule, asked of the paper). */
+.ProseMirror > .gly-marked { background: var(--gly-coral-fill); border-radius: 6px; padding: 8px 12px; margin-left: -12px; margin-right: -12px; transition: background .3s; }
+body.gly-cannot .ProseMirror > .gly-marked { background: var(--gly-coral-fill-deep); }
+body.gly-revising .ProseMirror > .gly-marked { background: var(--gly-accent-fill-16); outline: 1.5px dashed var(--gly-dashed); }
+.ProseMirror > .gly-revised { background: var(--gly-accent-fill-18); border-radius: 6px; padding: 8px 12px; margin-left: -12px; margin-right: -12px; animation: gly-glow 1.2s ease-out 1; }
+@keyframes gly-glow { 0% { box-shadow: 0 0 0 0 rgba(214, 255, 61, .5); } 100% { box-shadow: 0 0 0 18px rgba(214, 255, 61, 0); } }
+
+/* The instruction itself, under the block it is about. `user-select: none`
+   because it is a readout inside editable prose and a selection dragged
+   through the paragraph must not pick it up. */
+.gly-row { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; font: 14px/1.4 var(--gly-sans); color: var(--gly-fg); background: var(--gly-bg); border-radius: 8px; padding: 8px 12px; animation: rise .25s ease; user-select: none; }
+.gly-row-arrow, .gly-row-state { font: 11px var(--gly-mono); color: var(--gly-coral); white-space: nowrap; }
+.gly-row[data-tone="accent"] .gly-row-arrow, .gly-row[data-tone="accent"] .gly-row-state { color: var(--gly-accent); }
+.gly-row-text { flex: 1; min-width: 0; }
+.gly-row-remove { background: none; border: 0; color: var(--gly-muted); cursor: pointer; font-size: 16px; padding: 0 2px; }
+.gly-row-remove:hover { color: var(--gly-coral); }
+/* Nothing is removable while the agent is holding the round. */
+body.gly-revising .gly-row-remove { display: none; }
+
+/* The pill that offers a deletion back. Absolute in DOCUMENT coordinates, like
+   the gutter grips, so scrolling moves it with the ghost it names. */
+.gly-revert-float { position: absolute; z-index: 20; background: var(--gly-bg); color: var(--gly-muted); border: 1px solid var(--gly-line); border-radius: 999px; padding: 2px 8px; font: 11px var(--gly-mono); cursor: pointer; }
+.gly-revert-float:hover { color: var(--gly-coral); border-color: var(--gly-coral); }
+
+/* A marked fence carries no wash — its panel already has one — so it says the
+   same thing with its own edge. */
+.ProseMirror pre.gly-marked { outline: 2px solid rgba(255, 92, 57, .6); background: var(--gly-fence); }

@@ -33,6 +33,11 @@ import type { BlockRef, Region } from './wire';
 // so this places the button clear of the text without leaving the column.
 const GRIP_GUTTER_PX = 26;
 
+// The fence's `{}` sits FURTHER out than the section's §, because a fence is
+// drawn as a filled panel with its own padding where a heading is bare text:
+// the same 26px puts the button on the panel's own edge. 40 clears it.
+const CODE_GRIP_GUTTER_PX = 40;
+
 // A `.gly-figure` element, carrying the block it is currently armed for.
 // `__glyBlock` is read at CLICK time rather than bind time (see armFigure),
 // so it has to live on the element itself rather than in the closure that
@@ -321,7 +326,7 @@ export const figureMethods = {
       grip.hidden = true;
       return;
     }
-    seatGrip(grip, preEl, pos);
+    seatGrip(grip, preEl, pos, CODE_GRIP_GUTTER_PX);
   },
 
   // openCodeBlockComposer selects the whole fence and opens the composer on it
@@ -569,11 +574,16 @@ function makeGripButton(
 // scrolling moves it with its block for free. That is not a micro-optimisation:
 // §2 forbids per-frame reflow, and a fixed-position grip would need re-measuring
 // on every scroll frame to stay beside the block it names.
-function seatGrip(grip: HTMLButtonElement, el: HTMLElement, pos: number) {
+function seatGrip(
+  grip: HTMLButtonElement,
+  el: HTMLElement,
+  pos: number,
+  gutter: number = GRIP_GUTTER_PX,
+) {
   const box = el.getBoundingClientRect();
   grip.dataset.pos = String(pos);
   grip.style.top = `${box.top + window.scrollY}px`;
-  grip.style.left = `${box.left + window.scrollX - GRIP_GUTTER_PX}px`;
+  grip.style.left = `${box.left + window.scrollX - gutter}px`;
   grip.hidden = false;
 }
 

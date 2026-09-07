@@ -133,6 +133,7 @@ import type { ThemeChoice } from './theme.ts';
 import type { Phase } from './phase.ts';
 import type { TimelineUI } from './timeline.ts';
 import type { FrameUI } from './frame.ts';
+import type { WasSpec } from './rows.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -483,6 +484,18 @@ export interface AppState {
   // Built lazily, on the first paintReadout, by makeReadoutDot — genuinely
   // absent until then, so `null` rather than a definite-assignment lie.
   readoutDot: HTMLSpanElement | null;
+
+  // --- the pinned rows inside the paper (web/rows.ts) ---
+  // Which instructions the last round actually applied, and what each revised
+  // block used to say. Both are the ARRIVAL's news rather than the pending
+  // view's, so both start genuinely absent — `null`, not an empty list, which
+  // would claim "the round applied nothing" before a round has landed. Task 11
+  // fills them.
+  appliedKeys: Set<string> | null;
+  arrivalWas: WasSpec[] | null;
+  // The `× revert` pill that follows the pointer over a deletion ghost. Built
+  // lazily on the first hover, like readoutDot above.
+  revertFloat: HTMLButtonElement | null;
 }
 
 // THE METHODS ARRIVE AT RUNTIME, WHICH IS WHY THEY ARE A SEPARATE INTERFACE.
@@ -513,6 +526,7 @@ export interface AppMethods {
   pulseCensus(): void;
   readRevise(): void;
   refreshPending(): Promise<void>;
+  watchGhosts(): void;
   reconcileRunSets(
     arrived: ArrivalItem[],
     resolved: (string | undefined)[],
@@ -735,6 +749,10 @@ export interface AppMethods {
 
   // --- the one derived phase (web/phase.ts) ---
   phase(): Phase;
+
+  // --- the pinned rows inside the paper (web/rows.ts) ---
+  paintRows(): void;
+  removeInstruction(key: string): void;
 }
 
 // What a mixin method's `this` is: both halves together.

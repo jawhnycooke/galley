@@ -47,6 +47,16 @@ import type { AppShell, Thread, ThreadEntry, Placement } from './appshell.ts';
 import type { ReviewerChange } from './wire';
 import type { EditorView } from '@tiptap/pm/view';
 
+// AN ANCHORED INSTRUCTION IS PINNED UNDER ITS BLOCK NOW, NOT BESIDE IT — see
+// web/rows.ts, where the same thread is drawn as a widget decoration inside
+// the paper. The rail keeps the ANCHORLESS ones (and the reviewer's own edits),
+// because those have nowhere in the document to sit.
+//
+// Written as a constant rather than as a deletion so this pass stays
+// reviewable: the branch it guards is the rail placement exactly as it was,
+// and Task 14 removes both when the rail itself goes.
+const ROWS_INLINE = true;
+
 // How long the delete control stays armed after its first click. Long enough
 // to read what it now says and press it again; short enough that a card left
 // armed and forgotten is not a trap for whatever the next click was for.
@@ -919,6 +929,20 @@ export const cardMethods = {
       const place = threadPlacement(thread, this.blocks);
       if (place.where === 'anchorless') {
         unplaced.push(this.threadCard(thread, place));
+        continue;
+      }
+      // NOT BUILT AT ALL, rather than built and left unplaced: a rail card is
+      // `position: absolute` inside the band, so a card the anchor pass never
+      // writes a `top` onto is not an invisible card — it is a card drawn on
+      // top of every other one at the band's own origin. See ROWS_INLINE.
+      //
+      // AND ONLY THE BLOCK-ANCHORED ONES. A row is pinned under a top-level
+      // block, which is what `anchorKey` names — and a RANGE instruction has
+      // none (internal/review/doc.go: Anchor/AnchorKey say what a thread is
+      // about "when that is not a range of prose"), so paintRows draws no row
+      // for one. Dropping it here as well would be an instruction with no
+      // surface at all: pending on the server, invisible on the page.
+      if (ROWS_INLINE && place.where === 'block') {
         continue;
       }
       band.appendChild(this.threadCard(thread, place));

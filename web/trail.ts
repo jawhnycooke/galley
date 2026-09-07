@@ -1835,6 +1835,16 @@ function ghostEl(old: string, tight: boolean): () => HTMLSpanElement {
       : 'gly-trail-ghost';
     el.setAttribute('aria-hidden', 'true');
     el.textContent = old;
+    // WHAT WAS REMOVED, NOT WHICH CHANGE IT WAS. The hover offers a `× revert`
+    // pill (see pending.ts) and `/_galley/revert` takes a change KEY — which
+    // no trail entry carries: a `ReviewerChange.key` is a hash of the SERVER's
+    // diff of the whole document (internal/serve/livechanges.go's changeKey),
+    // and an entry is one keystroke run of the reviewer's, recorded before any
+    // poll has been round. So the removed text rides here and the pill's
+    // handler asks `this.changes` which change contains it — a content match,
+    // which is the same identity the server's own key is derived from.
+    el.dataset.old = old;
+    el.title = 'your deletion · click × to revert';
     return el;
   };
 }

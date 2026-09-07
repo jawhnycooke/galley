@@ -8620,6 +8620,21 @@ function bindsContentField(src) {
   );
 }
 
+// --- rows.ts ---
+{
+  const { blockEnd } = await import('./rows.ts');
+  const doc = { childCount: 3, child: (i) => ({ nodeSize: [10, 20, 30][i] }) };
+  check(
+    'blockEnd: end of the first block is its size minus the closing token',
+    blockEnd(doc, 0) === 9,
+  );
+  check(
+    'blockEnd: later blocks add the earlier sizes',
+    blockEnd(doc, 1) === 29 && blockEnd(doc, 2) === 59,
+  );
+  check('blockEnd: out of range is -1', blockEnd(doc, 3) === -1);
+}
+
 // --- verdict menu copy ---
 {
   const v = await import('./verdict.ts');
