@@ -86,19 +86,29 @@ function blockRange(doc: PMNode, index: number): [number, number] | null {
 // inserted (a pure deletion) is looked up by what it removed instead, which is
 // still in the block for as long as the region is only part of it.
 //
-// THE PROBE HAS A FLOOR, AND IT IS 20 CHARACTERS. A short fragment is not
-// distinctive, it is COMMON: a twelve-character deletion (`, this skill`)
-// matched the document's frontmatter block by substring and hung a WAS strip
-// full of the wrong prose at the top of the paper. Twenty characters of real
-// prose picks out one block or none, and "none" is the honest answer — the
-// strip is an enrichment, and a missing one costs the reviewer nothing while a
-// wrong one tells them the agent changed something it never touched.
+// THE PROBE HAS A FLOOR, AND THE FLOOR IS DIFFERENT FOR THE TWO KINDS.
+//
+// An INSERTION probe is words the agent has just written INTO this document.
+// They are distinctive by construction — nothing else on the page says them,
+// because they did not exist a version ago — so eight characters of them is
+// already an answer.
+//
+// A DELETION-ONLY probe is the opposite. The words are GONE from the version on
+// screen, so a match is a match on some OTHER block that happens to contain the
+// same run of characters — and a short one is not distinctive, it is COMMON: a
+// twelve-character deletion (`, this skill`) matched the document's frontmatter
+// and hung a WAS strip full of the wrong prose at the top of the paper. Twenty
+// characters of real prose picks out one block or none, and "none" is the
+// honest answer here: the strip is an enrichment, and a missing one costs the
+// reviewer nothing while a wrong one tells them the agent changed something it
+// never touched.
 //
 // AND ONE WAS PER BLOCK. A round that edits three phrases in one paragraph
 // renders three regions, all matching that paragraph, and three strips stacked
 // under it read as three separate rewrites of the same words. The longest
 // deletion is kept because it is the one that shows most of what was there.
-export const PROBE_MIN = 20;
+export const PROBE_MIN_INS = 8;
+export const PROBE_MIN_DEL = 20;
 export const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 export function matchBlocks(
   changes: { ins: string; del: string }[],
@@ -106,8 +116,9 @@ export function matchBlocks(
 ): (number | null)[] {
   const bs = blocks.map(norm);
   return changes.map((c) => {
-    const probe = norm(c.ins).slice(0, 40) || norm(c.del).slice(0, 40);
-    if (probe.length < PROBE_MIN) {
+    const ins = norm(c.ins).slice(0, 40);
+    const probe = ins || norm(c.del).slice(0, 40);
+    if (probe.length < (ins ? PROBE_MIN_INS : PROBE_MIN_DEL)) {
       return null;
     }
     const i = bs.findIndex((b) => b.includes(probe));
@@ -139,8 +150,10 @@ export function quoteBlockIndex(
   doc: { childCount: number; child(i: number): { textContent: string } },
   quote: string,
 ): number {
+  // The deletion floor, for the deletion reason: a quote is words that are
+  // still in the paper, so a short one matches whatever else says them.
   const probe = norm(quote).slice(0, 40);
-  if (probe.length < PROBE_MIN) {
+  if (probe.length < PROBE_MIN_DEL) {
     return -1;
   }
   for (let i = 0; i < doc.childCount; i++) {

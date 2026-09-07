@@ -147,46 +147,45 @@ export function stackCards<T extends { anchorTop: number; height: number }>(
 // line was answering, and CLAUDE.md's entry for why a line could not.
 
 /**
- * railSurfaces decides which of the three surfaces render, and is the ONLY
- * place that decision is made.
+ * railSurfaces decides which surfaces render, and is the ONLY place that
+ * decision is made.
  *
- * ONE SURFACE, ONE STATE. Rendering the rail and the sheet together is the bug
- * this function exists to make impossible, and it is still impossible: the
- * sheet WINS wherever it is open, and the rail is not painted underneath it.
- * `collapsed` comes back out because narrow FORCES it — the caller must paint
- * the collapsed layout without having to re-derive why.
+ * THERE IS NO RAIL LEFT TO DECIDE ABOUT, and this function keeps its name
+ * because it is still the one width authority — every surface asks it rather
+ * than spelling `window.innerWidth >=` for itself. The margin column is gone
+ * (Task 9): an instruction with a place in the document is a ROW pinned under
+ * its block, one about the whole document is a row in the sheet's dashed slot,
+ * and there is no third surface beside the prose for either to also be on.
+ * `rail` came out of the answer rather than being left as a key nothing sets,
+ * because a `false` a caller can still branch on is how a deleted surface stays
+ * alive in the code that used to paint it.
  *
- * THE SHEET IS NOT A NARROW-ONLY SURFACE ANY MORE, and that is this function's
- * one real change. It used to answer `sheet: false` at every width at or above
- * RAIL_MIN_WIDTH, which was correct while the rail carried a settled region of
- * its own: the sheet was the narrow layout's REPLACEMENT for the rail, so it
- * only had to exist where the rail did not. The rail holds live work only now
- * (the 2026-08-16 spec) and settled conversations live in the sheet — so a
- * sheet reachable only below 992px would put `↺ reopen`, the sole way back from
- * a mis-clicked `✓ resolve`, out of reach of every desktop reviewer. That is
- * "a resolved thread may never be invisible-but-present" arriving through the
- * opposite door from the one it was first measured at (layers §7b′, which was
- * written when the SHEET was the surface with no settled region).
+ * `collapsed` IS NOW UNCONDITIONAL, and it is the same statement in layout: it
+ * means "nothing is beside the paper, so `main` recentres on the document's own
+ * measure" (`body.gly-collapsed > main`). It used to be forced only below the
+ * breakpoint, where there was no room for a rail; above it the paper sat off
+ * centre to leave the column free. It comes back out of this function rather
+ * than being written by the caller because the caller must paint the collapsed
+ * layout without re-deriving why.
  *
- * It is the review's whole list at every width, and it is reached the same way
- * at every width: the census count, which is a button.
+ * THE SHEET IS NOT A NARROW-ONLY SURFACE, and that is the one distinction
+ * left: it is the review's whole list at every width — settled conversations
+ * included, which is the sole way back from a mis-clicked `✓ resolve` — and it
+ * is reached the same way at every width, through the census count. Below the
+ * breakpoint the bottom bar renders as well, because that is the width with no
+ * room for the footer's own controls.
  */
 export function railSurfaces({
   width,
-  collapsed,
   sheetOpen,
 }: {
   width: number;
-  collapsed?: boolean;
   sheetOpen?: boolean;
-}): { rail: boolean; bar: boolean; sheet: boolean; collapsed: boolean } {
+}): { bar: boolean; sheet: boolean; collapsed: boolean } {
   if (width < RAIL_MIN_WIDTH) {
-    return { rail: false, bar: true, sheet: !!sheetOpen, collapsed: true };
+    return { bar: true, sheet: !!sheetOpen, collapsed: true };
   }
-  if (sheetOpen) {
-    return { rail: false, bar: false, sheet: true, collapsed: !!collapsed };
-  }
-  return { rail: !collapsed, bar: false, sheet: false, collapsed: !!collapsed };
+  return { bar: false, sheet: !!sheetOpen, collapsed: true };
 }
 
 /**

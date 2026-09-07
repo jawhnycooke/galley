@@ -186,15 +186,12 @@ export const figureMethods = {
   // A pin cannot "reveal" the way a mark does — there is no run and no span to
   // scroll to, and the figure is already on screen or the pin could not have
   // been clicked. What the reviewer wants is the other end of the pairing: WHICH
-  // card is this. So the card is scrolled into the rail's view and rung.
-  // WHICHEVER SURFACE IS ON SCREEN, not the rail. This looked the card up in
-  // `this.rail.root` alone and returned in silence when it was not there — so
-  // below the breakpoint, where the card is in the sheet, a figure's pin
-  // carried a tooltip promising a conversation and did nothing when tapped.
-  // The sheet is asked FIRST and only while it is open, for the same reason
-  // draftRoots puts it first: it renders the rail's threads too, so the two
-  // surfaces hold cards under the same key and the answer has to be the one
-  // the reviewer is looking at.
+  // card is this. So the card is scrolled into view and rung.
+  //
+  // THE SHEET IS THE ONLY SURFACE THAT HOLDS ONE. This asked the rail first and
+  // returned in silence when the card was not there, which is how a figure's
+  // pin below the breakpoint carried a tooltip promising a conversation and did
+  // nothing when tapped; the rail is deleted, so the sheet is the whole answer.
   //
   // And when the sheet is CLOSED below the breakpoint the pin opens it, because
   // "nothing happened" is the defect and a surface one tap away is not the same
@@ -209,8 +206,7 @@ export const figureMethods = {
     if (this.surfaces().bar && !this.sheetOpen) {
       this.openSheet();
     }
-    const el =
-      (this.surfaces().sheet && find(this.sheet.body)) || find(this.rail.root);
+    const el = this.surfaces().sheet ? find(this.sheet.body) : undefined;
     if (!el) {
       return;
     }

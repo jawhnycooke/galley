@@ -351,7 +351,10 @@ export const pendingMethods = {
     const runs = this.runsNow();
     const viewport = {
       height: window.innerHeight || document.documentElement.clientHeight || 0,
-      railVisible: !this.rail.root.hidden,
+      // The rail is deleted; an arrival's card, when it has one, is in the
+      // sheet. `false` rather than the field, so the viewport question this
+      // shape asks is answered honestly rather than by a surface that is gone.
+      railVisible: false,
     };
 
     const unseen: ArrivalItem[] = [];

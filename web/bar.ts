@@ -134,16 +134,41 @@ export function nextMode(mode: Mode): Mode {
   return mode === MODE_LIVE ? MODE_ASK : MODE_LIVE;
 }
 
-/** makeReadoutDot builds the one small dot that opens `.gly-status` and
- * caches it on the App — a single element, built once and repainted, never
- * rebuilt, like every other piece of the bar's own chrome. */
+/** makeReadoutDot builds the one small dot that opens `.gly-status`, AND THE
+ * SPAN THE SENTENCE IS WRITTEN INTO — which is why they are one function.
+ *
+ * The dot was inserted `afterbegin` of `#gly-status` and then never rendered,
+ * on any state, because every branch of `paintReadout` writes
+ * `status.textContent`: assigning `textContent` REPLACES every child, so the
+ * dot was removed by the next paint and the App went on holding a detached
+ * element it kept re-tinting. A cached node with no parent is invisible in
+ * exactly the way a stylesheet cannot show you.
+ *
+ * So the readout has two children — the dot, and a span for the words — and
+ * nothing ever writes text into `#gly-status` itself. `readoutText` is where
+ * `paintReadout` writes, and the dot is beside it rather than inside the string
+ * it keeps rewriting. */
 function makeReadoutDot(app: AppShell): HTMLSpanElement {
+  const readout = document.getElementById('gly-status');
   const dot = document.createElement('span');
   dot.className = 'gly-dot';
-  const readout = document.querySelector('.gly-bar .gly-status');
-  readout?.insertAdjacentElement('afterbegin', dot);
+  const text = document.createElement('span');
+  text.className = 'gly-status-text';
+  // Whatever the shell rendered into the readout before this ran is the first
+  // sentence, and it moves into the span rather than being dropped.
+  text.textContent = readout?.textContent ?? '';
+  readout?.replaceChildren(dot, text);
   app.readoutDot = dot;
+  app.readoutText = text;
   return dot;
+}
+
+/** The span `paintReadout` writes into — built with the dot, above. */
+function readoutText(app: AppShell): HTMLElement {
+  if (!app.readoutText) {
+    makeReadoutDot(app);
+  }
+  return app.readoutText ?? app.status;
 }
 
 export const barMethods = {
@@ -251,6 +276,7 @@ export const barMethods = {
     // ahead of the text, rather than duplicated into every return path.
     const dot = this.readoutDot ?? makeReadoutDot(this);
     dot.dataset.tone = dotFor(this.phase(), this.pendingCount);
+    const line = readoutText(this);
     // A VERSION SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
     // in one clause so the mode can never be mistaken for the draft. The whole
     // fixed grammar below — the phase, the connection, the save age — is about
@@ -263,13 +289,13 @@ export const barMethods = {
       // round anybody had, and both halves of every exchange — so counting it
       // would put the readout ahead of the keyframes under it. See roundCards.
       const n = roundCards(this.versionsPanel.rounds).length;
-      this.status.textContent = `${n} ${n === 1 ? 'round' : 'rounds'} · draft is untouched`;
+      line.textContent = `${n} ${n === 1 ? 'round' : 'rounds'} · draft is untouched`;
       this.status.title =
         'an earlier version is read-only — nothing here changes the draft';
       return;
     }
     if (this.sealed) {
-      this.status.textContent = this.said;
+      line.textContent = this.said;
       this.status.title = '';
       return;
     }
@@ -302,12 +328,21 @@ export const barMethods = {
       // a live session than a socket state is.
       parts.push('connected');
     }
+    // YOUR EDITS APPLY, AND THE READOUT SAYS SO WHILE THERE ARE ANY (spec §1).
+    // A hand edit lands in the document immediately — there is no accept step
+    // and no draft copy — and the one place that was ever stated was this
+    // cell's `title`, which appears on hover, after a second, and never on
+    // touch. It is a clause now, and only while it is TRUE: with nothing
+    // changed it would be a promise about work that does not exist.
+    if (this.changes.length > 0) {
+      parts.push('your edits apply');
+    }
     if (this.handoff && this.draftError) {
       // The one case the fixed grammar cannot state: the agent's save is on
       // disk and NOT on this page, and silence there reads as a lost save.
       parts.push(HANDOFF_NOTE_HELD);
     }
-    this.status.textContent = parts.join(' · ');
+    line.textContent = parts.join(' · ');
     // The full sentence, always, because the cell is allowed to lose the end of
     // it. This is the title the untracked cell used to carry, moved with it.
     this.status.title =
@@ -347,7 +382,6 @@ export const barMethods = {
   // already carrying conversations — and two spellings of the same width test
   // is exactly how the two come to disagree about which surface owns a thread.
   surfaces(this: AppShell): {
-    rail: boolean;
     bar: boolean;
     sheet: boolean;
     collapsed: boolean;
@@ -361,7 +395,6 @@ export const barMethods = {
   paintSurfaces(this: AppShell) {
     const s = this.surfaces();
     const history = !this.atHead();
-    this.rail.root.hidden = history || !s.rail;
     this.bar.root.hidden = history || !s.bar;
     this.sheet.root.hidden = history || !s.sheet;
     // Below the breakpoint `railSurfaces` forces `collapsed` regardless of any
@@ -378,16 +411,15 @@ export const barMethods = {
     // the clause it writes is unchanged there and the readout's box does not
     // move — which is what motion.mjs holds.
     this.paintReadout();
-    if (s.rail) {
-      // Hidden cards measure zero, so anything painted while collapsed has to
-      // be re-measured the moment the rail comes back.
-      this.scheduleAnchors();
-    } else {
-      // THE CARD GOES WITH THE COLUMN IT IS IN. The capture card is a child of
-      // the rail and positioned against the window at the moment it opened; a
-      // rail that has just been hidden takes it off screen with it, and leaving
-      // it "open" would mean the next width change put a half-typed instruction
-      // back at coordinates measured for a window that no longer exists.
+    // THE CARD GOES WITH THE COLUMN IT IS IN, and there is no column any more.
+    // The capture card used to be a child of the rail, positioned against the
+    // window at the moment it opened, so a width change that hid the rail took
+    // it off screen with it — and leaving it "open" meant the next resize put a
+    // half-typed instruction back at coordinates measured for a window that no
+    // longer existed. It is in the sheet's dashed slot now, in flow, so the
+    // coordinates cannot go stale; the close stays because a resize is still a
+    // layout the reviewer did not ask the composer to survive.
+    if (!s.sheet) {
       this.closeCapture();
     }
     // The bar's capture door is dead exactly where its card has nowhere to

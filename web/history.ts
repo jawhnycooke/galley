@@ -97,16 +97,18 @@ export const historyMethods = {
     if (!this.captureBtn) {
       return;
     }
-    const dead =
-      !!this.sealed || !this.atHead();
+    const dead = !!this.sealed || !this.atHead();
     this.captureBtn.disabled = dead;
     this.captureBtn.title = dead
       ? 'this is a version being read, not the draft being written'
       : 'write an instruction about the document as a whole';
   },
 
-  // THE INSTRUCTIONS DOOR OPENS THE SURFACE THAT EXISTS AT THIS WIDTH, and for
-  // a whole phase below the breakpoint it opened nothing at all.
+  // THE INSTRUCTIONS DOOR OPENS THE SHEET, AT EVERY WIDTH. It used to open the
+  // rail above the breakpoint and the sheet below it, and for a whole phase
+  // below the breakpoint it opened nothing at all — the paragraphs below are
+  // that defect's record. The rail is deleted; the sheet is the review's whole
+  // list at every width, so there is one surface for this door to open.
   //
   // Measured on the built binary at 620×900, before this line existed: the
   // click was DELIVERED (`elementFromPoint` at the control's centre returned
@@ -117,25 +119,14 @@ export const historyMethods = {
   // nothing, which is worse than one that refuses, because the reviewer
   // concludes there is nothing behind it.
   //
-  // The cause is these two lines read against `railSurfaces`. Below
-  // RAIL_MIN_WIDTH there IS no rail — the sheet is the review's whole list down
-  // there — and `sheetOpen = false` is precisely the state in which nothing is
-  // painted. The old shape was correct while `▤` was the narrow door to the
-  // sheet and this was the door to the rail; retiring the icon (makeBottomBar)
-  // makes this the only door, so it has to open whichever surface the width
-  // actually has.
-  //
-  // ONE WIDTH TEST, ASKED THROUGH THE ONE ACCESSOR. `this.surfaces()` is
-  // `railSurfaces` with the state as it now stands, so `rail` here means
-  // exactly "is this a width with a rail" — a second `window.innerWidth >=`
-  // spelled in this method is how the two would come to disagree about which
-  // surface owns the instructions.
+  // The cause was a `sheetOpen = false` on a width whose only surface was the
+  // sheet. There is no width test left to get wrong: this door opens the sheet
+  // and `railSurfaces` decides, once, whether the bottom bar renders under it.
   openInstructions(this: AppShell) {
     if (this.versionsPanel.open) {
       this.versionsPanel.hide();
     }
-    this.sheetOpen = false;
-    this.sheetOpen = !this.surfaces().rail;
+    this.sheetOpen = true;
     this.paintSheet();
     this.paintSurfaces();
   },

@@ -4447,105 +4447,62 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
 }
 
 {
-  // ONE SURFACE, TWO STATES. This is the invariant the whole narrow layout
+  // ONE SURFACE, ONE STATE. This is the invariant the whole narrow layout
   // rests on, so it is asserted directly rather than inferred from the CSS.
-  const wide = railSurfaces({
-    width: 1400,
-    collapsed: false,
-    sheetOpen: false,
-  });
+  //
+  // THE RAIL IS DELETED AND EVERY `rail` CLAUSE WENT WITH IT — nine of them, on
+  // a key `railSurfaces` no longer returns: `a wide viewport gets the rail and
+  // nothing else`, `collapsing hides the rail without summoning the sheet`,
+  // `and the rail is not painted underneath it`, `the sheet never renders
+  // beside the rail`, `rail and sheet cannot both be true at any width…` and
+  // the `rail === true` half of the boundary check. Their subject is gone, and
+  // what they were really protecting — the sheet is reachable at every width,
+  // and the boundary is where the BOTTOM BAR appears — is asserted below over
+  // the shape that ships.
+  const wide = railSurfaces({ width: 1400, sheetOpen: false });
   check(
-    'a wide viewport gets the rail and nothing else',
-    wide.rail && !wide.bar && !wide.sheet,
+    'a wide viewport paints neither the bottom bar nor the sheet',
+    !wide.bar && !wide.sheet,
     wide,
   );
-
-  const collapsed = railSurfaces({
-    width: 1400,
-    collapsed: true,
-    sheetOpen: false,
-  });
+  // NOTHING IS BESIDE THE PAPER AT ANY WIDTH, which is what `collapsed` means:
+  // `main` recentres on the document's own measure. It used to be forced only
+  // below the breakpoint, where there was no room for a rail.
   check(
-    'collapsing hides the rail without summoning the sheet',
-    !collapsed.rail && !collapsed.bar && !collapsed.sheet,
-    collapsed,
+    'every width is collapsed now — there is no column beside the paper',
+    [400, 800, 991, RAIL_MIN_WIDTH, 1400, 2000].every(
+      (width) =>
+        railSurfaces({ width, sheetOpen: false }).collapsed === true &&
+        railSurfaces({ width, sheetOpen: true }).collapsed === true,
+    ),
   );
 
-  // THE SHEET IS THE REVIEW'S LIST AT EVERY WIDTH, and this is the check that
-  // had to change. It used to read `sheet === false` at 1400 whatever
-  // `sheetOpen` said — correct while the sheet was the rail's REPLACEMENT for
-  // the widths the rail does not exist at, and a straight regression the moment
-  // settled and anchorless conversations moved into it: `↺ reopen` is the only
-  // way back from a mis-clicked `✓ resolve`, and it would have lived on a
-  // surface no desktop reviewer could open. Run red against the tracked build
-  // it reports `{rail: true, sheet: false}`.
-  const wideSheet = railSurfaces({
-    width: 1400,
-    collapsed: false,
-    sheetOpen: true,
-  });
+  // THE SHEET IS THE REVIEW'S LIST AT EVERY WIDTH. It used to read `false` at
+  // 1400 whatever `sheetOpen` said — correct while the sheet was the rail's
+  // REPLACEMENT for the widths the rail does not exist at, and a straight
+  // regression the moment settled and anchorless conversations moved into it:
+  // `↺ reopen` is the only way back from a mis-clicked `✓ resolve`.
   check(
-    'a wide viewport can open the sheet — the settled conversations live there now',
-    wideSheet.sheet === true,
-    wideSheet,
-  );
-  // AND THE RAIL GOES WHEN IT DOES. One surface, one state: the invariant
-  // below is not weakened by the sheet becoming reachable, it is enforced from
-  // the other side.
-  check(
-    'and the rail is not painted underneath it',
-    wideSheet.rail === false,
-    wideSheet,
+    'the sheet opens at every width — the settled conversations live there',
+    [400, 800, 991, RAIL_MIN_WIDTH, 1400, 2000].every(
+      (width) => railSurfaces({ width, sheetOpen: true }).sheet === true,
+    ),
   );
 
-  const narrow = railSurfaces({
-    width: 800,
-    collapsed: false,
-    sheetOpen: false,
-  });
+  const narrow = railSurfaces({ width: 800, sheetOpen: false });
   check(
-    'a narrow viewport forces collapse and shows the bottom bar',
-    !narrow.rail && narrow.bar && narrow.collapsed === true,
+    'a narrow viewport shows the bottom bar',
+    narrow.bar && narrow.collapsed === true,
     narrow,
   );
 
-  const sheet = railSurfaces({ width: 800, collapsed: false, sheetOpen: true });
-  check(
-    'the sheet never renders beside the rail',
-    sheet.sheet === true && sheet.rail === false,
-    sheet,
-  );
-
-  // ONE SURFACE, ONE STATE — stated over every combination rather than over the
-  // one that used to be unreachable. This is the invariant railSurfaces exists
-  // for and it survives the sheet becoming a wide-screen surface unchanged.
-  const every = [];
-  for (const width of [800, 991, RAIL_MIN_WIDTH, 1400]) {
-    for (const collapsed of [false, true]) {
-      for (const sheetOpen of [false, true]) {
-        every.push({
-          at: { width, collapsed, sheetOpen },
-          got: railSurfaces({ width, collapsed, sheetOpen }),
-        });
-      }
-    }
-  }
-  check(
-    'rail and sheet cannot both be true at any width, collapse or sheet state',
-    every.every((e) => !(e.got.rail && e.got.sheet)),
-    every.filter((e) => e.got.rail && e.got.sheet),
-  );
-
-  // The boundary is 992 INCLUSIVE of the rail — the handoff's "wide (>=992px)".
+  // The boundary is 992: at and above it the footer carries the controls, and
+  // below it the bottom bar does — the handoff's "wide (>=992px)".
   check(
     'the surface boundary is exactly RAIL_MIN_WIDTH',
-    railSurfaces({ width: RAIL_MIN_WIDTH, collapsed: false, sheetOpen: false })
-      .rail === true &&
-      railSurfaces({
-        width: RAIL_MIN_WIDTH - 1,
-        collapsed: false,
-        sheetOpen: false,
-      }).bar === true,
+    railSurfaces({ width: RAIL_MIN_WIDTH, sheetOpen: false }).bar === false &&
+      railSurfaces({ width: RAIL_MIN_WIDTH - 1, sheetOpen: false }).bar ===
+        true,
   );
 }
 
@@ -7107,9 +7064,15 @@ function bindsContentField(src) {
       // the sheet's dashed slot now.
     }
 
+    // THE RAIL IS DELETED, AND THE BUNDLE IS WHERE THAT IS ASSERTED. Its root
+    // and its two regions are the ones a stray builder could put back without a
+    // source reader noticing, which is what this file's absence checks are for.
     check(
-      'the built bundle carries the instruction rail',
-      src.includes('gly-rail') && src.includes('gly-card'),
+      'the built bundle has no rail left in it — no root, no band, no notice',
+      !src.includes('gly-rail-band') &&
+        !src.includes('gly-rail-notice') &&
+        !src.includes("'gly-rail'") &&
+        src.includes('gly-card'),
     );
     // AND NOT ONE OF THE FIVE MECHANISMS THAT MANAGED ITS OVERFLOW. Dimming was
     // struck from this design once, came back bounded by a cap, and is now gone
@@ -7127,28 +7090,24 @@ function bindsContentField(src) {
         !src.includes('gly-fold-more') &&
         !src.includes('and 1 more '),
     );
-    // AND NOTHING REPLACED THEM. The rail was four sections — anchored cards,
-    // anchorless, settled, changed — and it is the map and a notice. Each of
-    // the three left for its own reason (see makeRail), and this asserts the
-    // ABSENCE, because a bundle is the one place a section can come back
-    // without a source reader noticing. Run red against the tracked bundle it
-    // reports `gly-rail-anchorless` and `gly-rail-settled` both present.
+    // AND NOTHING REPLACED THEM. The rail's four sections — anchored cards,
+    // anchorless, settled, changed — each left for its own reason, and the last
+    // two of them are asserted absent here because a bundle is the one place a
+    // section can come back without a source reader noticing.
     check(
-      'the built bundle has one section after the map, and it is a notice',
-      src.includes('gly-rail-notice') &&
-        !src.includes('gly-rail-anchorless') &&
-        !src.includes('gly-rail-settled'),
+      'the built bundle has no anchorless or settled rail section',
+      !src.includes('gly-rail-anchorless') && !src.includes('gly-rail-settled'),
     );
-    // THE EMPTY RAIL TEACHES, AND THE SETTLED NOTICE IT REPLACED IS ASSERTED
-    // ABSENT. An Approve-faced primary already says the document is settled, so
-    // the notice was a second, quieter voice for it; what a cold-open page
-    // never said is how to ask for a change at all. Run red against the tracked
-    // bundle it reports the old sentence present and the new one missing.
+    // THE TEACH CARD IS GONE WITH THE COLUMN IT TAUGHT FROM. It said `HOW THIS
+    // WORKS — select any words in the document to ask for a change` in a dashed
+    // card at the right of every cold-open page, on a design with no right-hand
+    // column; the slot's own empty line and the `?` sheet say it where the
+    // reviewer is looking. The settled notice it once replaced stays absent —
+    // an Approve-faced primary already says the document is settled.
     check(
-      'the built bundle carries the teaching empty state, and not the settled notice',
-      src.includes('Select any words in the document to ask for a change.') &&
-        src.includes('go to the agent as one round.') &&
-        src.includes('gly-rail-teach') &&
+      'the built bundle carries neither the teach card nor the settled notice',
+      !src.includes('Select any words in the document to ask for a change.') &&
+        !src.includes('gly-rail-teach') &&
         !src.includes('nothing pending — the document is settled'),
     );
     // §2.2: the whole-document instruction is a card in the rail and nothing
@@ -7171,12 +7130,14 @@ function bindsContentField(src) {
         src.includes("op:'edit'") ||
         src.includes('op: "edit"'),
     );
-    // An instruction whose highlight disappeared remains a full card in the
-    // rail; it is not replaced by copy pointing at the removed sheet.
+    // An instruction whose highlight disappeared remains a full card; it is not
+    // replaced by copy pointing at a removed surface. It renders in the SLOT
+    // now, and the class is named for the surface it is on.
     check(
-      'the built bundle keeps unplaced instructions in the rail',
+      'the built bundle keeps unplaced instructions, in the doc slot',
       src.includes('its words were removed') &&
-        src.includes('gly-rail-unplaced'),
+        src.includes('gly-docslot-unplaced') &&
+        !src.includes('gly-rail-unplaced'),
     );
 
     check(
@@ -7553,34 +7514,13 @@ function bindsContentField(src) {
       /\.gly-lit\{[^}]*background:var\(--gly-lit-bg/.test(css) &&
         (css.match(/--gly-lit-bg:/g) || []).length === 3,
     );
-    // THE RAIL IS NOT FIXED, AND IT STILL STARTS AT THE BAR'S MEASURED FOOT.
-    // Read off the built stylesheet for the reason above, and asserted as two
-    // halves that are easy to think are one. ABSOLUTE is what makes it scroll
-    // with the prose. `top` is a SEPARATE question, and this check used to
-    // require the bar's height be ABSENT from the rule — on the reasoning that
-    // a sticky bar is in flow, so a rail at the page's top begins below it for
-    // free. That is true of a flow sibling and false of an out-of-flow box:
-    // absolute positioning against the initial containing block put `top: 0` at
-    // document y 0, under the opaque bar, and everything paintAnchors did not
-    // place by hand was drawn there (see §10a of layers.mjs). The offset is
-    // back and it is MEASURED — a constant is what the fold made wrong, in the
-    // other direction.
-    //
-    // AND THE OFFSET NOW CARRIES A SECOND TERM, WHICH IS ONE NUMBER WITH
-    // HISTORY'S. The rail begins at the bar's measured foot PLUS the reserved
-    // sub-bar row (`--gly-rail-top`), because History's rail hangs off the same
-    // token — before that the two columns jumped 64px apart on a mode switch,
-    // measured 52.2 against 116.2 at 1440. The bar's measured height is still
-    // required to be in there: that is the half a constant got wrong when the
-    // bar folded, and it is a different claim from the row being reserved.
-    check(
-      'the built stylesheet has the rail scrolling with the document, from the bar’s measured foot',
-      /\.gly-rail\{[^}]*position:absolute/.test(css) &&
-        /\.gly-rail\{[^}]*top:calc\(var\(--gly-bar-h[^}]*var\(--gly-rail-top/.test(
-          css,
-        ) &&
-        !/\.gly-rail\{[^}]*position:fixed/.test(css),
-    );
+    // THE RAIL'S POSITIONING CHECK IS RETIRED WITH THE RAIL. It asserted
+    // `.gly-rail { position: absolute; top: calc(var(--gly-bar-h) + …) }` and
+    // no `position: fixed` — that the margin column scrolled with the prose and
+    // began at the bar's MEASURED foot rather than a constant one a folded bar
+    // made wrong. There is no `.gly-rail`; nothing is beside the paper. The
+    // token it hung off, `--gly-rail-top`, is still where the PROSE starts and
+    // is still asserted, below.
     // AND THE TOKEN IT HANGS OFF IS STILL DECLARED. History's rail was the
     // second column that had to agree with this one; it is deleted, so that
     // half of the check is retired and what remains is the number itself —
@@ -7776,32 +7716,21 @@ function bindsContentField(src) {
       bundle.includes('ResizeObserver') && /gly-bar["']\)/.test(bundle),
     );
     // AND OPENING IT FLOWS IN THE PANEL AND RE-FLOORS THE CARDS, WHICH IS THE
-    // FOURTH ANSWER THIS CHECK HAS HAD.
-    //
-    // It first asserted *opening it no longer schedules a re-measure*, sound
-    // while the panel was chrome floating off the bar: no mark moved. Then the
-    // panel became the rail's first card, directly above `.gly-rail-band`, so
-    // opening it moved the BAND rather than the marks — and `paintAnchors`
-    // writes every card as a band-LOCAL top, so the map went 55.59px stale with
-    // the old proxy still green; it was inverted to demand the re-measure. Then
-    // the card became `position: absolute` and left the flow, so it moved
-    // nothing and the check demanded it place itself against `chromeFrame` and
-    // schedule no repaint.
-    //
-    // The card is back in the flow now, ON PURPOSE — a child of the
-    // whole-document panel, so it reads as one of the cards rather than a
-    // shadowed box floating over them, which is what Court reported. Opening it
-    // moves the band, so the map has to re-floor, and the 39.29px staleness the
-    // in-flow version had before is answered by the repaint rather than by
-    // fleeing the flow. `openCapture` is read for the two things that make the
-    // new contract true: it does NOT write a `top` (it is flowed, not placed)
-    // and it DOES call `scheduleAnchors` (the repaint that re-floors the
-    // anchored cards on their marks). The pixels themselves are rounds-ux.mjs's
-    // before/after comparison of every card in the band.
+    // FOURTH ANSWER THIS CHECK HAS HAD, and the fifth is that there is no
+    // question left. It asserted, in turn: opening the capture card schedules
+    // no re-measure; it DOES schedule one, because the card is the rail's first
+    // and moves the band under every card's band-local top; it places itself
+    // against `chromeFrame` and schedules none, because it left the flow; and
+    // it flows in the panel and re-floors the cards. Every one of those was
+    // about a positioned card map that the card's own height moved. The rail is
+    // deleted: the capture card is in the sheet's dashed slot, in flow, with
+    // nothing positioned against a mark to go stale, and `scheduleAnchors` and
+    // `paintAnchors` are gone with it. The claim that survives — the card does
+    // not place itself by hand — is asserted here.
     check(
-      'opening capture flows in the panel and re-floors the cards',
-      /openCapture\([^)]*\)\{[\s\S]{0,600}?scheduleAnchors/.test(bundle) &&
-        !/openCapture\([^)]*\)\{[\s\S]{0,600}?style\.top=/.test(bundle),
+      'opening capture flows in the slot and places nothing by hand',
+      !/openCapture\([^)]*\)\{[\s\S]{0,600}?style\.top=/.test(bundle) &&
+        !bundle.includes('scheduleAnchors'),
     );
 
     // Revise is the second, and the only one that keeps changing after the
@@ -8387,9 +8316,8 @@ function bindsContentField(src) {
 
 // --- arrival matching ---
 {
-  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN } = await import(
-    './rows.ts'
-  );
+  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN_DEL } =
+    await import('./rows.ts');
   const blocks = [
     'Intro paragraph.',
     'A long, structured research document covering everything.',
@@ -8413,14 +8341,30 @@ function bindsContentField(src) {
   check('matchBlocks: unmatched is null', m[1] === null, m);
   check(
     'matchBlocks: an empty insertion matches by deletion text',
-    matchBlocks([{ ins: '', del: 'Closing, and this skill is where' }], blocks)[0] ===
-      2,
+    matchBlocks(
+      [{ ins: '', del: 'Closing, and this skill is where' }],
+      blocks,
+    )[0] === 2,
   );
   // THE FLOOR IS THE WHOLE POINT: `, this skill` is twelve characters and it
   // occurs inside the third block AND inside anything else that says it. On the
   // real document a fragment that short matched the FRONTMATTER and hung a WAS
   // strip full of the wrong prose at the top of the paper.
-  check('matchBlocks: a short probe is refused, not guessed', PROBE_MIN === 20);
+  check(
+    'matchBlocks: a short DELETION probe is refused, not guessed',
+    PROBE_MIN_DEL === 20,
+  );
+  // AND AN INSERTION PROBE IS NOT HELD TO IT. The agent's new words did not
+  // exist a version ago, so they are distinctive at a fraction of the length —
+  // a 19-character insertion is a real change, and refusing it would drop the
+  // WAS strip off the one block that moved.
+  check(
+    'matchBlocks: a 19-char insertion still finds its block',
+    matchBlocks(
+      [{ ins: 'structured research', del: 'a long structured doc' }],
+      blocks,
+    )[0] === 1,
+  );
   check(
     'matchBlocks: a 12-char deletion matches nothing',
     matchBlocks([{ ins: '', del: ', this skill' }], blocks)[0] === null,

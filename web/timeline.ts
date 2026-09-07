@@ -291,8 +291,23 @@ export function forgetVersionHTML(n: number): void {
 // what retires the 119px jump at its source: before makeTimeline runs `scrubT`
 // is still 1 while `scrubMax()` already answers the record's length, so the
 // arithmetic alone reads "reading v1" on any document with more than one round.
+// AND IT IS ASKED AGAINST THE MAXIMUM THE FOOTER WAS DRAWN WITH, not only the
+// live one. A round landing moves the head: `scrubMax()` answers 4 the instant
+// the versions poll returns, while `scrubT` still holds the 3 that WAS the head
+// until `paintTimeline` runs — so for one tick every surface would have read
+// "the reviewer is reading v3" over a page showing the draft, and the readout
+// did: `2 rounds · draft is untouched` where the arrival line belonged.
+// `ui.max` is the same memory `paintTimeline` follows the head by, so the two
+// cannot disagree; the `scrubState` clause is what answers a drag mid-track,
+// where `scrubT` is fractional.
 export function atHead(this: AppShell): boolean {
-  return !this.timeline || scrubState(this.scrubT, this.scrubMax()).atHead;
+  const ui = this.timeline;
+  if (!ui) {
+    return true;
+  }
+  return (
+    this.scrubT >= ui.max || scrubState(this.scrubT, this.scrubMax()).atHead
+  );
 }
 
 // The ticket every scrubTo takes, so a late fetch can tell whether the handle

@@ -772,7 +772,13 @@ export const verdictMethods = {
     // And the refusal, for the same reason: a marked block's tint deepens
     // when the agent has said it cannot — editor.css's
     // `body.gly-cannot .ProseMirror > .gly-marked`.
-    document.body.classList.toggle('gly-cannot', phase === 'cannot');
+    // `gly-phase-cannot`, NOT `gly-cannot`. The banner element in the frame is
+    // `.gly-cannot` (frame.ts), so one name meant two things one selector apart
+    // — and the near miss is already recorded in this stylesheet, where the
+    // banner's own rule had to be scoped `.gly-frame > .gly-cannot` so a bare
+    // one would not turn `body` into a coral grid. Two names, and the next
+    // unscoped rule cannot make that mistake.
+    document.body.classList.toggle('gly-phase-cannot', phase === 'cannot');
     // The rows' state words (`queued`, `writing…`, `not applied`) follow the
     // phase, so they are repainted wherever the phase is — not only on the
     // pending poll that builds the list.

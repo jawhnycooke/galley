@@ -25,15 +25,15 @@ Do **not** poll `galley wait` to find out whether a review started. If no editor
 
 ## What the reviewer does, so you can tell them
 
-**They will ask you this, and the answer is not in the browser.** galley opens onto a document with no instructions, and every gesture below is discoverable only by trying it. The page teaches one sentence in an empty rail — *"Select any words in the document to ask for a change. Your instructions collect here, then go to the agent as one round"* — and that is the whole of the onboarding. Say the rest when they ask, and use these words, because they are the product's own.
+**They will ask you this, and the answer is only half in the browser.** galley opens onto a document with no instructions. The empty slot above the paper says *"Select words to instruct that block, or add an instruction on the whole document"*, and the `?` beside it lists the five gestures; the rest is discoverable only by trying it. Say it when they ask, and use these words, because they are the product's own.
 
-**Asking for a change.** Select the words, right-click, add an instruction — it hangs on that passage. Right-click with nothing selected and the instruction is on the whole document. `+ Instruction` in the bar does the same thing without the selection. There is no mode to switch: what is selected when the menu opens decides the scope.
+**Asking for a change.** Select the words and the instruction box opens on the selection — type it, press Enter, and it pins as a row under that block. The dashed row above the paper, `+ instruction on the whole document`, is for anything without a place in the text; right-click offers both, and what is selected when the menu opens decides which. There is no mode to switch.
 
-**Editing by hand.** Their typing applies directly. There is nothing to accept and nothing to propose — if a word is easier to fix than to explain, they fix it. Each hand edit collects in the rail beside their instructions, with a `revert` on it if they change their mind.
+**Editing by hand.** Their typing applies directly. There is nothing to accept and nothing to propose — if a word is easier to fix than to explain, they fix it. A deletion leaves a struck-through ghost with a `× revert` on it until the round is sent; the footer counts the edits beside the Revise button.
 
-**The rail is one list.** Instructions and hand edits both, in the right-hand column: everything that will reach you on the next round, and nothing else. It is not a history — `History` in the bar is, and every round is a version there with its own diff.
+**Everything pending is on the page itself.** An instruction is a row under the block it is about, a hand edit is a mark in the prose. There is no side list: what will reach you on the next round is what is drawn in the document. The record is the timeline in the footer — one keyframe per round, and dragging it reads any earlier version.
 
-**Sending.** `Revise` sends the round to you. `Revise & Approve` sends it and approves in the same press, for the last few nits they trust you to land without another look. `Approve` alone ends the review with the document as it stands.
+**Sending.** The primary button sits in the footer, at the right of the timeline. `Revise · N ▾` sends the round to you. `Revise & Approve` sends it and approves in the same press, for the last few nits they trust you to land without another look. `Approve` alone ends the review with the document as it stands.
 
 **Then it arrives here.** They do not have to tell you they pressed it — a round reaches this session on its own.
 

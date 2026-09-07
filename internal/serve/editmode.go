@@ -1043,6 +1043,34 @@ func (s *EditServer) onlyThisRoom(next http.Handler) http.Handler {
 	})
 }
 
+// displayDir is the document's directory as the header prints it: the real
+// path, with the reviewer's home abbreviated to `~`.
+//
+// IT USED TO BE `filepath.Rel` AGAINST THE WORKING DIRECTORY, and on the
+// ordinary case — galley started in the directory the document is in — that
+// answers `.`, which the header rendered as the literal `..` beside the
+// filename. A relative path is the right answer for a terminal, where the
+// reader already knows where they are standing; the header is read in a
+// browser, often hours later, and what it has to say is WHICH document this
+// is. `~` is the one abbreviation that shortens the common case without
+// hiding anything: it is unambiguous, and it is what the reviewer's own shell
+// prints.
+func displayDir(mdPath string) string {
+	dir := filepath.Dir(mdPath)
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return dir
+	}
+	if dir == home {
+		return "~"
+	}
+	// The separator matters: `/home/bo` must not abbreviate `/home/bob/docs`.
+	if strings.HasPrefix(dir, home+string(filepath.Separator)) {
+		return "~" + dir[len(home):]
+	}
+	return dir
+}
+
 func (s *EditServer) handleEditRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		s.serveSibling(w, r)
@@ -1053,12 +1081,7 @@ func (s *EditServer) handleEditRoot(w http.ResponseWriter, r *http.Request) {
 	if s.pageMode {
 		previewURL = "/_galley/preview/" + s.previewRel
 	}
-	docPath := filepath.Dir(s.MdPath)
-	if wd, err := os.Getwd(); err == nil {
-		if rel, err := filepath.Rel(wd, docPath); err == nil {
-			docPath = rel
-		}
-	}
+	docPath := displayDir(s.MdPath)
 	if err := editShell.Execute(&buf, struct {
 		Title      string
 		Path       string

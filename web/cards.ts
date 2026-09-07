@@ -17,16 +17,7 @@
 // draftRoots STAYS in entry.ts — it reads `this.overall.root` off the
 // live instance, which the shared prototype makes safe from any module.
 
-import {
-  cardShell,
-  cardBody,
-  revealOn,
-  revealMark,
-  placeCards,
-  setStackHeight,
-  anchorNote,
-} from './card.ts';
-import { runFor, runTop } from './runs.ts';
+import { cardShell, revealOn, revealMark } from './card.ts';
 import { postJSON } from './net.ts';
 import { age } from './suggestions.ts';
 import {
@@ -98,29 +89,16 @@ export interface CaptureCard {
 // handed. paintRailCards keeps the ordering and the conditions under which
 // each is used; only the construction moved.
 
-// THE EMPTY RAIL TEACHES, AND THE NOTICE IT REPLACED WAS A SECOND VOICE.
-// `nothing pending — the document is settled` said what an Approve-faced
-// primary now states outright a few inches up, in the one slot the
-// reviewer's eye is already on. What nothing on a cold-open page said is
-// how to ask for anything at all — which is the whole gesture the product
-// is built around, and it was discoverable only by trying it. One dashed
-// card, board 1a, in the margin's own anatomy.
-function teachCard(): HTMLElement {
-  const { el: teach, head: teachHead } = cardShell('gly-rail-teach');
-  teachHead.textContent = 'how this works';
-  cardBody(teach).textContent =
-    'Select any words in the document to ask for a change. ' +
-    'Your instructions collect here, then go to the agent as one round.';
-  return teach;
-}
+// `teachCard` IS DELETED — see paintRailCards' empty branch for why the
+// cold-open sentence has no card of its own any more.
 
-// An empty rail with work outstanding needs a reason, or it reads as a
-// broken panel. §11 fixes no copy for this state — it did not exist when
-// the spec was written — so the sentence is the plainest true one, and it
-// names the control that ends it.
+// A slot with work outstanding and nothing in it needs a reason, or it reads as
+// a broken panel. §11 fixes no copy for this state — it did not exist when the
+// spec was written — so the sentence is the plainest true one, and it names the
+// control that ends it.
 function heldArrivalsNotice(held: number): HTMLElement {
   const holding = document.createElement('div');
-  holding.className = 'gly-card gly-settled';
+  holding.className = 'gly-card gly-settled gly-docslot-held';
   holding.textContent =
     held === 1
       ? '1 arrival held — ▶ release shows it'
@@ -140,9 +118,12 @@ function heldArrivalsNotice(held: number): HTMLElement {
 
 function unplacedSection(unplaced: HTMLElement[]): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'gly-rail-unplaced';
+  // NAMED FOR THE SURFACE IT IS ON. It was `.gly-rail-unplaced` and it renders
+  // in the sheet's whole-document slot — a rail name on a slot surface is how
+  // the next reader goes looking for a column that does not exist.
+  section.className = 'gly-docslot-unplaced';
   const head = document.createElement('div');
-  head.className = 'gly-rail-unplaced-head';
+  head.className = 'gly-docslot-unplaced-head';
   head.textContent = unplacedSaid(unplaced.length);
   section.append(head, ...unplaced);
   return section;
@@ -227,130 +208,18 @@ export const cardMethods = {
     this.cardSizes.unwatch();
   },
 
-  // paintAnchors puts every card beside its own mark.
+  // paintAnchors AND setBandHeight ARE DELETED WITH THE RAIL. Between them
+  // they were the placement pass: read every card's mark with `coordsAtPos`,
+  // read every card's height, hand both to `placeCards`, and write the band's
+  // own height so its absolutely positioned children held it up. Every line of
+  // it wrote into `this.rail.band`, and there is no band — an instruction with
+  // a place in the document is a ROW pinned under its block now (web/rows.ts),
+  // which ProseMirror positions, and the only cards left are anchorless ones,
+  // which are in flow in the sheet's slot and have never had coordinates.
   //
-  // THE COORDINATES ARE THE DOCUMENT'S, and that is the whole of this change.
-  // The rail used to be `position: fixed`, so a card's top was a VIEWPORT
-  // number and the pass had to run on every scroll frame to keep a card next to
-  // text that had moved under it — while everything that would not fit in one
-  // window was clipped, clamped, dimmed or capped by the five mechanisms that
-  // existed to manage the overflow. The rail is as tall as the document now, so
-  // `window.scrollY` is added to every measurement ONCE, here, and a card's
-  // position is a fact about the page rather than about the window: scrolling
-  // changes nothing this function computes, and a card is beside its text by
-  // the document's own scroll.
-  //
-  // READS FIRST, THEN WRITES. coordsAtPos and getBoundingClientRect both force
-  // layout and every style assignment invalidates it, so interleaving them turns
-  // one reflow per frame into one per card.
-  //
-  // IT WRITES ONE SIZE, AND IT IS NOT A CARD'S. CLAUDE.md's rule for this
-  // function is that it writes `top` and nothing else, so the ResizeObserver in
-  // `cardSizes` — which schedules THIS pass — cannot feed itself. The band's own
-  // height is the exception and it is safe for a stated reason: the observer
-  // watches CARDS, and a card is `position: absolute` with `left: 26px; right:
-  // 0` inside the band, so its box depends on the band's WIDTH and never on its
-  // height. Nothing else here may grow a size write; a card's is still the
-  // forbidden one.
-  paintAnchors(this: AppShell) {
-    const { band } = this.rail;
-    if (this.cards.length === 0) {
-      // Nothing to hold up the band. Written rather than left: the band keeps
-      // whatever height the last paint gave it, and a rail whose cards have all
-      // been decided would otherwise carry a column of empty air above the
-      // sections at its end.
-      this.setBandHeight(0);
-      return;
-    }
-    const runs = this.runsNow();
-
-    // The page offset, read ONCE for the whole pass. Every measurement below is
-    // in viewport coordinates and every number the stacker works in is the
-    // document's; taking the offset per card would mix two frames' worth of
-    // scroll into one layout if the page moved mid-pass.
-    const scrollY = window.scrollY;
-    // The band's own top, in the same document coordinates. Every card is
-    // `position: absolute` INSIDE the band, so its `top` is band-local — writing
-    // a document coordinate straight in would put every card one band-offset too
-    // low, which reads as a rail that is subtly, uniformly wrong rather than as a
-    // bug. Measured per paint and not cached: the band moves whenever anything
-    // above it in the page does.
-    const bandTop = band.getBoundingClientRect().top + scrollY;
-
-    const measured = this.cards.map((card) => {
-      // A card is anchored to a MARK or to a BLOCK, and the two are measured
-      // differently — a mark through the position its run starts at, a block
-      // through the element rendering it. Only the first existed when this was
-      // written, which is how a figure thread ended up in the anchorless
-      // region, screens from the figure it was about.
-      const seen =
-        card.blockIndex >= 0
-          ? blockTop(this.editor.view, card.blockIndex, card.region)
-          : runTop(
-              this.editor.view,
-              // `card` carries no raw `suggestion` — it is built from a
-              // Thread, never from a SuggestionLike — so runFor's loose-peer
-              // fallback is given `null` explicitly rather than an absent
-              // field runFor's own signature requires. Same shape entry.ts's
-              // reveal() already uses for the identical reason.
-              runFor(runs, { run: card.run, suggestion: null }),
-            );
-      return {
-        card,
-        run: card.run,
-        anchorTop: seen === null ? null : seen + scrollY,
-        // getBoundingClientRect, not offsetHeight: offsetHeight is rounded to a
-        // whole pixel, and a stack of cards each reported half a pixel short is
-        // a stack that overlaps by the rounding. The gap absorbs it either way;
-        // measuring the number that is actually laid out costs nothing.
-        height: card.el.getBoundingClientRect().height,
-      };
-    });
-
-    for (const m of measured) {
-      // No run and no block: the server is reporting a suggestion this document
-      // does not show yet — the projection ran before the websocket caught up.
-      // There is nothing to point at, so the card says so instead of pointing
-      // somewhere arbitrary. It lights nothing either, and that needs no rule:
-      // a card is adrift exactly when its mark is NOT in the document, so
-      // `markRuns` finds nothing to light. The old *a card that cannot point
-      // must not be drawn pointing* refusal is moot with the line it guarded.
-      m.card.el.classList.toggle('gly-adrift', m.anchorTop === null);
-      if (m.anchorTop === null) {
-        anchorNote(m.card.el).textContent =
-          'not in the document yet — it lands on the next sync';
-      }
-    }
-
-    // NO FOLD, AND ONE CEILING: THE BAND'S OWN TOP. A card goes where its mark
-    // is, and the two things that may move it are another card already there
-    // and the top of the band itself — because the whole-document instruction
-    // is pinned above the band now, and a card placed at a mark in the first
-    // paragraph would otherwise be placed ABOVE the band and drawn over it. See
-    // stackCards, which carries the measurement.
-    //
-    // AND THE PASS IS SHARED WITH HISTORY'S RAIL — see placeCards in card.ts,
-    // which is where the sort, the gap, the adrift tail and the one compared
-    // size write live now. It used to be these forty lines and a second copy of
-    // them in versions.ts, with five accidental differences between the two.
-    placeCards(
-      band,
-      measured.map((m) => ({
-        el: m.card.el,
-        anchorTop: m.anchorTop,
-        height: m.height,
-      })),
-      bandTop,
-    );
-  },
-
-  // setBandHeight is `setStackHeight` over the band, named here because two
-  // call sites want it without a placement pass: the empty case above, and
-  // nothing else. It compares before it writes for the reason stated there —
-  // this runs on every scroll frame.
-  setBandHeight(this: AppShell, px: number) {
-    setStackHeight(this.rail.band, px);
-  },
+  // The scroll and resize listeners that drove it went with it (entry.ts), as
+  // did `scheduleAnchors`. `stackCards` and `placeCards` stay: History's
+  // version rail is the other caller and still measures its own column.
 
   // bubbleThreadCard is the fifth wearing of the one card: the rail's band, the
   // whole-document panel, the settled list, the sheet, and now a conversation
@@ -588,11 +457,6 @@ export const cardMethods = {
     // instruction is about all of them, so it dims all of them. Paint only —
     // opacity takes no space, so nothing under the cursor moves.
     document.body.classList.toggle('gly-doc-composing', true);
-    // The card just entered the flow and pushed the band down; the anchored
-    // cards have to re-floor on their marks. paintAnchors re-reads the band's
-    // top per pass, so one repaint is the whole of it — the repaint the old
-    // in-flow composer lacked, and the reason it had to become an overlay.
-    this.scheduleAnchors();
     capture.input.focus();
   },
 
@@ -606,9 +470,6 @@ export const cardMethods = {
     }
     this.capture.root.hidden = true;
     this.capture.note.textContent = '';
-    // Hiding it with `display:none` gives its flow space back, so the band
-    // rises and the anchored cards re-floor. Same repaint openCapture fires.
-    this.scheduleAnchors();
   },
 
   makeCaptureCard(this: AppShell): CaptureCard {
@@ -654,12 +515,6 @@ export const cardMethods = {
     // §11 fixes this string verbatim; it is the slot's own constant now.
     input.placeholder = WHOLE_DOC_PLACEHOLDER;
     growOnInput(input);
-    // The card is in the whole-document panel's flow now, so its height is the
-    // band's top: every keystroke that grows or shrinks it moves the anchored
-    // cards below unless a repaint re-floors them. growOnInput fits the box on
-    // the same `input`; scheduleAnchors is coalesced, so pairing them here is
-    // one repaint per frame, not one per character. See openCapture.
-    input.addEventListener('input', () => this.scheduleAnchors());
     form.append(head, input);
 
     const note = document.createElement('div');
@@ -787,13 +642,24 @@ export const cardMethods = {
     return { root, head, form, input, note, cancel };
   },
 
+  // THE ANCHORLESS GROUP RENDERS IN THE SHEET'S SLOT NOW, and that is the only
+  // thing this method still puts anywhere. The rail is deleted: there is no
+  // band to position anchored cards in, because an instruction with a place in
+  // the document is a ROW under its block, and no notice flow beneath it,
+  // because the two things that lived there are answered elsewhere — the teach
+  // card by the slot's own empty line and the ? sheet, and the held-arrivals
+  // sentence by the slot, which is where a reviewer with nothing else on screen
+  // is already looking.
   paintRailCards(this: AppShell) {
-    const { notice, band } = this.rail;
-    notice.textContent = '';
-    band.textContent = '';
-    // Nothing in this.cards survives the two lines above, and the observer
-    // watching them for growth must not outlive them either — a stale
-    // observation is a repaint scheduled for a card that no longer exists.
+    const slot = this.frame?.slot;
+    for (const el of slot?.querySelectorAll(
+      '.gly-docslot-unplaced, .gly-docslot-held',
+    ) ?? []) {
+      el.remove();
+    }
+    // Nothing in this.cards survives the line above, and the observer watching
+    // them for growth must not outlive them either — a stale observation is a
+    // repaint scheduled for a card that no longer exists.
     this.unwatchCards();
     this.cards = [];
 
@@ -834,20 +700,16 @@ export const cardMethods = {
       census.threads === 0 &&
       this.changes.length === 0
     ) {
-      // AND IT IS ALREADY IN CARD SPACE, WHICH IS WHY IT IS NOT MOVED INTO THE
-      // BAND. It reads like a third band stacked above the map — head, band,
-      // this — and it is not: this branch runs only when the census is EMPTY,
-      // an empty census means the band holds no cards, and paintAnchors has
-      // written the band's height to 0. So the teach card is drawn exactly
-      // where the first card would be and its appearance displaces nothing
-      // above it. Appending it to the band instead would mean placing it by
-      // hand (every child of the band is absolutely positioned) and counting it
-      // into a height the stacker computes — machinery for a position it
-      // already has.
-      notice.appendChild(teachCard());
-      // Figures still carry their ⊕ when nothing is pending — a settled
-      // document is exactly when someone reads it closely enough to point at
-      // part of a picture.
+      // THE TEACH CARD IS DELETED. `HOW THIS WORKS — select any words in the
+      // document to ask for a change` was a dashed card in the rail's margin,
+      // and it was the last thing the rail still drew: on every cold open it
+      // floated at the right of a page whose design has no right-hand column.
+      // Both halves of what it said are already on screen without it — the
+      // slot's own empty line says where an instruction goes, and the `?` sheet
+      // lists the five gestures — so this branch has nothing left to paint but
+      // the figures. They still carry their ⊕ when nothing is pending: a
+      // settled document is exactly when someone reads it closely enough to
+      // point at part of a picture.
       this.paintFigures();
       return;
     }
@@ -866,12 +728,12 @@ export const cardMethods = {
     // already in the DOM.
     this.paintFigures();
 
-    if (held > 0 && !band.firstChild && !notice.firstChild) {
-      notice.appendChild(heldArrivalsNotice(held));
+    if (held > 0 && unplaced.length === 0) {
+      slot?.appendChild(heldArrivalsNotice(held));
     }
 
     if (unplaced.length > 0) {
-      notice.appendChild(unplacedSection(unplaced));
+      slot?.appendChild(unplacedSection(unplaced));
     }
   },
 
@@ -1370,42 +1232,6 @@ function blockElement(view: EditorView, index: number): Element | null {
   return dom instanceof Element ? dom : null;
 }
 
-// blockTop measures where a block thread's card belongs, in the same VIEWPORT
-// coordinates runTop returns — and, for runTop's reason, nothing here adds
-// scrollY either. paintAnchors converts both, once, in one pass.
-//
-// A region rides on the measurement rather than being ignored: a thread on a
-// rectangle a third of the way down a tall diagram belongs beside THAT, not
-// beside the top of the picture, and the pin and the card then agree about the
-// height they are talking about. A block thread with no region is measured at
-// the block's own top.
-function blockTop(
-  view: EditorView,
-  index: number,
-  region: object | null,
-): number | null {
-  const el = blockElement(view, index);
-  if (!el) {
-    return null;
-  }
-  const box = el.getBoundingClientRect();
-  if (!box.height && !box.width) {
-    // A block laid out at nothing is a block mid-rebuild. There is no honest
-    // position to report, so the card is left where it was rather than being
-    // sent to the top of the page for a frame.
-    return null;
-  }
-  // `region` is the loose `object | null` Placement/CardEntry carry (see
-  // appshell.ts) rather than a full `Region` — narrowed with `in` and
-  // `typeof` rather than asserted, the same discipline rail.ts's
-  // keyTargetIsEditable uses.
-  if (
-    region &&
-    'y' in region &&
-    typeof region.y === 'number' &&
-    Number.isFinite(region.y)
-  ) {
-    return box.top + region.y * box.height;
-  }
-  return box.top;
-}
+// blockTop IS DELETED WITH THE PLACEMENT PASS. It measured a block or a
+// figure region's top for `paintAnchors`, which is gone; a block-anchored
+// instruction is a row under its block now and ProseMirror positions it.

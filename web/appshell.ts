@@ -262,11 +262,14 @@ export interface AppState {
   pendingCount: number;
   verdict: string;
 
-  // --- the rail, the sheet, and their shared card lists ---
-  // `band` and `notice` join `root` now that cards.ts is converted (Task 7)
-  // and reads both directly (`this.rail.band`, `this.rail.notice`) —
-  // makeRail (entry.ts) always builds and returns all three together.
-  rail: { root: HTMLElement; band: HTMLElement; notice: HTMLElement };
+  // --- the sheet, and the card lists it shares with the doc slot ---
+  // `rail` IS GONE. It was `{ root, band, notice }` — the margin column, the
+  // positioned card map inside it and the flow beneath — and Task 9 deleted the
+  // surface: an instruction with a place in the document is a row under its
+  // block, an anchorless one is a row in the sheet's dashed slot, and there is
+  // no third place for either to also be. Everything that only ever wrote into
+  // the band went with it (paintAnchors, setBandHeight, scheduleAnchors, and
+  // the card half of the lit pairing).
   sheet: {
     root: HTMLElement;
     head: HTMLElement;
@@ -289,23 +292,10 @@ export interface AppState {
   // two have different lifetimes: the panel above is repainted on every poll,
   // this exists only while somebody is typing. See cards.ts.
   capture?: CaptureCard;
-  // The growth watch over the rail's own cards — CLAUDE.md's "a card's
-  // height is not a constant" guard. `this.cardSizes = growthWatch(...)` is
-  // a direct, unconditional constructor assignment.
+  // The growth watch over the review's cards — CLAUDE.md's "a card's height
+  // is not a constant" guard. `this.cardSizes = growthWatch(...)` is a direct,
+  // unconditional constructor assignment.
   cardSizes: ReturnType<typeof growthWatch>;
-  // TASK 8 CORRECTION: this was declared as a METHOD in AppMethods
-  // (`scheduleAnchors(): void;`) on the assumption every member arriving
-  // through Object.assign belongs there. It does not arrive that way —
-  // `this.scheduleAnchors = coalesce(() => this.paintAnchors());` in
-  // entry.ts's own constructor is a direct, unconditional FIELD assignment,
-  // the identical shape as `cardSizes` immediately above it. Moved here
-  // rather than left as a method: a class field of function type and an
-  // interface method signature are structurally compatible at every call
-  // site (`this.scheduleAnchors()` reads the same either way, and bar.ts,
-  // cards.ts and keys.ts all call it that way), so the error was invisible
-  // until `class App implements AppState` had a real constructor line to
-  // check it against.
-  scheduleAnchors: () => void;
   // Which thread's delete control is armed, and since when — on the App
   // rather than in the button, because paintRail destroys and rebuilds
   // every card. Both are direct, unconditional constructor assignments
@@ -475,6 +465,9 @@ export interface AppState {
   // Built lazily, on the first paintReadout, by makeReadoutDot — genuinely
   // absent until then, so `null` rather than a definite-assignment lie.
   readoutDot: HTMLSpanElement | null;
+  // The span inside `#gly-status` the sentence is written into — see
+  // makeReadoutDot for why the words are not written into the readout itself.
+  readoutText: HTMLElement | null;
 
   // --- the pinned rows inside the paper (web/rows.ts) ---
   // What each revised block used to say. The ARRIVAL's news rather than the
@@ -531,7 +524,6 @@ export interface AppMethods {
   withhold(arrived: ArrivalItem[]): ArrivalItem[];
   say(text: string): void;
   surfaces(): {
-    rail: boolean;
     bar: boolean;
     sheet: boolean;
     collapsed: boolean;
@@ -573,7 +565,6 @@ export interface AppMethods {
   // --- the rail's cards, and the whole-document instruction
   //     (web/cards.ts) ---
   unwatchCards(): void;
-  setBandHeight(px: number): void;
   paintOverall(): void;
   makeOverallCard(): OverallCard;
   openCapture(): void;
@@ -691,7 +682,6 @@ export interface AppMethods {
   // --- the rail's cards: the placement pass itself and its two builders
   //     (web/cards.ts) ---
   watchCards(): void;
-  paintAnchors(): void;
   paintRailCards(): void;
   paintRailThreads(): HTMLElement[];
   bubbleThreadCard(thread: Thread): HTMLElement;

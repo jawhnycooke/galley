@@ -51,7 +51,7 @@
     --gly-dashed: #8aa800;
 
     --gly-coral: #ff5c39;
-    --gly-coral-fill: rgba(255, 92, 57, 0.10);
+    --gly-coral-fill: rgba(255, 92, 57, 0.1);
     --gly-coral-fill-deep: rgba(255, 92, 57, 0.14);
     --gly-amber: #e0b64a;
     --gly-green: #4f9e63;
@@ -202,6 +202,13 @@
      own content, and an icon has no smaller legible size to shrink to. */
   .gly-mark { flex: none; width: 1em; height: 1em; }
   .gly-doc-name { min-width: 0; }
+  /* THE PATH IS CHROME, AND THIS FILE HAS TO SAY SO TOO. editor.css styles
+     `.gly-doc-path` in the built page; on an unbuilt checkout the shell is the
+     whole stylesheet, and without this the document's directory rendered at
+     full body size and full weight beside the title — two titles, one of them
+     a path. Same claim as the `:root` mirror this file states above: a rule
+     the fallback needs is a rule the fallback carries. */
+  .gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; opacity: 0.7; }
   /* THE BAR HAS ONE FLEXIBLE CELL, AND IT SITS BETWEEN THE READOUT AND THE
      CONTROLS. Everything before it — the name and the ONE readout — is a
      readout whose width changes as the document does;

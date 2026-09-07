@@ -506,13 +506,28 @@ export const composerMethods = {
 
     // Dim everything but the block the selection is in, so the reviewer's
     // eye has one thing to read while they type.
+    //
+    // THE TARGET IS RESOLVED FROM THE TOP-LEVEL INDEX, NOT BY `closest`. The
+    // dimming rule is `body.gly-composing .ProseMirror > *:not(.gly-composing-
+    // target)`, so the class has to land on a DIRECT child of `.ProseMirror` or
+    // it does nothing at all — and `domAtPos().node.closest('.ProseMirror > *')`
+    // only answers that when the selection's DOM node is inside such a child,
+    // which it is not for a selection that starts at a block boundary (the node
+    // is the editor root itself, and `closest` walks UP from there and finds
+    // nothing). The result was the block the reviewer had just selected dimming
+    // to .35 along with every other block — the one thing the mechanism exists
+    // to prevent. `$from.depth ? $from.before(1) : $from.pos` is the position of
+    // the top-level node containing the selection, and `nodeDOM` is the element
+    // ProseMirror rendered it as.
     document.body.classList.add('gly-composing');
-    const dom = this.editor.view.domAtPos(
+    const $from = this.editor.state.doc.resolve(
       this.editor.state.selection.from,
-    ).node;
-    const block: Element | null =
-      dom instanceof Element ? dom : dom.parentElement;
-    block?.closest('.ProseMirror > *')?.classList.add('gly-composing-target');
+    );
+    const at = $from.depth > 0 ? $from.before(1) : $from.pos;
+    const node = this.editor.view.nodeDOM(at);
+    if (node instanceof HTMLElement) {
+      node.classList.add('gly-composing-target');
+    }
   },
 
   /**
@@ -555,13 +570,15 @@ export const composerMethods = {
         },
       });
     }
-    if (!this.rail.root.hidden) {
-      items.push({
-        label: 'Instruction on the whole document',
-        detail: said ? 'not just the selection' : '',
-        run: () => this.openCapture(),
-      });
-    }
+    // THE WHOLE-DOCUMENT DOOR IS ALWAYS OPEN NOW. This used to ask whether the
+    // rail was on screen, because the capture card was a child of it; the card
+    // is in the sheet's dashed slot, which renders at every width, so there is
+    // no width at which this item leads nowhere.
+    items.push({
+      label: 'Instruction on the whole document',
+      detail: said ? 'not just the selection' : '',
+      run: () => this.openCapture(),
+    });
     return items;
   },
 
@@ -631,6 +648,21 @@ export const composerMethods = {
     const end = this.editor.view.coordsAtPos(next.to);
     this.placeComposer(start, end);
     this.headComposer(next.target);
+
+    // AND THE FORM OPENS ON THE SELECTION ITSELF (spec §1: *selecting words
+    // opens the composer*). It used to open a bar with one `+ Add instruction`
+    // button on it, and the reviewer had to press that to get a box to type in
+    // — two gestures for one intent, with the first of them landing on a
+    // control that had just appeared under the cursor. The bar is still built
+    // and still the thing the deny line replaces; it is simply never the
+    // resting state of a fresh placement.
+    //
+    // NOT WHERE THE COMPOSER IS REFUSING. A selection in a fence gets the deny
+    // line, and `openComposerForm` is already a no-op over one — the refusal
+    // has to arrive before the typing, not after it.
+    if (!next.denied) {
+      this.openComposerForm();
+    }
   },
 
   // placeComposer is the ONE arithmetic that decides where the popover sits,

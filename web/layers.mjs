@@ -1270,15 +1270,13 @@ console.log('\n--- §1d · the bar has one readout ---');
   await page.waitForTimeout(300);
 }
 
-// --- §11 · clicking marked-up text, at the width the rail exists at ----------
+// --- §11 · clicking marked-up text, above the breakpoint --------------------
 //
-// THE MOST NATURAL GESTURE IN THE PRODUCT, AND ITS WORST SURFACE. Everything
-// this file already asserts about the bubble is asserted at 900px, where the
-// bubble carries the whole conversation — and the two defects below only exist
-// ABOVE the breakpoint, where the rail is on screen and `threadFor` used to
-// answer null. Neither could be seen from the narrow block, which is the
-// fixture hazard in its usual clothes: a check that cannot reach a state is not
-// a check of it.
+// THE MOST NATURAL GESTURE IN THE PRODUCT. Everything this file already asserts
+// about the bubble is asserted at 900px; this block is the same gesture at a
+// desktop width, which used to be a DIFFERENT surface — the rail was on screen
+// there and `threadFor` answered null. The rail is deleted, so the bubble is
+// the answer at every width and this block is what proves the two agree.
 //
 // Two clicks, measured against a real server:
 //
@@ -1292,12 +1290,15 @@ console.log('\n--- §1d · the bar has one readout ---');
 //   one of the pending, whose card was on screen with a working ✓.
 {
   await page.evaluate(() => window.scrollTo(0, 0));
-  const railOn = await page.evaluate(
-    () => window.galleyEdit.app.surfaces().rail,
-  );
+  // The premise this block used to open with — `surfaces().rail === true` —
+  // is retired with `railSurfaces`' `rail` key. What replaces it is the claim
+  // that actually matters for the gesture below: this is a width ABOVE the
+  // breakpoint, where the bottom bar is not the surface answering.
+  const wide = await page.evaluate(() => window.galleyEdit.app.surfaces());
   check(
-    '§11 runs at a width where the rail is carrying conversations',
-    railOn === true,
+    '§11 runs above the breakpoint — the footer carries the controls here',
+    wide.bar === false,
+    wide,
   );
 
   // --- the comment highlight ---
@@ -1309,35 +1310,30 @@ console.log('\n--- §1d · the bar has one readout ---');
   await page.waitForTimeout(400);
   const onComment = await page.evaluate(() => {
     const el = document.querySelector('.gly-bubble');
-    const flashed = document.querySelector('.gly-rail .gly-thread.gly-flash');
     return {
       bubbleOpen: !!el && !el.hidden,
       verbs: el
         ? el.querySelectorAll('.gly-bubble-accept, .gly-bubble-reject').length
         : 0,
       text: el && !el.hidden ? el.textContent : '',
-      flashedKey: flashed ? flashed.dataset.key : null,
     };
   });
-  // ONE CONVERSATION, ONE PLACE. The rail is already drawing this thread, so a
-  // second copy in a bubble would be two reply boxes and two deletes for one
-  // conversation. What the click does instead is take the reviewer to the card
-  // — reveal(), in the direction the card already offers.
+  // ONE CONVERSATION, ONE PLACE — AND THE BUBBLE IS NOW THAT PLACE AT EVERY
+  // WIDTH. This check read `bubbleOpen === false` and was right while the rail
+  // drew the same thread beside the prose: a bubble would have been two reply
+  // boxes and two deletes for one conversation, so the click took the reviewer
+  // to the card instead. There is no rail and no card, so refusing the bubble
+  // here would leave the most instinctive click in the product doing nothing.
+  // The claim is unchanged — ONE copy — and the direction is what flipped.
   check(
-    'clicking a comment highlight does not open a second copy of its conversation',
-    onComment.bubbleOpen === false,
+    'clicking a comment highlight opens its conversation, at this width too',
+    onComment.bubbleOpen === true,
     onComment,
   );
   // `it takes the reviewer to the card the rail is carrying` — RETIRED WITH THE
   // MARK-ANCHORED RAIL CARD. It read `.gly-rail .gly-thread.gly-flash`: the
-  // reveal() flash on the card the band drew beside the mark. A thread reached
-  // by its mark has no card in the rail any more — its one surface is the
-  // pinned row under the block (rows.ts), which is already AT the mark, so
-  // there is nowhere for a reveal to take anybody and no card to flash. The
-  // half of this pair that is a claim rather than a destination —
-  // `clicking a comment highlight does not open a second copy of its
-  // conversation` — is directly above and is unchanged, and it is the half that
-  // ever caught anything.
+  // reveal() flash on the card the band drew beside the mark. There is no rail,
+  // so there is nowhere for a reveal to take anybody and no card to flash.
   // THE ASSERTION THE AUDIT ASKED FOR, and it holds however the surface
   // question is answered: no comment bubble anywhere carries a decide verb.
   check(
@@ -2081,15 +2077,19 @@ await page.setViewportSize({ width: 900, height: 1000 });
 await page.waitForTimeout(800);
 {
   // FIRST, that we are actually in the narrow layout. Every assertion below is
-  // about the sheet, and a sheet measured while the rail is still on screen is
-  // a measurement of nothing. The rail and the sheet must never render at the
-  // same time — editor.css says so at the breakpoint in as many words.
-  const rail = await style('.gly-rail', 'display');
+  // about the sheet, and a sheet measured on the wide layout is a measurement
+  // of nothing. The `.gly-rail` half of this is RETIRED WITH THE RAIL: it read
+  // `display: none` on the margin column, which is not in the DOM on any page —
+  // and an absent selector is not a pass, so the claim is made of the element
+  // that IS the narrow layout's own.
   const bottombar = await page.locator('.gly-bottombar').isVisible();
+  const railGone = await page.evaluate(
+    () => document.querySelector('.gly-rail') === null,
+  );
   check(
-    'the narrow layout is the one on screen — rail gone, bottom bar up',
-    rail && rail.display === 'none' && bottombar,
-    { rail, bottombar },
+    'the narrow layout is the one on screen — bottom bar up, and no rail anywhere',
+    bottombar && railGone,
+    { bottombar, railGone },
   );
 
   // THE COUNT IS PRINTED ONCE, AND THERE IS ONLY ONE PRINTER LEFT. The same
@@ -2648,11 +2648,13 @@ const blockRects = () =>
   // prose cannot be over it; a card that grew a `position: fixed`/`absolute` or
   // a stacking context could be, and that is the regression this now catches.
   const panelGone = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-rail');
     const card = document.querySelector('.gly-overall');
     const cs = card ? getComputedStyle(card) : null;
     return {
-      rail: rail ? getComputedStyle(rail).display : 'missing',
+      // The rail is deleted, so this is `true` and not a `display` reading —
+      // see the narrow-layout check above for why an absent selector cannot be
+      // asked about a computed style.
+      railGone: document.querySelector('.gly-rail') === null,
       cardWidth: card ? +card.getBoundingClientRect().width.toFixed(2) : null,
       cardPosition: cs ? cs.position : null,
       cardZ: cs ? cs.zIndex : null,
@@ -2660,7 +2662,7 @@ const blockRects = () =>
   });
   check(
     'the whole-document card is in the sheet’s flow before the prose is tapped, never over it',
-    panelGone.rail === 'none' &&
+    panelGone.railGone &&
       panelGone.cardPosition === 'static' &&
       panelGone.cardZ === 'auto',
     panelGone,
@@ -3271,21 +3273,22 @@ for (const size of [
 await page.setViewportSize(WIDE);
 await page.waitForTimeout(500);
 
-// --- §7d · and at wide, the rail keeps the conversation ----------------------
+// --- §7d · and at wide, the bubble keeps the conversation too ----------------
 //
-// A RULE ASSERTED ON ONE SIDE OF A BREAKPOINT IS HALF A RULE. At or above
-// RAIL_MIN_WIDTH the rail already draws every open thread, so a bubble drawing
-// the same one would be one conversation rendered twice, in two places, each
-// with its own reply box and its own delete. The bubble does not draw it there,
-// and this is what says so.
+// A RULE ASSERTED ON ONE SIDE OF A BREAKPOINT IS HALF A RULE, and this is the
+// wide half. It used to say the OPPOSITE — no bubble above the breakpoint,
+// because the rail already drew every open thread and a bubble would have been
+// one conversation rendered twice, each copy with its own reply box and its own
+// delete. The rail is deleted; there is no second copy for the bubble to be, so
+// refusing it here would leave the most instinctive click in the product doing
+// nothing at the width most reviewers use.
 //
-// WHAT THE CLICK DOES INSTEAD IS NOT "NOTHING", AND THIS CHECK USED TO ACCEPT
-// THAT IT WAS. It required the bubble to be OPEN and merely thread-less —
-// which the two-verb bubble satisfied: `COMMENT · AGENT · JUST NOW` with an
-// accept and a reject that 404, no comment text, no conversation, no reply box.
-// The one-conversation-one-place rule was upheld and the reviewer's most
-// instinctive click still landed on the product's worst surface. §11 above is
-// where the whole gesture is read; this is the breakpoint's half of it.
+// WHAT THE CLICK DOES IS STILL NOT "NOTHING", WHICH IS WHAT THIS CHECK HAS
+// ALWAYS BEEN ABOUT. Its first form accepted an OPEN, thread-less bubble —
+// `COMMENT · AGENT · JUST NOW` with an accept and a reject that 404, no comment
+// text, no conversation, no reply box — and called the rule upheld. The verbs
+// clause is what outlived that, and it is unchanged: a conversation is not an
+// edit to approve.
 {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(300);
@@ -3318,8 +3321,8 @@ await page.waitForTimeout(500);
   // asserts it more strictly: no bubble at all, rather than a bubble with no
   // thread in it.
   check(
-    'and it does not draw a stub of it either — no bubble, and no verbs on a conversation',
-    wide.open === false && wide.verbs === 0,
+    'it draws the whole conversation at wide too — one copy, and no decide verbs',
+    wide.open === true && wide.thread === true && wide.verbs === 0,
     wide,
   );
   // `the click goes to the card instead, which is reveal() in the other
@@ -4571,10 +4574,17 @@ const placeComposer = (nth = 0) =>
   // still names WHICH selector went dead, which is worth reading when the
   // check above fails, and it no longer reports `ok` as though it had proved
   // something.
+  //
+  // AND `#gly-revise` IS NOT ONE OF THEM ANY MORE. It was, while the primary
+  // stood in the bar; spec §5 keeps it on screen in the footer reading
+  // `approved` — panel colours, muted, no glow, and genuinely `disabled` — so
+  // the last thing the reviewer looks at says what they decided. Hiding it is
+  // the one thing that would take that away, so it is checked as PRESENT and
+  // DEAD below rather than as gone.
   const retired = await page.evaluate(() =>
     // `.gly-census` was the fourth and is deleted; a dead selector here would
     // report `absent`, which this check is sharpened to refuse.
-    ['#gly-revise', '.gly-mode', '.gly-hold'].map((sel) => {
+    ['.gly-mode', '.gly-hold'].map((sel) => {
       const el = document.querySelector(sel);
       return { sel, display: el ? getComputedStyle(el).display : 'absent' };
     }),
@@ -4583,6 +4593,37 @@ const placeComposer = (nth = 0) =>
     'the live controls are off the bar entirely — this bar is a record, and an absent selector is not a pass',
     retired.every((r) => r.display === 'none'),
     retired,
+  );
+  // THE PRIMARY STAYS, AND IT SAYS WHAT WAS DECIDED (spec §5). Present, laid
+  // out, reading `approved`, disabled, and painted in the panel's own muted
+  // colours rather than the accent fill it wears while a review is live —
+  // "dead" must not read as "pressable but dim" on the one control that hands
+  // the document to somebody else.
+  const sealedPrimary = await page.evaluate(() => {
+    const el = document.querySelector('#gly-revise');
+    if (!el) {
+      return { present: false };
+    }
+    const cs = getComputedStyle(el);
+    return {
+      present: true,
+      display: cs.display,
+      text: el.innerText.trim(),
+      disabled: el.disabled === true,
+      shadow: cs.boxShadow,
+      cursor: cs.cursor,
+      width: +el.getBoundingClientRect().width.toFixed(2),
+    };
+  });
+  check(
+    'the primary is still on screen at the end, reading `approved` and dead',
+    sealedPrimary.present &&
+      sealedPrimary.display !== 'none' &&
+      sealedPrimary.text === 'approved' &&
+      sealedPrimary.disabled &&
+      sealedPrimary.shadow === 'none' &&
+      sealedPrimary.cursor === 'default',
+    sealedPrimary,
   );
   note(
     'which of them the page actually had to retire — subsumed by the check above (none implies not-absent), kept to name the culprit when it goes red',
