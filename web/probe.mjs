@@ -7687,14 +7687,18 @@ function bindsContentField(src) {
       !css.includes('gly-connector'),
     );
     // AND THE LIGHT IS THERE, in both themes, which is the claim that replaces
-    // them. The token is asserted in the light AND the dark block, because a
-    // wash defined once reads as a wash that works everywhere right up until
-    // somebody opens the page at night — and the pixel itself is read in a real
-    // browser by layers §10, which is where "it is not any mark's wash" lives.
+    // them. The token is asserted in the dark-default :root and BOTH light
+    // blocks (Task 1's dark-first repaint spells light twice on purpose — the
+    // prefers-color-scheme block and the [data-theme="light"] override, so
+    // the override can win over the media query — see web/editor.css's Step 3
+    // comment), so a wash defined once reads as a wash that works everywhere
+    // right up until somebody opens the page at night — and the pixel itself
+    // is read in a real browser by layers §10, which is where "it is not any
+    // mark's wash" lives.
     check(
       'the built stylesheet lights the words, and names a colour for both themes',
       /\.gly-lit\{[^}]*background:var\(--gly-lit-bg/.test(css) &&
-        (css.match(/--gly-lit-bg:/g) || []).length === 2,
+        (css.match(/--gly-lit-bg:/g) || []).length === 3,
     );
     // THE RAIL IS NOT FIXED, AND IT STILL STARTS AT THE BAR'S MEASURED FOOT.
     // Read off the built stylesheet for the reason above, and asserted as two
@@ -8325,6 +8329,33 @@ function bindsContentField(src) {
       isNew && isNew[1],
     );
   }
+}
+
+// --- theme.ts ---
+{
+  const { readTheme, nextTheme, resolveTheme, themeLabel } = await import('./theme.ts');
+  check('readTheme: unknown/null falls back to system', readTheme(null) === 'system' && readTheme('bogus') === 'system');
+  check('readTheme: light and dark pass through', readTheme('light') === 'light' && readTheme('dark') === 'dark');
+  check('nextTheme cycles system → light → dark → system',
+    nextTheme('system') === 'light' && nextTheme('light') === 'dark' && nextTheme('dark') === 'system');
+  check('resolveTheme: system follows the browser', resolveTheme('system', true) === 'dark' && resolveTheme('system', false) === 'light');
+  check('resolveTheme: explicit choice ignores the browser', resolveTheme('light', true) === 'light' && resolveTheme('dark', false) === 'dark');
+  check('themeLabel: system reads auto', themeLabel('system') === 'auto' && themeLabel('dark') === 'dark');
+}
+
+// --- tokens: editor.css and edit.html declare the same :root, and the two light blocks agree ---
+{
+  const fs = await import('node:fs');
+  const css = fs.readFileSync(new URL('./editor.css', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../internal/serve/edit.html', import.meta.url), 'utf8');
+  const tokens = (s) => [...s.matchAll(/--gly-[a-z0-9-]+(?=\s*:)/g)].map((m) => m[0]);
+  const rootOf = (s) => { const m = s.match(/:root\s*\{([\s\S]*?)\n\}/); return m ? m[1] : ''; };
+  const a = new Set(tokens(rootOf(css))), b = new Set(tokens(rootOf(html)));
+  const missing = [...a].filter((t) => !b.has(t)), extra = [...b].filter((t) => !a.has(t));
+  check('edit.html :root declares every editor.css :root token', missing.length === 0 && extra.length === 0, { missing, extra });
+  const light = (s) => { const m = s.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/); return m ? m[1].replace(/\s+/g, ' ').trim() : null; };
+  const auto = (s) => { const m = s.match(/@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-theme="dark"\]\)\s*\{([\s\S]*?)\n\s*\}/); return m ? m[1].replace(/\s+/g, ' ').trim() : null; };
+  check('the two light blocks in editor.css agree', light(css) !== null && light(css) === auto(css), { light: light(css), auto: auto(css) });
 }
 
 process.exit(failures === 0 ? 0 : 1);

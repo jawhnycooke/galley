@@ -140,6 +140,7 @@ import { historyMethods } from './history.ts';
 import { barMethods, MODE_ASK } from './bar.ts';
 import { verdictMethods } from './verdict.ts';
 import { sealMethods } from './seal.ts';
+import * as theme from './theme.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
@@ -187,6 +188,7 @@ import { headingAlign } from './headingalign.ts';
 import type { Arrival } from './versions.ts';
 import type { Composer } from './composer.ts';
 import type { Mode, ModeUI } from './bar.ts';
+import type { ThemeChoice } from './theme.ts';
 import { makeMenu, openMenu, closeMenu, menuOpen } from './menu.ts';
 import type { DocMenu } from './menu.ts';
 import type { OverallCard, CaptureCard } from './cards.ts';
@@ -668,6 +670,8 @@ function init(opts?: { room?: string; wsURL?: string }): void {
   window.galleyEdit.editor = editor;
   window.galleyEdit.provider = provider;
   window.galleyEdit.app = app;
+  app.initTheme();
+  app.makeThemeButton();
 
   // PAGE MODE ONLY. The shell writes data-page-mode="1" and a data-preview URL
   // onto the mount when `galley edit page.html` runs (internal/serve/editmode.go);
@@ -870,6 +874,8 @@ class App implements AppState {
   reviseWaiting: boolean;
   mode: Mode;
   modeUI: ModeUI;
+  theme: ThemeChoice;
+  themeButton: HTMLButtonElement | null;
 
   // --- fields private to this file's own methods (lit-run highlighting,
   //     the caret-restoring rebuild, run memoisation) — no mixin reads any
@@ -1071,6 +1077,8 @@ class App implements AppState {
     // back to ask on screen while the server kept notifying — the toggle and
     // the behaviour disagreeing is worse than either state.
     this.mode = MODE_ASK;
+    this.theme = 'system';
+    this.themeButton = null;
     // Hold's state has to exist before makeMode paints the button.
     this.holding = false;
     this.held = new Set();
@@ -2407,6 +2415,15 @@ Object.assign(App.prototype, verdictMethods);
 // constants it owns — are their own module too — see web/seal.ts — mixed in
 // for the same reason.
 Object.assign(App.prototype, sealMethods);
+// The theme — reading the stored choice, painting data-theme and the header
+// button, and cycling auto → light → dark — is its own module too — see
+// web/theme.ts — mixed in for the same reason.
+Object.assign(App.prototype, {
+  initTheme: theme.initTheme,
+  applyTheme: theme.applyTheme,
+  cycleTheme: theme.cycleTheme,
+  makeThemeButton: theme.makeThemeButton,
+});
 
 // A DECLARATION, NOT A CHECK — see this file's own header and
 // web/appshell.ts's for the whole argument. Every member of AppMethods

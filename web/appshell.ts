@@ -129,6 +129,7 @@ import type { OverallCard, CaptureCard } from './cards.ts';
 import type { DocMenu, MenuItem } from './menu.ts';
 import type { ReviseWatchView } from './verdict.ts';
 import type { growthWatch } from './card.ts';
+import type { ThemeChoice } from './theme.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -449,6 +450,10 @@ export interface AppState {
   reviseWaiting: boolean;
   mode: Mode;
   modeUI: ModeUI;
+
+  // --- theme (web/theme.ts) ---
+  theme: ThemeChoice;
+  themeButton: HTMLButtonElement | null;
 }
 
 // THE METHODS ARRIVE AT RUNTIME, WHICH IS WHY THEY ARE A SEPARATE INTERFACE.
@@ -681,6 +686,12 @@ export interface AppMethods {
 
   // --- Revise's own builder (web/verdict.ts) ---
   makeRevise(): HTMLButtonElement | null;
+
+  // --- theme (web/theme.ts) ---
+  initTheme(): void;
+  applyTheme(): void;
+  cycleTheme(): void;
+  makeThemeButton(): void;
 }
 
 // What a mixin method's `this` is: both halves together.
