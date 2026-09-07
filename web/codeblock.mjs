@@ -31,9 +31,10 @@
 //
 //   SEND FILES A BLOCK THREAD — exactly one pending instruction, `anchor:
 //   "block"`, `blockKind: "codeBlock"`, `anchorKey` equal to the fence's own
-//   key in the server's block list, and a card in the rail carrying that key,
-//   labelled with the block, sitting BESIDE the fence rather than parked in the
-//   anchorless region at the rail's foot.
+//   key in the server's block list, and a pinned row (`.gly-row`) inside the
+//   paper carrying that key and the reviewer's words, sitting UNDER the fence
+//   it is about. A block instruction is no longer a rail card: rows.ts pins it
+//   as a decoration under its own block, and the rail keeps nothing for it.
 //
 //   IT ROUND-TRIPS THROUGH THE FILE — the note is `{>>…<<}` immediately after
 //   the fence on disk, and it is still there, still a block instruction on the
@@ -373,7 +374,7 @@ await page.waitForSelector('.gly-composer-form:not([hidden])', {
 
 await page.fill('.gly-composer-text', ASKED);
 await page.click('.gly-composer-send');
-await page.waitForSelector('.gly-rail-band .gly-thread', { timeout: 10000 });
+await page.waitForSelector('.ProseMirror .gly-row', { timeout: 10000 });
 await page.waitForTimeout(600);
 
 const filed = await pendingOn(PORT);
@@ -401,46 +402,46 @@ const filed = await pendingOn(PORT);
     { quote: one && one.quote, label: ref.label, region: one && one.region },
   );
 
-  const card = await page.evaluate(() => {
-    const el = document.querySelector('.gly-rail-band .gly-thread');
+  const row = await page.evaluate(() => {
+    const el = document.querySelector('.ProseMirror .gly-row');
     const pre = document.querySelector('.ProseMirror pre');
     return {
-      cards: document.querySelectorAll('.gly-rail-band .gly-thread').length,
+      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
+      railThreads: document.querySelectorAll('.gly-rail-band .gly-thread')
+        .length,
       key: el ? el.dataset.key : '',
-      head: el ? el.querySelector('.gly-card-head').textContent : '',
-      said: el
-        ? Array.from(el.querySelectorAll('.gly-thread-entry p')).map(
-            (p) => p.textContent,
-          )
-        : [],
-      adrift: el ? el.classList.contains('gly-adrift') : true,
-      // Both in viewport coordinates in the same frame: the card is placed at
-      // its anchor's document top, so beside the fence means the same number.
-      offset:
+      said: el ? el.querySelector('.gly-row-text').textContent : '',
+      state: el ? el.querySelector('.gly-row-state').textContent : '',
+      marked: !!pre && pre.classList.contains('gly-marked'),
+      // Both in viewport coordinates in the same frame: the row is pinned at
+      // the end of the fence's own block, so UNDER it means a positive gap
+      // measured from the fence's bottom.
+      below:
         el && pre
           ? Math.round(
-              el.getBoundingClientRect().top - pre.getBoundingClientRect().top,
+              el.getBoundingClientRect().top -
+                pre.getBoundingClientRect().bottom,
             )
           : null,
     };
   });
   check(
-    'a card is in the rail carrying that thread and the reviewer\u2019s words',
-    card.cards === 1 &&
+    'a pinned row carries that thread and the reviewer\u2019s words \u2014 and the rail keeps nothing',
+    row.rows === 1 &&
+      row.railThreads === 0 &&
       !!one &&
-      card.key === one.key &&
-      card.said.length === 1 &&
-      card.said[0] === ASKED,
-    card,
+      row.key === one.key &&
+      row.said === ASKED,
+    row,
   );
   check(
-    'and it is ANCHORED TO THE BLOCK \u2014 labelled with it, beside it, not adrift',
-    !card.adrift &&
-      card.head.includes(ref.label.slice(0, 12)) &&
-      card.offset !== null &&
-      card.offset > -12 &&
-      card.offset < 140,
-    { ...card, label: ref.label },
+    'and it is PINNED TO THE BLOCK \u2014 queued, under the fence, which is marked',
+    row.state === 'queued' &&
+      row.marked &&
+      row.below !== null &&
+      row.below > -12 &&
+      row.below < 140,
+    row,
   );
 }
 
@@ -483,7 +484,7 @@ browser = await chromium.launch(
   chromePath ? { executablePath: chromePath } : {},
 );
 const reopened = await open(REOPEN_PORT);
-await reopened.waitForSelector('.gly-rail-band .gly-thread', {
+await reopened.waitForSelector('.ProseMirror .gly-row', {
   timeout: 10000,
 });
 
@@ -502,21 +503,27 @@ await reopened.waitForSelector('.gly-rail-band .gly-thread', {
       one.anchorKey === again.key,
     { one, again },
   );
-  const card = await reopened.evaluate(() => {
-    const el = document.querySelector('.gly-rail-band .gly-thread');
+  const row = await reopened.evaluate(() => {
+    const el = document.querySelector('.ProseMirror .gly-row');
+    const pre = document.querySelector('.ProseMirror pre');
     return {
-      cards: document.querySelectorAll('.gly-rail-band .gly-thread').length,
-      head: el ? el.querySelector('.gly-card-head').textContent : '',
-      adrift: el ? el.classList.contains('gly-adrift') : true,
+      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
+      railThreads: document.querySelectorAll('.gly-rail-band .gly-thread')
+        .length,
+      key: el ? el.dataset.key : '',
+      said: el ? el.querySelector('.gly-row-text').textContent : '',
+      marked: !!pre && pre.classList.contains('gly-marked'),
     };
   });
   check(
-    'and the reviewer sees the same card in the rail, still on the block',
-    card.cards === 1 &&
-      !card.adrift &&
-      !!again &&
-      card.head.includes(again.label.slice(0, 12)),
-    { ...card, label: again && again.label },
+    'and the reviewer sees the same row pinned under the fence, which is still marked',
+    row.rows === 1 &&
+      row.railThreads === 0 &&
+      !!one &&
+      row.key === one.key &&
+      row.said === ASKED &&
+      row.marked,
+    row,
   );
 }
 

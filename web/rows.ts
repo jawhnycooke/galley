@@ -134,6 +134,22 @@ function wasDOM(w: WasSpec): HTMLElement {
   return wrap;
 }
 
+// pinAt is where a row or a WAS strip actually hangs. For prose that is
+// blockEnd — inside the paragraph, before its closing token, so the row reads
+// as belonging to the block above it. A FENCE is the exception and has to be:
+// a code block renders its content verbatim inside one <pre>, so a widget put
+// inside it draws the row as the fence's last line, boxed in with the shell
+// command it is about (measured by codeblock.mjs as 73px ABOVE the fence's own
+// bottom). There the row hangs just after the node instead, which is the same
+// place on screen for every other block and the only honest one here.
+function pinAt(doc: PMNode, index: number): number {
+  const end = blockEnd(doc, index);
+  if (end < 0) {
+    return -1;
+  }
+  return doc.child(index).type.spec.code ? end + 1 : end;
+}
+
 function build(
   doc: PMNode,
   s: RowsState,
@@ -153,7 +169,7 @@ function build(
     }
   }
   for (const w of s.was) {
-    const end = blockEnd(doc, w.index);
+    const end = pinAt(doc, w.index);
     if (end >= 0) {
       decos.push(
         Decoration.widget(end, () => wasDOM(w), {
@@ -164,7 +180,7 @@ function build(
     }
   }
   for (const r of s.rows) {
-    const end = blockEnd(doc, r.index);
+    const end = pinAt(doc, r.index);
     if (end >= 0) {
       // The STATE rides in the key for trail.ts's reason: two widgets with one
       // key are one widget to ProseMirror and the DOM is not rebuilt, so a row
@@ -199,7 +215,10 @@ export function rowsPlugin(onRemove: (key: string) => void): Plugin {
           // an index is not a position that survives a paragraph being split
           // above it. The list is short and the rebuild is a walk of the
           // top-level children.
-          return { spec: prev.spec, decos: build(state.doc, prev.spec, onRemove) };
+          return {
+            spec: prev.spec,
+            decos: build(state.doc, prev.spec, onRemove),
+          };
         }
         return prev;
       },

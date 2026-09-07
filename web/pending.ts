@@ -101,13 +101,22 @@ function makeRevertFloat(app: AppShell): HTMLButtonElement {
 // that was removed — see ghostEl (trail.ts) for why that is the only handle a
 // ghost has. Exact first, then containment: the server's diff summarises a
 // whole edited run where a ghost is one keystroke's worth of it.
+//
+// AMBIGUITY IS A NO. Deleting the word "the" in two paragraphs gives two
+// changes that both answer to the same text; picking the first would put a
+// `× revert` over one ghost that undoes the OTHER edit, silently and
+// destructively. Two candidates therefore behave exactly as none do — no pill
+// — and the reviewer reverts from the trail instead.
 function changeKeyFor(changes: ReviewerChange[], old: string): string {
-  const exact = changes.find((c) => c.key && (c.before || '') === old);
-  if (exact) {
-    return exact.key || '';
-  }
-  const within = changes.find((c) => c.key && (c.before || '').includes(old));
-  return within ? within.key || '' : '';
+  const only = (match: (before: string) => boolean): string | null => {
+    const hits = changes.filter((c) => c.key && match(c.before || ''));
+    return hits.length === 1 ? hits[0].key || '' : null;
+  };
+  return (
+    only((before) => before === old) ??
+    only((before) => before.includes(old)) ??
+    ''
+  );
 }
 
 export const pendingMethods = {
