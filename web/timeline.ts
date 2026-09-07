@@ -187,14 +187,31 @@ export function paintTimeline(this: AppShell): void {
 // neighbours dozens of times a second; refetching each frame would put the
 // network between the handle and the sheet. The head's HTML is the one that can
 // change under us — a landed round rewrites it — so readArrival forgets it.
-const htmlCache = new Map<number, Promise<string>>();
+const htmlCache = new Map<number, Promise<string | null>>();
 
-function versionHTML(n: number): Promise<string> {
+// ONLY A SUCCESS IS WORTH KEEPING. The cache is for the life of the tab, so a
+// failed fetch cached here would be a blank sheet for that version forever —
+// with no path back short of a landed round forgetting it. A miss drops itself
+// out of the map so the next visit to that version tries the network again, and
+// resolves null so the caller leaves the paper as it is.
+function versionHTML(n: number): Promise<string | null> {
   let p = htmlCache.get(n);
   if (!p) {
     p = getJSON<DiffView | null>(
       `/_galley/versions/view?to=${n}&from=0&view=inplace`,
-    ).then((d) => (d ? d.html : ''));
+    ).then(
+      (d) => {
+        if (!d) {
+          htmlCache.delete(n);
+          return null;
+        }
+        return d.html;
+      },
+      (err: unknown) => {
+        htmlCache.delete(n);
+        throw err;
+      },
+    );
     htmlCache.set(n, p);
   }
   return p;
@@ -247,19 +264,26 @@ export function scrubTo(this: AppShell, t: number): void {
   // innerHTML, and the server is what makes it safe: internal/diff escapes
   // every character of the document before it draws anything. Same reasoning,
   // and the same endpoint, as VersionsPanel.load.
-  void versionHTML(lo).then((h) => {
-    if (seq === scrubSeq && pa.dataset.v !== String(lo)) {
-      pa.innerHTML = h;
-      pa.dataset.v = String(lo);
-    }
-  });
-  if (hi !== lo) {
-    void versionHTML(hi).then((h) => {
-      if (seq === scrubSeq && pb.dataset.v !== String(hi)) {
-        pb.innerHTML = h;
-        pb.dataset.v = String(hi);
+  // A network hiccup degrades to "the sheet that is already there", never to a
+  // blank one: nothing is painted unless the fetch came back with HTML, and the
+  // rejection is swallowed the way versions.ts swallows refresh's.
+  void versionHTML(lo)
+    .then((h) => {
+      if (h !== null && seq === scrubSeq && pa.dataset.v !== String(lo)) {
+        pa.innerHTML = h;
+        pa.dataset.v = String(lo);
       }
-    });
+    })
+    .catch(() => {});
+  if (hi !== lo) {
+    void versionHTML(hi)
+      .then((h) => {
+        if (h !== null && seq === scrubSeq && pb.dataset.v !== String(hi)) {
+          pb.innerHTML = h;
+          pb.dataset.v = String(hi);
+        }
+      })
+      .catch(() => {});
   }
   const f = this.scrubT - lo; // 0 at lo, 1 at hi
   pa.style.opacity = String(1 - f);
