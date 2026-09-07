@@ -76,6 +76,14 @@ export interface RoundView {
   answers: number;
   asked: string;
   changed: number;
+  asks?: AskView[];
+}
+
+export interface AskView {
+  key: string;
+  text: string;
+  quote?: string;
+  answered: boolean;
 }
 
 export interface DiffView {

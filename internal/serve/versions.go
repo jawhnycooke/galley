@@ -531,6 +531,39 @@ type roundView struct {
 	// A count, not a diff: it is recomputed on every request from the two
 	// documents, and nothing about it is stored.
 	Changed int `json:"changed"`
+	// Asks is the round's instructions with their keys, and whether the
+	// agent's own changes claimed them — the client's "not applied" row is
+	// this bit.
+	Asks []askView `json:"asks,omitempty"`
+}
+
+// askView is one instruction the round carried and whether the agent's
+// changes claimed it — the client's "not applied" row is this bit.
+type askView struct {
+	Key      string `json:"key"`
+	Text     string `json:"text"`
+	Quote    string `json:"quote,omitempty"`
+	Answered bool   `json:"answered"`
+}
+
+// roundViewOf builds the browser's view of one round, everything derivable
+// from the round alone — At, Authors, Reason, Instruction, Answers, Asks. The
+// caller fills in Asked and Changed, which need the rest of the list.
+func roundViewOf(r versions.Round) roundView {
+	v := roundView{
+		N: r.N, At: r.At.UTC().Format(time.RFC3339), Authors: versions.Authors(r.Authors),
+		Reason: r.Reason, Instruction: r.Instruction, Answers: r.Answers,
+	}
+	claimed := map[string]bool{}
+	for _, c := range r.Changes {
+		for _, k := range c.Answers {
+			claimed[k] = true
+		}
+	}
+	for _, a := range r.Asks {
+		v.Asks = append(v.Asks, askView{Key: a.Key, Text: a.Text, Quote: a.Quote, Answered: claimed[a.Key]})
+	}
+	return v
 }
 
 type versionsView struct {
@@ -565,11 +598,8 @@ func (s *EditServer) handleVersions(w http.ResponseWriter, r *http.Request) {
 	}
 	view := versionsView{Doc: s.docName(), Rounds: []roundView{}}
 	for i, x := range rounds {
-		rv := roundView{
-			N: x.N, At: x.At.UTC().Format(time.RFC3339), Authors: versions.Authors(x.Authors),
-			Reason: x.Reason, Instruction: x.Instruction, Answers: x.Answers,
-			Asked: asked[x.Answers],
-		}
+		rv := roundViewOf(x)
+		rv.Asked = asked[x.Answers]
 		if i > 0 {
 			rv.Changed = s.changedRegions(rounds[i-1].N, x.N)
 		}
