@@ -1750,18 +1750,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   position: absolute;
   z-index: 30;
   padding: 0.35rem;
-  border: 1px solid var(--gly-line);
-  /* THE KIND EDGE, the same 3px an instruction card wears in the rail. The
-     composer makes exactly one kind of thing and the card it produces is
-     already drawn this way, so spending the edge here is free recognition: the
-     surface and its output are visibly one object. It goes on the composer's
-     own box and NOT on the form, so the collapsed bar carries it too — the
-     affordance and the box it opens are the same thing at two sizes. */
-  border-left: 3px solid var(--gly-hl);
   border-radius: 8px;
-  background: var(--gly-bg);
-  box-shadow: var(--gly-lift);
   font: 13px/1.5 var(--gly-sans);
+  animation: gly-rise 0.25s ease;
 }
 .gly-composer-bar { display: flex; gap: 0.3rem; }
 .gly-comment-button:hover { border-color: var(--gly-hl); color: var(--gly-hl); }
@@ -1773,7 +1764,26 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    check. The prototype's composer is this width for the same reason. The note
    and the refusal follow it, because three boxes in one popover with two widths
    is a popover that changes shape depending on what went wrong. */
-.gly-composer-form { display: flex; flex-direction: column; gap: 0.35rem; width: 21rem; }
+.gly-composer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 21rem;
+  background: var(--gly-bg);
+  border: 1px solid var(--gly-accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--gly-composer-shadow);
+}
+/* THE DARK BAR'S OWN GLYPH — the same `↳` the collapsed bar's affordance was
+   drawn with, carried onto the form so the two chrome states read as one
+   surface rather than a bar that opens into an unrelated box. */
+.gly-composer-form::before {
+  content: "↳";
+  color: var(--gly-accent);
+  font-family: var(--gly-mono);
+  margin-right: 10px;
+}
 /* The chrome voice is `.gly-card-head`'s, and this selector is IN that rule
    now rather than repeating it — the sentence that used to sit here said the
    composer's head and the card's head are one sentence about one object, and
@@ -1783,6 +1793,11 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font: 10.5px var(--gly-mono);
+  letter-spacing: 0.12em;
+  color: var(--gly-muted);
+  opacity: 1;
+  margin: 0 0 6px 2px;
 }
 /* --- THE BOX THE REVIEWER TYPES IN, ONCE ---
 
@@ -1827,6 +1842,10 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    (`scrollHeight` plus the padding this rule adds) and a content-box would add
    the padding twice, growing the box a little more on every keystroke. */
 .gly-composer-text {
+  border: 0;
+  outline: none;
+  font: 17px/1.4 var(--gly-sans);
+  color: var(--gly-fg);
   padding: 0.4rem 0.5rem;
   box-sizing: border-box;
   max-height: min(30vh, 13rem);
@@ -1872,10 +1891,12 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    source order. Written bare they would render as two identical grey pills,
    which is precisely what `.gly-thread-delete` did for a whole phase. */
 .gly-composer .gly-composer-send {
-  border-color: var(--gly-hl);
-  background: var(--gly-hl);
-  color: var(--gly-hl-ink);
-  font-weight: 600;
+  border: 0;
+  background: var(--gly-accent);
+  color: var(--gly-on-accent);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font: 600 11px var(--gly-mono);
 }
 /* Borderless and muted: the composer has one loud thing in it and this is not
    it. Same weight `.gly-thread-delete` carries, for a different reason — that
@@ -1913,6 +1934,32 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   padding: 0.15rem 0.35rem;
   color: var(--gly-muted);
   font-size: 12px;
+}
+
+/* The suggestion chips: a shortcut for the phrasing typed most often.
+   Clicking one prefills the textarea (chipPrefill, web/composer.ts) rather
+   than sending straight away — the reviewer still finishes the sentence. */
+.gly-composer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gly-chip {
+  background: transparent;
+  border: 1px solid var(--gly-line);
+  color: var(--gly-muted2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 13px var(--gly-sans);
+  cursor: pointer;
+}
+.gly-chip:hover { border-color: var(--gly-accent); color: var(--gly-accent); }
+
+/* DIMMING: while an instruction is being composed, every other block fades
+   so the reviewer's eye has exactly one thing to read. openComposerForm
+   marks the anchor block `.gly-composing-target`; hideComposer clears it and
+   the body class together (web/composer.ts). */
+body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; transition: opacity 0.3s; }
+
+@keyframes gly-rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* --- a refused fence edit ---

@@ -39,17 +39,39 @@ const REFUSAL_DWELL_MS = 1500;
 /** How much of the anchor the composer's head quotes. A BOUND, and said out
  * loud to be one: the head is one line of chrome in the mono voice, and a
  * reviewer who selects a whole paragraph would otherwise get the paragraph
- * back in 10px capitals above the box they are typing in. 48 is what fits the
- * composer's own 21rem form at that size with room for the fixed words either
- * side. MEASURED, not derived: the head renders at 6.96px per character in this
- * stack, so 336px of form holds 48 of them, and `INSTRUCTION · ON ""` spends 19
- * — which leaves 28 for the quote. The first cut of this said 36 on an
- * estimated character width and the head overflowed by 47px; `rounds-ux.mjs`
- * reads `scrollWidth` against `clientWidth` on a deliberately over-long anchor,
- * which is what caught it. Retune it WITH the head's type or the form's width,
- * never on its own: a bound stated against a specific pair is a bound that lies
- * the moment either of them moves. */
-const COMPOSER_QUOTE_CHARS = 28;
+ * back in 10.5px capitals above the box they are typing in. MEASURED, not
+ * derived, against Task 8's head (10.5px mono, 0.12em tracking) and the same
+ * 21rem form: `INSTRUCTION · ON ""` spends 19 of the box's width, leaving 20
+ * for the quote before `rounds-ux.mjs`'s `scrollWidth`-against-`clientWidth`
+ * check on a deliberately over-long anchor starts failing. Retune it WITH the
+ * head's type or the form's width, never on its own: a bound stated against a
+ * specific pair is a bound that lies the moment either of them moves. */
+const COMPOSER_QUOTE_CHARS = 20;
+
+// The four suggestion chips under the composer's textarea — a shortcut for
+// the phrasing a reviewer types most often. chipPrefill turns a chip's label
+// into the sentence-cased, em-dash-led opener the reviewer finishes typing.
+export const SUGGESTIONS = ['tighter', 'more concrete', 'shorter', 'plainer language'] as const;
+export function chipPrefill(label: string): string {
+  return `${label[0].toUpperCase()}${label.slice(1)} — `;
+}
+
+// headComposer writes the head's sentence. `ON "…"` only where there is
+// something to quote: a whole-section or whole-figure note has no phrase, and
+// a head that quoted an empty string would read as an instruction about
+// nothing. Bounded, because a reviewer may select a paragraph and the head is
+// one line of chrome, not a second copy of the document. Pulled out as a pure
+// function (rather than left inline on the mixin) so probe.mjs can check its
+// wording without a DOM.
+export function headComposer(quote: string): string {
+  // `elide` and not a second copy of it: the rail's card head and this head
+  // quote the SAME anchor a moment apart, and two cuts made in two places is
+  // how the composer promises one thing and the card that appears says
+  // another. The bound differs (this form is narrower than the card) and is
+  // passed; the cut is one function.
+  const short = elide(quote, COMPOSER_QUOTE_CHARS);
+  return short ? `INSTRUCTION · ON "${short}"` : 'INSTRUCTION';
+}
 
 // The block this comment will be filed against, when it is not a range
 // comment: {key, label, region}. Set by the section grip and by a figure
@@ -327,8 +349,8 @@ export const composerMethods = {
     head.className = 'gly-composer-head';
     const input = document.createElement('textarea');
     input.className = 'gly-composer-text';
-    input.rows = 3;
-    input.placeholder = 'what about it?';
+    input.rows = 1;
+    input.placeholder = 'Tell the agent what to change here…';
     // AND IT GROWS. Three rows is where it starts; §6 of the live review is
     // that it was also where it ended. See growOnInput — the cap is this box's
     // own `max-height`, not a number here.
@@ -342,7 +364,7 @@ export const composerMethods = {
     const send = document.createElement('button');
     send.type = 'button';
     send.className = 'gly-composer-send';
-    send.textContent = 'Add instruction';
+    send.textContent = '↵ pin';
 
     // THE WAY OUT WAS A KEY NOBODY WAS TOLD ABOUT. Esc has always reached
     // hideComposer through onKey's topmost-first chain, and a reviewer who had
@@ -371,6 +393,25 @@ export const composerMethods = {
     actions.className = 'gly-composer-actions';
     actions.append(send, cancel, esc);
     form.append(head, input, actions);
+
+    // The suggestion chips: a shortcut for the phrasing a reviewer types
+    // most often. Clicking one prefills the textarea rather than sending —
+    // the reviewer still gets to read and finish the sentence before it goes.
+    const chips = document.createElement('div');
+    chips.className = 'gly-composer-chips';
+    for (const label of SUGGESTIONS) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'gly-chip';
+      chip.textContent = label;
+      chip.addEventListener('click', () => {
+        input.value = chipPrefill(label);
+        input.focus();
+        input.dispatchEvent(new Event('input'));
+      });
+      chips.append(chip);
+    }
+    form.append(chips);
 
     // The note lives OUTSIDE the form: it carries the comment endpoint's
     // failures, which have to be readable while the form is still hidden.
@@ -457,6 +498,13 @@ export const composerMethods = {
     // height the LAST instruction grew it to. See growOnInput.
     c.input.dispatchEvent(new Event('input'));
     c.input.focus();
+
+    // Dim everything but the block the selection is in, so the reviewer's
+    // eye has one thing to read while they type.
+    document.body.classList.add('gly-composing');
+    const dom = this.editor.view.domAtPos(this.editor.state.selection.from).node;
+    const block: Element | null = dom instanceof Element ? dom : dom.parentElement;
+    block?.closest('.ProseMirror > *')?.classList.add('gly-composing-target');
   },
 
   /**
@@ -620,21 +668,10 @@ export const composerMethods = {
     c.root.style.left = left;
   },
 
-  // headComposer writes the head's sentence. `ON "…"` only where there is
-  // something to quote: a whole-section or whole-figure note has no phrase, and
-  // a head that quoted an empty string would read as an instruction about
-  // nothing. Bounded, because a reviewer may select a paragraph and the head is
-  // one line of chrome, not a second copy of the document.
+  // headComposer (the exported pure function above) writes the sentence;
+  // this method is the one caller that puts it on screen.
   headComposer(this: AppShell, quote: string) {
-    // `elide` and not a second copy of it: the rail's card head and this head
-    // quote the SAME anchor a moment apart, and two cuts made in two places is
-    // how the composer promises one thing and the card that appears says
-    // another. The bound differs (this form is narrower than the card) and is
-    // passed; the cut is one function.
-    const short = elide(quote, COMPOSER_QUOTE_CHARS);
-    this.composer.head.textContent = short
-      ? `INSTRUCTION · ON "${short}"`
-      : 'INSTRUCTION';
+    this.composer.head.textContent = headComposer(quote);
   },
 
   hideComposer(this: AppShell) {
@@ -651,6 +688,8 @@ export const composerMethods = {
     this.composer.key = null;
     this.composer.block = null;
     this.composer.button.disabled = false;
+    document.body.classList.remove('gly-composing');
+    document.querySelectorAll('.gly-composing-target').forEach((el) => el.classList.remove('gly-composing-target'));
   },
 
   // (applyStrike lived here until the trail cut. The Strike button was a

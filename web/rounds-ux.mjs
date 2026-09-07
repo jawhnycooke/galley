@@ -394,8 +394,11 @@ try {
   await page.click('.gly-comment-button');
   const send = await textOf(page, '.gly-composer-send');
   check(
+    // Task 8 restyles the send verb to a keyboard-shaped whisper — Enter
+    // already pins the instruction (submitOnEnter), and the button now says
+    // so rather than repeating the popover's own affordance label.
     'the button names what it makes',
-    send === 'Add instruction',
+    send === '↵ pin',
     JSON.stringify(send),
   );
   check(
@@ -432,22 +435,26 @@ try {
     );
     const probe = document.createElement('span');
     probe.style.color = getComputedStyle(document.documentElement)
-      .getPropertyValue('--gly-hl')
+      .getPropertyValue('--gly-accent')
       .trim();
     document.body.appendChild(probe);
-    const hl = getComputedStyle(probe).color;
+    const accent = getComputedStyle(probe).color;
     probe.remove();
     return {
       sendBg: send.backgroundColor,
       sendWeight: send.fontWeight,
       cancelBg: cancel.backgroundColor,
       cancelBorder: cancel.borderTopColor,
-      hl,
+      accent,
     };
   });
   check(
-    'the verb that makes the instruction is filled with the instruction colour',
-    verbs.sendBg === verbs.hl && Number(verbs.sendWeight) >= 600,
+    // Task 8 moves the send verb off the instruction colour (coral, `--gly-hl`)
+    // and onto the acid accent — the bar's own `↳` and the eyebrow already
+    // read as instruction chrome, so the loud fill is free to be the product's
+    // one action colour instead.
+    'the verb that makes the instruction is filled with the accent colour',
+    verbs.sendBg === verbs.accent && Number(verbs.sendWeight) >= 600,
     JSON.stringify(verbs),
   );
   check(
@@ -483,11 +490,15 @@ try {
     }),
   );
   check(
-    'it floats on the body and animates nothing',
+    // Task 8 gives the composer a one-shot rise-in (`gly-rise`, 0.25s) on
+    // open — the earlier claim was that opening it moves nothing ELSE
+    // (no transition, no reflow of the prose it floats over), which the two
+    // checks either side of this one still cover.
+    'it floats on the body and rises in without moving anything else',
     placement.parent === 'BODY' &&
       placement.position === 'absolute' &&
       placement.transition === '0s' &&
-      placement.animation === 'none',
+      placement.animation === 'gly-rise',
     JSON.stringify(placement),
   );
   const proseAfter = await proseRects(page);

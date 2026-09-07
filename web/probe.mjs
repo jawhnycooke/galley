@@ -8398,4 +8398,12 @@ function bindsContentField(src) {
   check('eyebrow: draft, marked up, needs approval', eyebrowRight('markup', 0, 0).text === 'DRAFT' && eyebrowRight('markup', 1, 0).text === 'DRAFT · MARKED UP' && eyebrowRight('markup', 1, 0).tone === 'coral' && eyebrowRight('review', 0, 0).text === 'NEEDS YOUR APPROVAL' && eyebrowRight('revising', 1, 0).text === 'WITH THE AGENT' && eyebrowRight('cannot', 1, 0).text === 'UNCHANGED' && eyebrowRight('approved', 0, 0).text === 'SETTLED');
 }
 
+// --- composer chips ---
+{
+  const { SUGGESTIONS, chipPrefill, headComposer } = await import('./composer.ts');
+  check('four suggestion chips', SUGGESTIONS.join('|') === 'tighter|more concrete|shorter|plainer language');
+  check('a chip prefills capitalised with an em dash', chipPrefill('plainer language') === 'Plainer language — ');
+  check('composer eyebrow quotes the selection', headComposer('a long, structured research document').startsWith('INSTRUCTION · ON "'));
+}
+
 process.exit(failures === 0 ? 0 : 1);
