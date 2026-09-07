@@ -1846,18 +1846,22 @@ body.gly-collapsed > main {
    intermediate `Add instruction` press — the composer opens its form on the
    selection (spec §1, web/composer.ts). */
 /* (.gly-strike-button's rules retired with the button — the trail cut.) */
-/* 21rem AND NOT 16, AND THE HEAD IS WHY. The form was as wide as its textarea
-   needed to be and nothing else read across it; the head does — `INSTRUCTION ·
-   ON "explicit and readable"` is 39 mono characters, and at 16rem it rendered
-   `…ON "EXPLICIT AND READ…`, quoting an anchor the reviewer then could not
-   check. The prototype's composer is this width for the same reason. The note
-   and the refusal follow it, because three boxes in one popover with two widths
-   is a popover that changes shape depending on what went wrong. */
+/* 27rem AND NOT 16, AND TWO ROWS ARE WHY. The form was as wide as its textarea
+   needed to be and nothing else read across it; two rows do — the head,
+   `INSTRUCTION · ON "explicit and readable"`, is 39 mono characters and at
+   16rem rendered `…ON "EXPLICIT AND READ…`, quoting an anchor the reviewer
+   then could not check; and the four suggestion chips (`tighter · more
+   concrete · shorter · plainer language`) are one row at 27rem and wrapped
+   `plainer language` onto a second at 21rem, which the reviewer read as a
+   fifth, orphaned chip. The prototype's composer is this width for the same
+   reasons. The note and the refusal follow it, because three boxes in one
+   popover with two widths is a popover that changes shape depending on what
+   went wrong. */
 .gly-composer-form {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  width: 21rem;
+  width: 27rem;
   background: var(--gly-bg);
   border: 1px solid var(--gly-accent);
   border-radius: 8px;
@@ -2767,7 +2771,11 @@ body.gly-revising .gly-dot {
 .gly-revise-count {
   display: inline-block;
   min-width: 5ch;
-  text-align: left;
+  /* CENTRED, NOT LEFT: the reserve is wider than ` · 2`, and left-aligned the
+     spare width all landed between the digit and the `▾`, which read as a
+     caret drifting away from its label. Centred, the slack splits either
+     side of the clause and the caret stays beside the number. */
+  text-align: center;
   white-space: pre;
 }
 /* THE TRAIL'S CLAUSE LEFT THE BUTTON AND KEPT ITS 23ch RESERVE, one element to
