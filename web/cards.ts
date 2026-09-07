@@ -47,15 +47,13 @@ import type { AppShell, Thread, ThreadEntry, Placement } from './appshell.ts';
 import type { ReviewerChange } from './wire';
 import type { EditorView } from '@tiptap/pm/view';
 
-// AN ANCHORED INSTRUCTION IS PINNED UNDER ITS BLOCK NOW, NOT BESIDE IT — see
-// web/rows.ts, where the same thread is drawn as a widget decoration inside
-// the paper. The rail keeps the ANCHORLESS ones (and the reviewer's own edits),
-// because those have nowhere in the document to sit.
-//
-// Written as a constant rather than as a deletion so this pass stays
-// reviewable: the branch it guards is the rail placement exactly as it was,
-// and Task 14 removes both when the rail itself goes.
-const ROWS_INLINE = true;
+// A BLOCK-ANCHORED INSTRUCTION IS PINNED UNDER ITS BLOCK, NOT BESIDE IT — see
+// web/rows.ts, where the same thread is drawn as a widget decoration after the
+// block it is about. The rail keeps the ANCHORLESS ones and the MARK-anchored
+// ones (and the reviewer's own edits): a row carries the instruction's text and
+// one verb, `×`, and a mark-anchored instruction is the one a reviewer revises
+// in place — `edit` at settle weight, `delete` at destroy weight — which only
+// the card offers.
 
 // How long the delete control stays armed after its first click. Long enough
 // to read what it now says and press it again; short enough that a card left
@@ -926,8 +924,8 @@ export const cardMethods = {
   // `this.blocks`, `this.threadCard`) rather than because it is a second
   // component: it is the same one loop, called from the one place that ever
   // called it, now named for what it does. Returns the anchorless cards for
-  // paintRailCards' own unplaced section; anchored ones it appends to `band`
-  // itself, in document order, as it goes.
+  // paintRailCards' own unplaced section; mark-anchored ones it appends to
+  // `band` itself, in document order, as it goes.
   paintRailThreads(this: AppShell, band: HTMLElement): HTMLElement[] {
     const unplaced: HTMLElement[] = [];
     for (const thread of railThreads(this.comments)) {
@@ -958,15 +956,14 @@ export const cardMethods = {
       // NOT BUILT AT ALL, rather than built and left unplaced: a rail card is
       // `position: absolute` inside the band, so a card the anchor pass never
       // writes a `top` onto is not an invisible card — it is a card drawn on
-      // top of every other one at the band's own origin. See ROWS_INLINE.
+      // top of every other one at the band's own origin.
       //
-      // AND ONLY THE BLOCK-ANCHORED ONES. A row is pinned under a top-level
-      // block, which is what `anchorKey` names — and a RANGE instruction has
-      // none (internal/review/doc.go: Anchor/AnchorKey say what a thread is
-      // about "when that is not a range of prose"), so paintRows draws no row
-      // for one. Dropping it here as well would be an instruction with no
-      // surface at all: pending on the server, invisible on the page.
-      if (ROWS_INLINE && place.where === 'block') {
+      // AND ONLY THE BLOCK-ANCHORED ONES. A block instruction's row carries
+      // everything the card did, so a card as well would be one instruction on
+      // two surfaces. A mark-anchored one has a row too (rows.ts's
+      // runBlockIndex fallback) and still has its card, because the row's one
+      // verb is `×` and revising the words you wrote is the card's `edit`.
+      if (place.where === 'block') {
         continue;
       }
       band.appendChild(this.threadCard(thread, place));

@@ -538,7 +538,7 @@ export const sealMethods = {
     // — twice: three elements the first time, and the comment button the
     // second, after the invariant was sharpened from "has a painter" to "has a
     // painter THIS EDGE RUNS".
-    this.paintCensus();
+    this.paintBarCount();
     this.paintRail();
     this.releaseSealOnlyVerbs();
     // A reopened review takes the verdict button back from `approved`: the
@@ -655,7 +655,6 @@ export const sealMethods = {
   // than a view door filed with the verbs.
   sealHides(this: AppShell): (HTMLElement | null)[] {
     return [
-      this.census && this.census.count,
       this.modeUI && this.modeUI.toggle,
       this.modeUI && this.modeUI.hold,
       this.revise,

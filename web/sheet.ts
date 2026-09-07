@@ -16,10 +16,9 @@
 //
 // makeBottomBar sounds like top-bar chrome by name. It is not: it is the
 // narrow layout's whole bar, and every one of its buttons calls into other
-// groups (openInstructions, toggleVersions, step) rather than owning any
+// groups (openInstructions, step) rather than owning any
 // chrome of its own — it belongs here, beside the surface it opens.
 
-import { VERSIONS_LABEL, VERSIONS_NAME } from './versions.ts';
 import {
   railThreads,
   overallThreads,
@@ -84,7 +83,6 @@ export const sheetMethods = {
   makeBottomBar(this: AppShell): {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   } {
     const root = document.createElement('div');
     root.className = 'gly-bottombar';
@@ -95,21 +93,7 @@ export const sheetMethods = {
     count.className = 'gly-bar-count';
     count.addEventListener('click', () => this.openInstructions());
 
-    // The bar's own History chip. It is a SECOND ELEMENT and not the top bar's
-    // moved down here, because the two bars are painted independently and only
-    // ever one of them is on screen (railSurfaces). Both are painted from
-    // paintVersionsButton, which is the one place that knows what the door
-    // should say and whether something is waiting behind it — a second painter
-    // is how the two chips would come to disagree about an arrival.
-    const versions = document.createElement('button');
-    versions.type = 'button';
-    versions.className = 'gly-bar-versions';
-    versions.textContent = VERSIONS_LABEL;
-    versions.setAttribute('aria-label', VERSIONS_NAME);
-    versions.setAttribute('aria-expanded', 'false');
-    versions.addEventListener('click', () => this.toggleVersions());
-
-    // The one flexible cell, and it sits AFTER the two doors and BEFORE the
+    // The one flexible cell, and it sits AFTER the door and BEFORE the
     // stepper — the top bar's own rule (readouts and doors before the spacer,
     // controls after) read at the other end of the page. Nothing in this bar
     // changes width on its own click, so there is no reserve to state here.
@@ -123,9 +107,9 @@ export const sheetMethods = {
     next.title = 'the next pending mark — wraps at the end of the document';
     next.addEventListener('click', () => this.step(1));
 
-    root.append(count, versions, spacer, next);
+    root.append(count, spacer, next);
     document.body.appendChild(root);
-    return { root, count, versions };
+    return { root, count };
   },
 
   makeSheet(this: AppShell): {

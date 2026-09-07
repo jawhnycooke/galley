@@ -269,28 +269,28 @@ try {
     ),
   );
 
-  // THE COUNT LEFT THE CHIP AND THE CHIP STAYED. `Instructions · N` is gone at
-  // wide widths — the count now sits on the verb it is a count of — and
-  // History keeps its door and loses its number. Two checks were deleted with
-  // the chip and are named rather than dropped silently: `Instructions remains
-  // usable at zero` and `zero instructions stays on the document instead of
-  // opening the old sheet` both pressed a control that no longer exists above
-  // 992px. The narrow bottom bar still carries it, and phase 6 is where that
-  // door is asserted.
-  const viewControls = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-census > button')]
+  // THE CHIP FOLLOWED THE COUNT OUT OF THE BAR, AND THE STRIP WENT WITH IT.
+  // `Instructions · N` left first — the count now sits on the verb it is a
+  // count of — and `History` has followed: the record is reached by scrubbing
+  // the timeline, at every width, so the bar's group of view doors has nothing
+  // left in it and `.gly-census` is deleted. Three checks are retired with it
+  // and named rather than dropped silently: `History is the bar's one view
+  // chip`, `the Instructions chip is gone at wide widths`, and, earlier,
+  // `Instructions remains usable at zero`. What replaces them is the claim
+  // underneath all three — the bar carries readouts and verbs and no doors —
+  // asserted directly, plus the scrubber's own reachability in §5 below.
+  const barControls = await page.evaluate(() =>
+    [...document.querySelectorAll('.gly-bar button')]
       .filter((b) => getComputedStyle(b).display !== 'none')
-      .map((b) => b.innerText.trim()),
+      .map((b) => b.className),
   );
   check(
-    'History is the bar\u2019s one view chip, and it carries no count',
-    JSON.stringify(viewControls) === JSON.stringify(['History']),
-    JSON.stringify(viewControls),
+    'the bar carries no view door at all — the census strip is gone',
+    !(await page.$('.gly-census')) &&
+      barControls.every((c) => !/census|versions/.test(c)),
+    JSON.stringify(barControls),
   );
-  check(
-    'the Instructions chip is gone at wide widths',
-    !(await page.isVisible('.gly-census-count')),
-  );
+
   // At load nothing is pending, so the verdict on offer is Approve, and the
   // footer's `.gly-approve-zero` face is fg-on-bg with no glow — see
   // paintRevise's face-class toggle and editor.css's `/* --- the footer

@@ -70,7 +70,15 @@ export function makeFrame(this: AppShell): void {
   helpBtn.className = 'gly-help-open';
   helpBtn.textContent = '?';
   helpBtn.title = 'how this page works';
-  eyebrow.append(eyebrowL, eyebrowR, helpBtn);
+  // `restore vN as draft` LIVES HERE NOW, and only while the reviewer is off
+  // the head. Its old home was History's sub-bar, which is deleted with the
+  // landing; the eyebrow is the one chrome that is already saying WHICH
+  // version is on screen, so the one verb about that version belongs beside
+  // the sentence naming it. It is the panel's own button, moved rather than
+  // rebuilt — the two-click arming, the three reserved faces and the POST are
+  // VersionsPanel.restore()'s, and a second copy would be a second spelling of
+  // an act with no undo outside git.
+  eyebrow.append(eyebrowL, eyebrowR, this.versionsPanel.restoreButton, helpBtn);
   const slot = document.createElement('div');
   slot.className = 'gly-docslot';
   const slotEmpty = document.createElement('div');
@@ -133,6 +141,17 @@ export function paintFrame(this: AppShell): void {
     : { text: 'READ ONLY', tone: 'muted' as const };
   f.eyebrowR.textContent = right.text;
   f.eyebrowR.dataset.tone = right.tone;
+  // The restore verb names the version the scrubber is ON, so the panel's
+  // selection follows the handle rather than a click that no longer exists.
+  // Hidden at the head: there is nothing to restore the draft FROM there, and
+  // a disabled control in the eyebrow would reserve width for a verb that is
+  // never offered at the one position the page spends its life in.
+  const restore = this.versionsPanel.restoreButton;
+  restore.hidden = s.atHead || rounds.length === 0;
+  if (!restore.hidden) {
+    this.versionsPanel.selected = rounds[s.near - 1]?.n ?? 0;
+    this.versionsPanel.paintRestore();
+  }
   const wholeDocRows = f.slot.querySelectorAll('.gly-row-doc').length;
   f.slotEmpty.hidden = wholeDocRows > 0 || phase !== 'markup';
   f.slot.classList.toggle(

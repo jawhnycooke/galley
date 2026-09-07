@@ -136,13 +136,10 @@ import {
 } from './versions.ts';
 import {
   diffPending,
-  arrivalMessage,
   arrivalNeedsStrip,
   queueArrivals,
-  nextArrival,
   holdLabel,
   shownSuggestions,
-  arrivalAuthor,
   ARRIVAL_AGENT,
 } from './arrivals.ts';
 // The reveal moved out of entry.ts and into web/card.ts with the rest of the
@@ -6453,9 +6450,17 @@ function bindsContentField(src) {
     // in the source at all. The whole word is what is banned, and the bundle
     // carries third-party code with no such string in it either — measured
     // zero, so this is a real zero rather than a hopeful one.
+    //
+    // THE ` suggested ` HALF IS RETIRED WITH THE ARRIVAL STRIP. It was the
+    // positive control — proof the check was reading a bundle that really did
+    // announce arrivals — and the sentence it read (`the agent suggested …`)
+    // was the strip's copy, which is deleted. `ARRIVAL_AGENT` takes its place
+    // as the positive control, and it is the better one: it is the product's
+    // ONE name for the party, so a bundle carrying it is a bundle that named
+    // the party without naming a vendor, which is the whole claim.
     check(
       'and no surface in the bundle names a vendor',
-      !/claude/i.test(src) && src.includes(' suggested '),
+      !/claude/i.test(src) && src.includes(ARRIVAL_AGENT),
     );
     // INVERTED, AND THE INVERSION IS THE RULING. It read *the whole-doc
     // composer lives in the instruction rail*, and it was green over both of
@@ -6714,85 +6719,13 @@ function bindsContentField(src) {
       );
     }
 
-    {
-      check(
-        'one arrival names its section',
-        arrivalMessage([
-          { kind: 'insert', section: 'Shape', author: 'agent' },
-        ]) === 'agent suggested an insert in §Shape, below your viewport',
-      );
-      check(
-        'several arrivals coalesce',
-        arrivalMessage([
-          { kind: 'insert', author: 'agent' },
-          { kind: 'delete', author: 'agent' },
-          { kind: 'insert', author: 'agent' },
-        ]) ===
-          'agent suggested 3 edits while you read — show me steps through them',
-      );
-      // A document with no headings has no section, and "in §, below your
-      // viewport" is not a sentence.
-      check(
-        'a sectionless arrival drops the clause rather than printing an empty one',
-        arrivalMessage([{ kind: 'delete', author: 'agent' }]) ===
-          'agent suggested a delete, below your viewport',
-      );
-      check('nothing arrived says nothing', arrivalMessage([]) === '');
-      // A substitution is one change and has its own word: falling through to the
-      // "an edit" default would be vaguer than the payload already is, and
-      // borrowing "a delete" would name half of what arrived.
-      check(
-        'a replacement is announced as one',
-        arrivalMessage([{ kind: 'replace', author: 'agent' }]) ===
-          'agent suggested a replacement, below your viewport',
-      );
-
-      // THE STRIP NAMED A VENDOR AND NOTHING ELSE ON THE SCREEN DID. `claude` was
-      // hard-coded in both sentences while every card head, the standing sentence
-      // and the CLI's own default all said `agent` — so a proposal filed by
-      // `galley suggest --author dana` was announced as having come from claude,
-      // three inches from a card reading `REPLACE · DANA · JUST NOW`. Shown red
-      // against the tracked bundle: the two checks above read `claude suggested …`.
-      check(
-        'the arrival names ITS OWN author, whoever filed it',
-        arrivalMessage([{ kind: 'replace', author: 'dana' }]) ===
-          'dana suggested a replacement, below your viewport',
-      );
-      check(
-        'and the string `claude` appears in no arrival sentence at all',
-        ![
-          arrivalMessage([{ kind: 'insert', author: 'agent' }]),
-          arrivalMessage([{ kind: 'insert' }]),
-          arrivalMessage([
-            { kind: 'insert', author: 'dana' },
-            { kind: 'delete', author: 'dana' },
-          ]),
-        ].some((s) => s.includes('claude')),
-      );
-      // An unnamed proposer is the ordinary case for a mark parsed out of a file:
-      // CriticMarkup has nowhere to record an author, so the strip has no name to
-      // print and prints the general one rather than an empty space.
-      check(
-        'an arrival with no author falls back to the general name',
-        arrivalMessage([{ kind: 'insert' }]) ===
-          `${ARRIVAL_AGENT} suggested an insert, below your viewport`,
-      );
-      // TWO PARTIES HAVE NO SINGLE NAME. Picking the first would attribute the
-      // other's work to it, which is the same defect as `claude` with a subtler
-      // cause.
-      check(
-        'a batch from two parties is announced under neither of them',
-        arrivalMessage([
-          { kind: 'insert', author: 'dana' },
-          { kind: 'insert', author: 'agent' },
-        ]) ===
-          `${ARRIVAL_AGENT} suggested 2 edits while you read — show me steps through them`,
-      );
-      check(
-        "a batch from ONE party keeps that party's name",
-        arrivalAuthor([{ author: 'dana' }, { author: 'dana' }]) === 'dana',
-      );
-    }
+    // THE ARRIVAL SENTENCE'S OWN GRAMMAR IS DELETED WITH THE STRIP THAT SAID
+    // IT. `arrivalMessage` composed `agent suggested an insert in §Shape, below
+    // your viewport` and its coalesced form, and thirteen checks here held its
+    // section clause, its plural, its one-party name and its refusal to say
+    // anything about nothing. There is no surface left to print it: a round
+    // says what it did where it happened. `queueArrivals` survives it and is
+    // still checked below.
 
     {
       // THE STRIP IS FOR WHAT THE REVIEWER CANNOT SEE. An arrival whose mark is on
@@ -6825,9 +6758,9 @@ function bindsContentField(src) {
     }
 
     {
-      // The queue is what `show me` steps through, and it is NOT the rail's card
-      // list: a card can be decided or scrolled past without the reviewer having
-      // seen what arrived.
+      // The queue is what an arrival is remembered in, and it is NOT the rail's
+      // card list: a card can be decided or scrolled past without the reviewer
+      // having seen what arrived.
       const q1 = queueArrivals([], [{ run: 'a' }, { run: 'b' }]);
       const q2 = queueArrivals(q1, [{ run: 'b' }, { run: 'c' }]);
       check(
@@ -6835,16 +6768,11 @@ function bindsContentField(src) {
         q2.map((a) => a.run).join(',') === 'a,b,c',
       );
 
-      const step = nextArrival(q2, [{ run: 'b' }, { run: 'c' }]);
-      check(
-        'show me skips an arrival that is no longer pending',
-        step.arrival.run === 'b' &&
-          step.queue.map((a) => a.run).join(',') === 'c',
-      );
-      check(
-        'a queue with nothing live left steps nowhere',
-        nextArrival(q2, []).arrival === null,
-      );
+      // `nextArrival` WENT WITH `show me`. It answered one press of the strip's
+      // stepping verb — the first queued arrival still pending, and the queue
+      // without it — and the strip is deleted. The queue itself is not: it is
+      // still what `withhold`/`release` accumulate into, which is what the
+      // check above holds.
     }
 
     {
@@ -7522,19 +7450,17 @@ function bindsContentField(src) {
       src.includes('galleyKeepPlace') && src.includes('scrollTo'),
     );
 
-    // The arrival strip and its two verbatim strings. A bundle that grew the
-    // diff but lost the strip would announce nothing, and the symptom is
-    // silence — indistinguishable from an agent that never suggested anything.
+    // THE ARRIVAL STRIP IS DELETED AND THESE TWO CHECKS ARE ITS EPITAPH.
+    // They asserted `gly-strip`, `show me`, `fades · the count keeps it` and
+    // the two arrival sentences were all in the shipped bundle — a bundle that
+    // grew the diff but lost the strip would have announced nothing. The strip
+    // is gone because a round now says what it did WHERE it happened, so the
+    // claim is asserted on that surface instead: `gly-row` and the WAS strip
+    // below, and the eyebrow's own checks. Asserted ABSENT so the floating
+    // banner cannot come back beside the surface that replaced it.
     check(
-      'the built bundle carries the arrival strip',
-      src.includes('gly-strip') &&
-        src.includes('show me') &&
-        src.includes('fades · the count keeps it'),
-    );
-    check(
-      'the built bundle carries both arrival sentences',
-      src.includes('below your viewport') &&
-        src.includes('edits while you read — show me steps through them'),
+      'and the arrival strip is gone, not merely unbuilt',
+      !src.includes('gly-strip') && !src.includes('fades · the count keeps it'),
     );
     // The count is the durable record, so its pulse is what outlives the strip.
     // THE CARD'S "new" BADGE IS NOT, and this check used to read it here.
@@ -7809,15 +7735,15 @@ function bindsContentField(src) {
         css.includes('grid-template-areas:"label"'),
     );
     // THE COUNT'S RESERVE MOVED TO THE BUTTON THAT SENDS WHAT IT COUNTS.
-    // `Instructions · N` is `display: none` at every width now — the number is
-    // on the primary — so its 24ch bounds nothing, and a check reading it would
-    // be certifying a reserve on a box with no paint. The claim the reserve was
-    // written for is unchanged and is asserted one control over: a number that
-    // changes on somebody else's click may move the text and never the button.
+    // `Instructions · N` was `display: none` at every width and is now deleted
+    // outright with the census strip, so the second half of this check reads
+    // the absence rather than the hidden box. The claim the reserve was written
+    // for is unchanged and is asserted one control over: a number that changes
+    // on somebody else's click may move the text and never the button.
     check(
       'the pending count sits in a reserved box on the primary itself',
       /\.gly-revise-count\{[^}]*min-width:5ch/.test(css) &&
-        /\.gly-census-count\{display:none/.test(css),
+        !css.includes('.gly-census'),
     );
     // And the label those three nodes read as is one spelling, not two: the
     // button composes `Revise` + the clause + ` ▾`, and reviseIdleLabel is the
@@ -7837,15 +7763,15 @@ function bindsContentField(src) {
         roundPhrase(2, PHASE_AGENT) === 'round 2 · with the agent',
       roundPhrase(0, PHASE_DRAFT),
     );
-    // AND IT IS A BUTTON THAT LOOKS LIKE ONE. `.gly-census-overall` beside it
-    // was found only after Court failed to find it, and the diagnosis was that
-    // it read as a noun in a row of verbs. A count that opens the review's
-    // whole list has to be dressed as a control, so it takes the strip's own
-    // button chrome and adds the hover every other control there has.
+    // AND THE DOOR IT WAS IS THE NARROW BAR'S NOW, AT THE ONE WIDTH THE SHEET
+    // IS STILL REACHED FROM. This read the wide census count's own hover —
+    // *a count that opens the review's whole list has to be dressed as a
+    // control* — and that button is deleted with the strip. `.gly-bar-count`
+    // is what is left of the claim: it is a real button in a bar of buttons,
+    // and `paintBarCount` is the one thing that labels it.
     check(
-      'and it is dressed as the control it became, with a hover of its own',
-      bundle.includes('show the current draft and its instructions') &&
-        /\.gly-census-count:hover:not\(\[disabled\]\)\{border-color/.test(css),
+      'and the sheet keeps one door, in the bar that still has one',
+      bundle.includes('gly-bar-count') && bundle.includes('Instructions · '),
     );
 
     // --- no proposal card, and therefore no reply box on one ---
@@ -7971,16 +7897,18 @@ function bindsContentField(src) {
         /\.gly-revise-secs\{[^}]*min-width:4ch/.test(css) &&
         bundle.includes('gly-revise-secs'),
     );
-    // The handle's label carries a count, and the count changes when a note is
-    // filed in the panel it opens. 16ch is a bound, like the census count's —
-    // retuned from 28ch when the label pair dropped "on the whole doc". It is
-    // a label TRIO now (the settled face, `✓ n doc instructions`, which is what
-    // `+ instruct document` used to swallow), and sixteen still bounds it exactly:
-    // `▾ ✓ 99 doc instructions`. The pure check on that arithmetic is beside
-    // overallHandle above; this one reads the SHIPPED stylesheet.
+    // THE WHOLE-DOC HANDLE HAD A RESERVE BECAUSE IT WAS IN THE BAR. It was
+    // `.gly-census-overall`, whose label carried a count that changed on
+    // somebody else's event, so 24ch bounded it against sliding its
+    // neighbours. The door is the sheet's dashed full-width slot now
+    // (`.gly-docslot-add`), which spans the column and cannot resize anything
+    // beside it — the reserve has nothing left to bound, so the check reads
+    // that the handle really did leave the bar rather than certifying a width
+    // on a box with no paint. The label arithmetic itself is still checked on
+    // overallHandle above.
     check(
-      'the whole-doc handle reserves its width against its own count',
-      /\.gly-census-overall\{[^}]*min-width:calc\(24ch/.test(css),
+      'the whole-doc door is out of the bar entirely, so it reserves nothing',
+      !css.includes('.gly-census-overall') && css.includes('.gly-docslot-add'),
     );
   }
 }

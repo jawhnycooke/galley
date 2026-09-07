@@ -4,7 +4,7 @@
 // It is a MIXIN — an object of methods `Object.assign`ed onto `App.prototype`
 // in entry.ts — not a class of its own, so every method here still reads and
 // writes `this` on the live App instance exactly as it did before the move
-// (`this.status`, `this.census`, `this.bar`, `this.modeUI`, and so on). `this`
+// (`this.status`, `this.bar`, `this.modeUI`, and so on). `this`
 // IS TYPED AGAINST `AppShell` (web/appshell.ts) — see that file's own header
 // for the this-typing decision.
 //
@@ -323,113 +323,16 @@ export const barMethods = {
       'your instructions go to the agent as one round when you press Revise';
   },
 
-  // --- the census strip ---
-
-  // The census answers HOW MUCH. It is a separate surface from the rail for one
-  // reason: the rail can only show what is near, and a number that changes with
-  // the scroll position is not a census. Every number here comes from the
-  // /_galley/pending payload — the same projection the document is built from.
-  makeCensus(this: AppShell): { root: HTMLElement; count: HTMLButtonElement } {
-    const root = document.createElement('div');
-    root.className = 'gly-census';
-
-    // THE COUNT IS THE DOOR TO THE WHOLE LIST, and it had to become one.
-    //
-    // It was a `<span>`: a readout, and the only way to the sheet was the
-    // narrow layout's bottom bar (`.gly-bar-count`, `.gly-bar-list`), so above
-    // the breakpoint the sheet could not be opened at all. That was correct
-    // while the sheet was the rail's REPLACEMENT — a surface for the width the
-    // rail does not exist at. It stopped being correct the moment the rail
-    // stopped holding settled conversations: `↺ reopen` is the only way back
-    // from a mis-clicked `✓ resolve`, and it would have lived on a surface no
-    // desktop reviewer could reach. Anchorless conversations went the same way.
-    //
-    // So the sheet is the review's list at every width (railSurfaces), and this
-    // is how it is reached at every width — the same element, in the same
-    // place, saying the same number it always said. A button rather than a new
-    // control beside it, because the bar's fold arithmetic is paid for in
-    // pixels and this one already carries the count somebody would click.
-    //
-    // `.gly-census-count`'s 24ch reserve is unchanged and is still a BOUND: the
-    // label's width varies with the counts, and every control to its right sits
-    // downstream of it.
-    const count = document.createElement('button');
-    count.type = 'button';
-    count.className = 'gly-census-count';
-    count.title = 'show the current draft and its instructions';
-    count.addEventListener('click', () => this.openInstructions());
-
-    // R1'S SURVIVING HALF IS NOT A CELL OF THIS STRIP'S ANY MORE, AND NOT A
-    // CELL OF THE BAR'S EITHER. The sentence — the design, since the
-    // reviewer's-hand cut, rather than an admission of a gap — used to be
-    // appended here as `.gly-census-untracked`, a bar cell beside the strip.
-    // Its journey was: inside the strip (where its full width sat in the
-    // strip's flex basis and decided where the bar folded — 1467px with a
-    // nine-character name), then a basis-0 bar cell of its own beside two other
-    // basis-0 readouts. That last shape is what Court read off the screen as
-    // three truncated fragments. It is the last clause of the ONE readout now;
-    // see paintReadout, which owns the sentence, its order and its title.
-    //
-    // The strip keeps its `flex: 0 0 auto` and everything left in it really is
-    // a count or a control, which is what that declaration has always claimed.
-
-    // `✓ all` IS GONE FROM THIS FUNCTION, NOT MERELY UNAPPENDED. It swept
-    // every proposal and settled every answered thread through POST
-    // /_galley/sweep — one of the twelve endpoints
-    // internal/serve/rounds_surface_test.go asserts are 404 — and it was
-    // already doubly unreachable: `makeCensus` built it and never put it in the
-    // document, and `paintCensus` wrote `disabled = true` over it on every poll.
-    // Neither population it acted on exists any more, so nothing takes its
-    // place: an instruction is not decided in bulk or singly, it is written,
-    // edited or deleted, and then sent as a round. The strip keeps its
-    // `flex: 0 0 auto` and its measured layout; the count beside it is the
-    // census's one verb now, and it opens the sheet.
-    root.append(count);
-    const bar = document.querySelector('.gly-bar');
-    // BEFORE THE READOUT, not merely before the spacer. The census carries
-    // three controls, and the readout after it changes width whenever the
-    // server says something — measured: one press of Revise put
-    // `revision requested` into the status and slid `✓ all`, the since-retired
-    // `✗ all` and the whole-doc handle 140.89px. A readout that pushes a button
-    // is the same defect as a button that pushes its neighbour. The bar reads
-    // left to right: controls, the ONE readout, the one flexible cell,
-    // controls — so every control sits upstream of the only cell that
-    // breathes. There used to be three readouts here and the ordering rule was
-    // the same; consolidating them changed how much has to be said, not what
-    // has to be true.
-    const anchor =
-      document.getElementById('gly-status') ||
-      document.querySelector('.gly-spacer');
-    if (bar && anchor) {
-      bar.insertBefore(root, anchor);
-    } else if (bar) {
-      bar.appendChild(root);
+  // paintBarCount labels the NARROW bar's one door to the review's list. The
+  // wide bar's census strip that used to carry the same number beside it is
+  // deleted with the rest of the retired chrome; below the breakpoint this is
+  // the only way to the sheet, so the count is still painted.
+  paintBarCount(this: AppShell) {
+    if (!this.bar) {
+      return;
     }
-    return { root, count };
-  },
-
-  paintCensus(this: AppShell) {
-    const marked = this.comments.length;
-    const parts = [`Instructions · ${marked}`];
-    // THE WHOLE-DOCUMENT CONVERSATION IS THE HANDLE'S TO COUNT, and counting it
-    // here as well is how `3 pending · 3 threads` came to sit beside
-    // `1 doc note` on a document holding three conversations, one of which was
-    // that note. Two surfaces, one partition, each naming its own side of it.
-    //
-    // THIS IS NOT A COUNT OF THE RAIL'S CARDS, and it must not be read as one.
-    // It counts every open conversation that is not about the whole file, and
-    // the rail cards only the ones with a PLACE in the document — so on a
-    // document holding an anchorless thread the bar says one more than the map
-    // shows, correctly, and `paintRailCards`' notice is what reconciles them.
-    // A version of this comment claimed the sum WAS what the rail holds; it was
-    // written when the anchorless cards were still in the rail and it survived
-    // them leaving, which is the shape this file's own entries warn about.
-    this.census.count.textContent = parts.join(' · ');
-    this.census.count.disabled = false;
-    if (this.bar) {
-      this.bar.count.textContent = parts.join(' · ');
-      this.bar.count.disabled = false;
-    }
+    this.bar.count.textContent = `Instructions · ${this.comments.length}`;
+    this.bar.count.disabled = false;
   },
 
   // --- which surfaces are on screen ---

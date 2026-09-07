@@ -68,7 +68,6 @@ export const keyMethods = {
           return;
         }
         this.versionsPanel.hide();
-        this.paintVersionsButton();
         return;
       }
       // SCRUBBING THE TIMELINE is its own surface — `body.gly-scrubbing` marks

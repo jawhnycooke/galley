@@ -17,12 +17,7 @@ import { getJSON } from './net.ts';
 import { runFor, markElement, runTop } from './runs.ts';
 import { flash } from './card.ts';
 import { verdictLabel } from './verdict.ts';
-import {
-  diffPending,
-  arrivalMessage,
-  arrivalNeedsStrip,
-  queueArrivals,
-} from './arrivals.ts';
+import { diffPending, arrivalNeedsStrip, queueArrivals } from './arrivals.ts';
 import { AUTHOR } from './rail.ts';
 import { revertChange } from './cards.ts';
 import type { SuggestionLike } from './suggestions.ts';
@@ -262,7 +257,7 @@ export const pendingMethods = {
           this.appliedKeys = null;
         }
         this.pendingCount = filed;
-        this.paintCensus();
+        this.paintBarCount();
         this.paintRevise();
         this.paintHold();
         this.paintRail();
@@ -381,10 +376,6 @@ export const pendingMethods = {
       return;
     }
     this.arrivalQueue = queueArrivals(this.arrivalQueue, unseen);
-    this.stripBatch = this.strip.root.hidden
-      ? unseen
-      : this.stripBatch.concat(unseen);
-    this.showStrip(arrivalMessage(this.stripBatch));
   },
 
   // Refreshing History also refreshes the count on its peer view control. It is

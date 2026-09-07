@@ -22,7 +22,7 @@
 // (draftRoots/draftFields/captureDrafts/restoreDrafts), lit-run highlighting
 // (watchLit/litRuns/litRunAt/paintLit/runsNow/reveal), and the bar/census
 // wiring that watches the DOM for it (watchBar/chromeFrame/pulseCensus/
-// clearNewLater/readChanges) all stayed here because they are the shell's
+// clearNewLater) all stayed here because they are the shell's
 // own state, not because nobody got to them yet.
 //
 // Its READ surface is bigger than even that: immediately after the class
@@ -88,7 +88,7 @@
 //     THIS constructor, the same shape as `cardSizes` beside it. Moved to
 //     AppState; see appshell.ts's note at that field for the full argument.
 //   - AppMethods was missing every constructor-only builder this file calls
-//     by name (`makeCensus`, `makeSheet`, `makeRevise`, `onKey`, `refuse`,
+//     by name (`makeSheet`, `makeRevise`, `onKey`, `refuse`,
 //     `enterHistory`, and sixteen more) — real mixin methods from Tasks 5-7,
 //     each already carrying `this: AppShell`, that nothing before this task
 //     needed typed because nothing before this task's own constructor CALLED
@@ -182,12 +182,7 @@ import type {
   ThreadLike,
 } from './suggestions.ts';
 import { trailPlugin, trailPluginKey } from './trail.ts';
-import {
-  nextArrival,
-  ARRIVAL_AGENT,
-  ARRIVAL_FADE_MS,
-  ARRIVAL_SUFFIX,
-} from './arrivals.ts';
+import { ARRIVAL_AGENT, ARRIVAL_FADE_MS } from './arrivals.ts';
 import { settledNotes, readSettledOpen, carryDrafts } from './rail.ts';
 import { mountPreview } from './preview.ts';
 import { shellMarkerQuiet } from './marker.ts';
@@ -800,39 +795,25 @@ class App implements AppState {
   editingThread: string | null;
   stepped: string | null;
 
-  // --- the bubble, and the census/bar chrome ---
+  // --- the bubble, and the bar chrome ---
   bubble: SuggestionUI;
-  census: { root: HTMLElement; count: HTMLButtonElement };
   bar: {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
-  strip: {
-    root: HTMLElement;
-    text: HTMLElement;
-    read: HTMLButtonElement;
-    show: HTMLButtonElement;
-    dismiss: HTMLButtonElement;
-    fade: HTMLElement;
-  };
-
-  // --- arrivals: the queue, the hold, the strip's batch ---
+  // --- arrivals: the queue and the hold ---
   arrivalQueue: ArrivalItem[];
-  stripBatch: ArrivalItem[];
   held: Set<string>;
   heldArrivals: ArrivalItem[];
   holding: boolean;
   newRuns: Set<string>;
-  // Two timer handles private to this file's own strip/badge painters — not
-  // shared with any mixin, so not in AppState. Both are direct, unconditional
-  // constructor assignments (`this.stripTimer = 0; this.newTimer = 0;`).
-  stripTimer: number;
+  // A timer handle private to this file's own badge painter — not shared with
+  // any mixin, so not in AppState. It is a direct, unconditional constructor
+  // assignment (`this.newTimer = 0;`).
   newTimer: number;
 
-  // --- History: the door, the round, the reading state ---
+  // --- History: the round and the reading state ---
   versionsPanel: VersionsPanel;
-  versionsButton: HTMLButtonElement;
   // The bar's capture door. Built once in the constructor and never rebuilt,
   // like its neighbour — the bar's controls outlive every paint.
   captureBtn: HTMLButtonElement;
@@ -1046,7 +1027,6 @@ class App implements AppState {
     this.blocks = [];
 
     this.status = this.makeStatus();
-    this.census = this.makeCensus();
     this.rail = this.makeRail();
     this.composer = this.makeComposer();
     this.grip = this.makeGrip();
@@ -1070,7 +1050,6 @@ class App implements AppState {
       onClose: () => this.leaveHistory(),
       onCount: (count) => {
         this.historyCount = count;
-        this.paintVersionsButton();
         // The readout names the round, so a round landing has to repaint it.
         this.paintReadout();
       },
@@ -1089,7 +1068,6 @@ class App implements AppState {
         this.paintTimeline();
       },
     });
-    this.versionsButton = this.makeVersionsButton();
     // THE FRAME BEFORE THE VERB THAT LIVES IN IT. makeFrame builds the eyebrow
     // row, the whole-doc slot and the `?` sheet around the paper; the capture
     // door is appended INTO that slot, so the slot has to exist first.
@@ -1150,14 +1128,8 @@ class App implements AppState {
     // through. Not the rail's card list: a card can be decided, scrolled past
     // or collapsed away without anyone having seen what landed.
     this.arrivalQueue = [];
-    // What the CURRENTLY VISIBLE strip is about. Coalescing is tied to the
-    // strip being on screen (handoff §4: "a second arrival WHILE THE STRIP IS
-    // VISIBLE rewrites it"), so this resets once it has faded.
-    this.stripBatch = [];
     this.newRuns = new Set();
-    this.stripTimer = 0;
     this.newTimer = 0;
-    this.strip = this.makeStrip();
 
     // Where the reviewer was, in coordinates a fragment rebuild cannot
     // destroy. See keepPlace.
@@ -1746,7 +1718,7 @@ class App implements AppState {
       // this sentence is about whoever's server-side mutation replaced the
       // document, which this page cannot name and must not guess. See
       // arrivals.ts's ARRIVAL_AGENT.
-      this.showStrip(
+      this.say(
         `${ARRIVAL_AGENT} edited inside your selection — only your cursor was put back`,
       );
     }
@@ -1766,11 +1738,11 @@ class App implements AppState {
     //
     // Before the mitigation existed the page jumped and the reviewer knew
     // something had happened. So when the caret cannot be placed, the scroll
-    // is left where the rebuild put it and the strip says why. The reviewer
+    // is left where the rebuild put it and the readout says why. The reviewer
     // gets the signal back, and now also gets a sentence.
     const lost = focused && this.place !== null && span === null;
     if (lost) {
-      this.showStrip(
+      this.say(
         `${ARRIVAL_AGENT} edited the paragraph you were in — your cursor moved`,
       );
       this.restoring = false;
@@ -1829,150 +1801,6 @@ class App implements AppState {
     return section;
   }
 
-  makeStrip() {
-    const root = document.createElement('div');
-    root.className = 'gly-strip';
-    root.hidden = true;
-    // The strip is the only notice an off-screen arrival gets, so it has to
-    // reach a screen reader too. polite, never assertive: interrupting what is
-    // being read is the same discourtesy as moving the caret.
-    root.setAttribute('role', 'status');
-    root.setAttribute('aria-live', 'polite');
-
-    const text = document.createElement('span');
-    text.className = 'gly-strip-text';
-
-    // THE ONE FILLED VERB ON THE STRIP, and it is a DEEP LINK rather than a
-    // scroll. Board 1e: the question a reviewer has the instant a round lands
-    // is not "where is it" but "what did it do to my document", and the only
-    // surface that answers that is the round's own reading state. This lands
-    // there — `showRound(n, 'inplace')`, through toggleVersions' arrival branch
-    // so there is ONE spelling of the deep link — not on History's landing,
-    // which answers the other question.
-    const read = document.createElement('button');
-    read.type = 'button';
-    read.className = 'gly-strip-read';
-    read.textContent = 'read changes';
-    read.title = 'open this round in History, on what it changed';
-    read.addEventListener('click', () => this.readChanges());
-
-    const show = document.createElement('button');
-    show.type = 'button';
-    show.className = 'gly-strip-show';
-    show.textContent = 'show me';
-    show.title =
-      'scroll to what arrived — the only thing on this strip that moves the page';
-    show.addEventListener('click', () => this.showMe());
-
-    // THE QUIET WAY OUT, and it takes nothing with it. Dismissing is "not now",
-    // never "seen" — the History chip stays amber until the changes are
-    // actually READ, because a notice a reviewer waved away is not a round they
-    // looked at, and the amber is the only durable trace the arrival leaves.
-    const dismiss = document.createElement('button');
-    dismiss.type = 'button';
-    dismiss.className = 'gly-strip-dismiss';
-    dismiss.textContent = 'dismiss';
-    dismiss.title = 'put this away — History stays marked until you read it';
-    dismiss.addEventListener('click', () => this.hideStrip());
-
-    // Handoff §11, verbatim. It says both that this notice is about to go and
-    // that the fact survives it, which is what makes fading acceptable.
-    const fade = document.createElement('span');
-    fade.className = 'gly-strip-fade';
-    fade.textContent = ARRIVAL_SUFFIX;
-
-    root.append(text, read, show, dismiss, fade);
-    document.body.appendChild(root);
-    return { root, text, read, show, dismiss, fade };
-  }
-
-  // showStrip has TWO CALLERS SAYING TWO DIFFERENT THINGS, and the difference
-  // is which verb the strip offers and whether it fades.
-  //
-  // An ARRIVED ROUND (`round`, board 1e) is a durable fact with somewhere to
-  // go: `read changes` and `dismiss`, and NO TIMER. The 8-second fade was
-  // designed for a strip with no way out and a count that kept the fact for it;
-  // this one HAS a way out, and what it announces is not "three edits went past
-  // while you were reading" but "the round you sent came back", which is still
-  // worth acting on after the paragraph you are in the middle of.
-  //
-  // Anything else keeps the old shape — `show me` and the fading suffix.
-  //
-  // The verbs are switched with `hidden` and not with visibility: nothing here
-  // is reserving a box (the strip is absent entirely between arrivals, so there
-  // is no neighbour to slide), and `hidden` takes the unused verb out of the
-  // TAB ORDER as well as out of the paint. A button hidden in CSS is still a
-  // button to the keyboard — this codebase learned that from the fold clusters
-  // and pays for it every time it forgets.
-  showStrip(message: string, round: Arrival | null = null) {
-    if (!message) {
-      return;
-    }
-    this.strip.text.textContent = message;
-    this.strip.read.hidden = !round;
-    this.strip.dismiss.hidden = !round;
-    this.strip.show.hidden = !!round;
-    this.strip.fade.hidden = !!round;
-    this.strip.root.hidden = false;
-    if (this.stripTimer) {
-      window.clearTimeout(this.stripTimer);
-      this.stripTimer = 0;
-    }
-    if (!round) {
-      this.stripTimer = window.setTimeout(
-        () => this.hideStrip(),
-        ARRIVAL_FADE_MS,
-      );
-    }
-  }
-
-  // readChanges is the strip's filled verb. It hides the notice and hands the
-  // gesture to toggleVersions, which already owns the arrival deep link — the
-  // strip does not get a second copy of `showRound(n, 'inplace')`, because two
-  // spellings of one landing is how the two come to disagree about which round
-  // an arrival opens.
-  readChanges() {
-    this.hideStrip();
-    this.toggleVersions();
-  }
-
-  hideStrip() {
-    if (this.stripTimer) {
-      window.clearTimeout(this.stripTimer);
-      this.stripTimer = 0;
-    }
-    this.strip.root.hidden = true;
-    // The batch is what THIS strip was about. The queue is not cleared: the
-    // arrivals are still unseen, and `show me` is still how they are reached
-    // once the strip has gone — through the card, or j/k, or the sheet.
-    this.stripBatch = [];
-  }
-
-  // showMe is the ONE thing on this surface that moves the page, and it moves
-  // it because the reviewer asked. Repeat clicks step through the queue.
-  showMe() {
-    const step = nextArrival(this.arrivalQueue, this.suggestions);
-    this.arrivalQueue = step.queue;
-    if (!step.arrival) {
-      this.hideStrip();
-      return;
-    }
-    const arrival = step.arrival;
-    if (!arrival.run) {
-      // `nextArrival` only ever returns an entry it found in `live`
-      // (`arrivals.ts`'s own Set of defined run strings), so this is
-      // unreachable in practice — narrowed rather than trusted, since
-      // ArrivalItem's `run` is genuinely optional at the type.
-      this.hideStrip();
-      return;
-    }
-    const card = this.cards.find((c) => c.run === arrival.run);
-    this.reveal(arrival.run, card ? card.el : this.strip.root);
-    if (this.arrivalQueue.length === 0) {
-      this.hideStrip();
-    }
-  }
-
   // The count pulsing is how an arrival reaches someone whose eyes are in the
   // document: a number that changed is the smallest possible interruption, and
   // unlike the strip it is telling the truth for as long as it stands.
@@ -1985,7 +1813,7 @@ class App implements AppState {
   // it land in. The hidden one takes the class harmlessly; the visible one
   // shows it. Which is which is the stylesheet's business, not this method's.
   pulseCensus() {
-    for (const el of [this.census.count, this.bar && this.bar.count]) {
+    for (const el of [this.bar && this.bar.count]) {
       if (!el) {
         continue;
       }
@@ -2517,7 +2345,7 @@ Object.assign(App.prototype, rowMethods);
 // arrives through one of the ten `Object.assign` calls immediately above,
 // so no class body declares them and `implements` cannot verify them; this
 // merges their names and signatures onto `App`'s type so the calls this
-// file itself makes to them (`this.makeCensus()` in the constructor,
+// file itself makes to them (`this.makeSheet()` in the constructor,
 // `this.onKey(event)` in the keydown listener, and so on) type-check
 // against a real claim rather than an implicit `any`.
 interface App extends AppMethods {}

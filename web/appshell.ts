@@ -16,9 +16,7 @@
 // interface does not list is a type error naming the overreach on sight.
 // REJECTED, because the mixins do not, in fact, keep to disjoint surfaces —
 // web/history.ts's own header says so in words ("mixins all land on one
-// shared prototype... ordinary, not a boundary violation") and its own
-// `paintVersionsButton`, writing `this.bar.versions` — a field web/sheet.ts
-// owns — is that header's worked example. Four mixins converted TODAY
+// shared prototype... ordinary, not a boundary violation"). Four mixins converted TODAY
 // already share `this.cards`, `this.rail`, `this.editor`, `this.sheetCards`,
 // `this.sheetOpen`, `this.versionsPanel`, `this.closeSheet`,
 // `this.paintSurfaces` and `this.step`. Twenty-one further mixin files
@@ -325,27 +323,22 @@ export interface AppState {
   editingThread: string | null;
   stepped: string | null;
 
-  // --- the bubble, and the census/bar chrome ---
+  // --- the bubble, and the bar chrome ---
   bubble: SuggestionUI;
-  census: { root: HTMLElement; count: HTMLButtonElement };
   bar: {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
-  strip: { root: HTMLElement };
 
-  // --- arrivals: the queue, the hold, the strip's batch ---
+  // --- arrivals: the queue and the hold ---
   arrivalQueue: ArrivalItem[];
-  stripBatch: ArrivalItem[];
   held: Set<string>;
   heldArrivals: ArrivalItem[];
   holding: boolean;
   newRuns: Set<string>;
 
-  // --- History: the door, the round, the reading state ---
+  // --- History: the round and the reading state ---
   versionsPanel: VersionsPanel;
-  versionsButton: HTMLButtonElement;
   // The bar's capture door. Built once in the constructor and never rebuilt,
   // like its neighbour — the bar's controls outlive every paint.
   captureBtn: HTMLButtonElement;
@@ -511,14 +504,12 @@ export interface AppMethods {
   openComposerForm(): void;
   menuItems(): MenuItem[];
   hideRefusal(): void;
-  hideStrip(): void;
-  paintVersionsButton(): void;
   runsNow(): SuggestionRun[];
   step(direction: 1 | -1): void;
   stepOrder(): string[];
   clearNewLater(): void;
   noticeArrivals(arrived: ArrivalItem[]): void;
-  paintCensus(): void;
+  paintBarCount(): void;
   paintHold(): void;
   paintRail(): void;
   paintReadout(): void;
@@ -532,7 +523,6 @@ export interface AppMethods {
     resolved: (string | undefined)[],
   ): void;
   sectionFor(run: SuggestionRun | null): string;
-  showStrip(text: string, arrival?: Arrival | null): void;
   // SUPERSEDES an earlier generic stub (`<T extends { run?: string }>`)
   // written before this method's body existed. verdict.ts's withhold reads
   // `kind`/`author` off every arrival to reconstruct a `SuggestionLike` for
@@ -548,8 +538,6 @@ export interface AppMethods {
     sheet: boolean;
     collapsed: boolean;
   };
-  toggleVersions(): void;
-  showArrival(): void;
   readArrivalInline(n: number): void;
   openInstructions(): void;
   paintSheet(): void;
@@ -667,13 +655,12 @@ export interface AppMethods {
   // constructor called — never another mixin — so nothing before this task
   // ever needed it typed. Converting entry.ts means typing its constructor,
   // and its constructor calls every one of these by name
-  // (`this.makeCensus()`, `this.onKey(event)`, and so on), so they join the
+  // (`this.makeSheet()`, `this.onKey(event)`, and so on), so they join the
   // shared surface now for the same reason every earlier member did: a
   // member silently missing from AppShell that a real caller still needs is
   // exactly the wrong assumption this file exists to make loud. ---
 
   // --- History's own door and reading-mode entry/exit (web/history.ts) ---
-  makeVersionsButton(): HTMLButtonElement;
   enterHistory(): void;
   leaveHistory(): void;
   didRestore(version: number, error: string): void;
@@ -713,7 +700,6 @@ export interface AppMethods {
 
   // --- the bar's own builders (web/bar.ts) ---
   makeStatus(): HTMLElement;
-  makeCensus(): { root: HTMLElement; count: HTMLButtonElement };
   makeMode(): ModeUI;
 
   // --- the bottom bar and the sheet (web/sheet.ts) ---

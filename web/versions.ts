@@ -109,7 +109,7 @@ export const COULD_NOT = 'could-not';
 
 // The two stages, named so a caller can ask which one is on screen without
 // knowing how it is spelled in a class.
-export const STAGE_ROUNDS = 'rounds';
+const STAGE_ROUNDS = 'rounds';
 export const STAGE_READING = 'reading';
 
 // ALL_ROUNDS is the quiet handle back to the landing. `‹` and not `←`: the

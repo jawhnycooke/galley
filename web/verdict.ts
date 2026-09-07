@@ -45,7 +45,7 @@ import { censusCounts } from './rail.ts';
 import type { PendingThread } from './rail.ts';
 import { getJSON, postJSON } from './net.ts';
 import { runFor } from './runs.ts';
-import { arrivalMessage, queueArrivals, holdLabel } from './arrivals.ts';
+import { queueArrivals, holdLabel } from './arrivals.ts';
 import { BACK_TO_DRAFT } from './versions.ts';
 import { trailSaid } from './phase.ts';
 import type { AppShell, ArrivalItem } from './appshell.ts';
@@ -472,7 +472,7 @@ export const verdictMethods = {
     // History to read, and a way out of it that did nothing would strand the
     // reviewer on a page whose only exit is the browser's back button.
     if (this.versionsPanel && this.versionsPanel.open) {
-      this.toggleVersions();
+      this.scrubHome();
       return;
     }
     if (this.approved) {
@@ -907,11 +907,9 @@ export const verdictMethods = {
     if (batch.length === 0) {
       return;
     }
-    // One summary for the batch, not one strip per arrival — the reviewer
+    // One release for the batch, not one notice per arrival — the reviewer
     // asked to be told all at once, which is what holding meant.
     this.arrivalQueue = queueArrivals(this.arrivalQueue, batch);
-    this.stripBatch = batch;
-    this.showStrip(arrivalMessage(batch));
     this.pulseCensus();
     this.clearNewLater();
   },

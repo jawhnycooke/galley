@@ -34,10 +34,6 @@ const SELF = 'court';
 // census count is the durable record."
 export const ARRIVAL_FADE_MS = 8000;
 
-// Handoff §11, verbatim. The suffix is what tells the reviewer the strip is
-// about to go and where the fact survives.
-export const ARRIVAL_SUFFIX = 'fades · the count keeps it';
-
 /**
  * diffPending says what is new since the last time we looked, and what is gone.
  *
@@ -83,18 +79,11 @@ type Arrival = {
   section?: string;
 };
 
-// The article a kind takes, so the sentence reads as English rather than as a
-// field name. An unknown kind falls back to "edit", which is what every kind is
-// a species of.
-// A substitution is ONE change, not a delete followed by an insert, so it
-// takes a word of its own: "a delete" would name half of what arrived and
-// send the reviewer looking for the wrong thing.
-const KIND_WORD: Record<string, string> = {
-  insert: 'an insert',
-  delete: 'a delete',
-  replace: 'a replacement',
-  comment: 'a comment',
-};
+// `KIND_WORD` IS DELETED WITH `arrivalMessage`, ITS ONE READER. It gave each
+// kind its article — `an insert`, `a replacement` — so the strip's sentence
+// read as English; a substitution took a word of its own because "a delete"
+// would have named half of what arrived. No surface composes that sentence any
+// more.
 
 /**
  * ARRIVAL_AGENT is what the strip calls a proposer it cannot name.
@@ -110,62 +99,18 @@ const KIND_WORD: Record<string, string> = {
  */
 export const ARRIVAL_AGENT = 'the agent';
 
-/**
- * arrivalAuthor is WHO the strip says filed what arrived.
- *
- * One arrival: its own author. Several: the one author they share, or
- * `the agent` when they do not — a batch from two parties has no single name
- * to put in front of one verb, and picking the first would attribute the
- * other's work to it. An arrival with no author at all (a mark parsed out of a
- * file, which CriticMarkup gives nowhere to record one) is the same case: the
- * strip has no name to use, so it uses the general one.
- *
- * The reviewer's own work never reaches here — diffPending filters it — so the
- * name in this sentence is always somebody else's.
- */
-export function arrivalAuthor(arrivals: Arrival[] | null | undefined): string {
-  const names = new Set((arrivals || []).map((a) => (a && a.author) || ''));
-  if (names.size !== 1) {
-    return ARRIVAL_AGENT;
-  }
-  const [only] = [...names];
-  return only || ARRIVAL_AGENT;
-}
+// `arrivalAuthor` IS DELETED WITH THE SENTENCE IT NAMED THE PARTY OF. One
+// arrival used its own author; a batch used the one author they shared, or
+// `the agent` when they did not, because a batch from two parties has no single
+// name to put in front of one verb. `ARRIVAL_AGENT` above outlives it and is
+// still the product's one name for the party — see entry.ts's caret-loss
+// sentences, and probe.mjs's vendor ban.
 
-/**
- * arrivalMessage is the sentence the strip shows. Handoff §11's shape, with
- * the proposer NAMED rather than assumed:
- *
- *   one:       "{who} suggested an insert in §{section}, below your viewport"
- *   coalesced: "{who} suggested {n} edits while you read — show me steps
- *               through them"
- *
- * `{who}` was the literal string `claude` in both, which is the one place in
- * the product that named a vendor — see ARRIVAL_AGENT and arrivalAuthor.
- *
- * "below your viewport" is fixed copy, not a measurement. The strip only ever
- * appears for an arrival the reviewer cannot see, and the spec spells the
- * out-of-sight direction one way; inventing "above" for the other case would be
- * a second sentence nobody has approved.
- *
- * A single arrival whose section cannot be named drops the "in §…" clause
- * rather than printing an empty one — a document with no headings has no
- * section, and "in §, below your viewport" is not a sentence.
- */
-export function arrivalMessage(arrivals: Arrival[] | null | undefined): string {
-  const list = arrivals || [];
-  if (list.length === 0) {
-    return '';
-  }
-  const who = arrivalAuthor(list);
-  if (list.length > 1) {
-    return `${who} suggested ${list.length} edits while you read — show me steps through them`;
-  }
-  const one = list[0];
-  const kind = (one.kind && KIND_WORD[one.kind]) || 'an edit';
-  const where = one.section ? ` in §${one.section}` : '';
-  return `${who} suggested ${kind}${where}, below your viewport`;
-}
+// `arrivalMessage` IS DELETED WITH THE STRIP IT WAS THE SENTENCE OF. It
+// composed handoff §11's two shapes — `{who} suggested an insert in §{section},
+// below your viewport` and the coalesced `{who} suggested {n} edits while you
+// read` — with the proposer NAMED rather than assumed, which is the one place
+// the product ever named a vendor.
 
 /**
  * arrivalNeedsStrip decides which of the two announcements an arrival gets.
@@ -255,23 +200,7 @@ export function shownSuggestions(
   return (suggestions || []).filter((s) => !held.has(s.run));
 }
 
-/**
- * nextArrival is one `show me` click: the first queued arrival that is still
- * pending, and the queue with it removed.
- *
- * Filtering against the live pending set is the point. An arrival decided from
- * the CLI, or accepted by the reviewer from its card, is no longer somewhere to
- * go — and stepping to a run that is not in the document any more is how a
- * `show me` button starts answering "cannot locate it on the page".
- */
-export function nextArrival(
-  queue: Arrival[] | null | undefined,
-  pending: Arrival[] | null | undefined,
-): { arrival: Arrival | null; queue: Arrival[] } {
-  const live = new Set((pending || []).map((s) => s.run).filter(Boolean));
-  const rest = (queue || []).filter((a) => live.has(a.run));
-  if (rest.length === 0) {
-    return { arrival: null, queue: [] };
-  }
-  return { arrival: rest[0], queue: rest.slice(1) };
-}
+// `nextArrival` IS DELETED WITH `show me`. It answered one press of the strip's
+// stepping verb — the first queued arrival still pending, filtered against the
+// live set so a run decided from the CLI was never stepped to. `queueArrivals`
+// above outlives it: the queue is still what a held batch accumulates into.

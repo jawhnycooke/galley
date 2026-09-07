@@ -1,37 +1,25 @@
-// web/history.ts owns History: the versions door, entering and leaving the
-// reading mode, restoring a version as a fresh draft, and the arrival strip
-// that says a round came back.
+// web/history.ts owns History: entering and leaving the reading mode the
+// scrubber reads in, and restoring a version as a fresh draft.
 //
 // It is a MIXIN — an object of methods `Object.assign`ed onto `App.prototype`
 // in entry.ts — not a class of its own, so every method here still reads and
 // writes `this` on the live App instance exactly as it did before the move
-// (`this.editor`, `this.census`, `this.versionsPanel`, `this.bar`, and so on).
+// (`this.editor`, `this.versionsPanel`, `this.bar`, and so on).
 // `this` IS TYPED AGAINST `AppShell` (web/appshell.ts) — see that file's own
 // header for the this-typing decision.
 //
-// THIS WAS THE PARTITION'S SINGLE BIGGEST OPEN CALL. Most of these methods'
-// DOM writes land on bar-owned elements — the versions chip, the census strip
-// — so a partition by pixels would file them under the bar. They are not bar
-// chrome. web/versions.ts's own header states History "is a READING MODE and
-// not a second application," and a reading mode filed under a module named
-// for the bar buries that distinction exactly where the next reader will not
-// look.
-//
-// paintVersionsButton also paints `this.bar.versions`, the narrow bottom-bar
-// chip owned by web/sheet.ts. That cross-group write is expected: mixins all
-// land on one shared prototype, so writing another module's element here is
-// ordinary, not a boundary violation.
+// THIS WAS THE PARTITION'S SINGLE BIGGEST OPEN CALL. Several of these methods'
+// DOM writes land on bar-owned elements, so a partition by pixels would file
+// them under the bar. They are not bar chrome. web/versions.ts's own header
+// states History "is a READING MODE and not a second application," and a
+// reading mode filed under a module named for the bar buries that distinction
+// exactly where the next reader will not look.
 //
 // readArrival is driven from readRevise, which lives in web/verdict.ts now. A
 // method here being called from a method in another mixin is fine — same
 // prototype, same `this`.
 
-import {
-  arrivalSaid,
-  STAGE_ROUNDS,
-  VERSIONS_LABEL,
-  VERSIONS_NAME,
-} from './versions.ts';
+import { arrivalSaid } from './versions.ts';
 import type { AppShell, ReviseView } from './appshell.ts';
 import type { DiffView } from './wire';
 import { getJSON } from './net.ts';
@@ -51,30 +39,6 @@ import { WHOLE_DOC_LABEL } from './frame.ts';
 export const CAPTURE_LABEL = WHOLE_DOC_LABEL;
 
 export const historyMethods = {
-  // --- the rounds ---
-  //
-  // ONE LABEL, ONE WIDTH. A control whose label changes on its own click slides
-  // its neighbours out from under the cursor that just pressed it — measured
-  // three separate times on this bar — so this one says the same thing open or
-  // shut, and reports its state through aria-expanded and a class.
-  makeVersionsButton(this: AppShell): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'gly-versions-open';
-    b.textContent = VERSIONS_LABEL;
-    // The visible label and accessible name deliberately agree. A glyph used
-    // here survived implementation but failed discovery in the first real
-    // review: the four views and history existed behind a symbol nobody read.
-    b.setAttribute('aria-label', VERSIONS_NAME);
-    b.title = `${VERSIONS_NAME} — every round of this document, and what was asked for`;
-    b.setAttribute('aria-expanded', 'false');
-    b.addEventListener('click', () => this.toggleVersions());
-    // Instructions and History are peers, so they live in one group and read
-    // as view switches rather than unrelated controls at opposite ends.
-    this.census.root.appendChild(b);
-    return b;
-  },
-
   // --- capture ---
   //
   // WHERE THE `+ INSTRUCTION` BUTTON WENT, AND WHY IT IS HERE. It stood in the
@@ -91,26 +55,6 @@ export const historyMethods = {
   // ONE LABEL, ONE WIDTH, same as its neighbour above: it says the same thing
   // whether the capture card is open or shut, so pressing it never slides the
   // controls beside it. NOTHING IN THE BAR MOVES WHEN THE BAR IS CLICKED.
-  //
-  // BESIDE THE CENSUS STRIP AND NOT INSIDE IT, AND THE FIRST CUT GOT THAT
-  // WRONG. `makeVersionsButton` appends to `this.census.root` because
-  // *"Instructions and History are peers, so they live in one group and read as
-  // view switches rather than unrelated controls at opposite ends"* — the strip
-  // is a group of DOORS. This is a VERB: it switches no view, it makes a new
-  // object. Dropping it into that group made the group say two things, and
-  // `web/rounds-ux.mjs` said so — `History is the bar's one view chip` read
-  // `["History","+ Instruction"]`. The check was right and the placement was
-  // wrong, so the button moved out rather than the check being widened.
-  //
-  // BEFORE THE STRIP, WHICH IS THE BAR'S OWN ORDERING RULE READ EXACTLY.
-  // The rule is *controls, the ONE readout, the one flexible cell, controls*,
-  // and the second cut of this read it as "anywhere upstream of the spacer" and
-  // put the button between the census and `#gly-status`. That region is not
-  // spare space — it IS the readout region, and `web/layers.mjs` §1d counts it:
-  // *there is exactly ONE readout in it*, which is the answer to Court reading
-  // three truncated fragments off this bar. A control parked in there is a
-  // second thing in a region whose whole claim is that it holds one thing, and
-  // the gate said so in four checks at once.
   //
   // AND THEN IT LEFT THE BAR ALTOGETHER, WHICH IS THE SAME ARGUMENT ARRIVING
   // AT ITS END. Everything above is about where in the bar a verb about the
@@ -194,22 +138,15 @@ export const historyMethods = {
     this.sheetOpen = !this.surfaces().rail;
     this.paintSheet();
     this.paintSurfaces();
-    this.paintVersionsButton();
-    this.census.count.classList.add('is-open');
   },
 
   enterHistory(this: AppShell) {
     this.historyScroll = window.scrollY;
-    // THE NOTICE GOES WHEN THE READING BEGINS. An announcement that a round
-    // arrived, still standing over the surface that round is being read on, is
-    // a surface telling the reviewer about the thing they are looking at.
-    this.hideStrip();
     document.body.classList.add('gly-history-mode');
     this.editor.setEditable(false);
     this.closeSheet();
     this.closeCapture();
     this.paintSurfaces();
-    this.census.count.classList.remove('is-open');
     // The primary becomes the way out and the readout says where you are, and
     // both have to be true BEFORE the first frame of the new surface — a bar
     // that still offers Revise over a reading mode is a bar offering a verb the
@@ -234,10 +171,8 @@ export const historyMethods = {
     this.paintTimeline();
     this.editor.setEditable(!this.sealed);
     this.paintSurfaces();
-    this.paintVersionsButton();
     this.paintRevise();
     this.paintReadout();
-    this.census.count.classList.add('is-open');
     // ESC RETURNS WITH THE SCROLL PRESERVED, which is the whole reason History
     // is a mode and not a page: the sentence the reviewer was reading is still
     // under the cursor when they come back to it.
@@ -305,10 +240,9 @@ export const historyMethods = {
     // reject in practice; `void` records the same "fails silently, on
     // purpose" intent this comment already states.
     void this.versionsPanel.refresh().then(() => {
-      this.showArrival();
+      this.paintFrame();
       this.readArrivalInline(n);
     });
-    this.paintVersionsButton();
   },
 
   // readArrivalInline PUTS THE ROUND INSIDE THE PAPER. The strip used to say
@@ -369,103 +303,5 @@ export const historyMethods = {
       this.paintRows();
       this.paintFrame();
     });
-  },
-
-  // showArrival USED TO COMPOSE THE STRIP'S SENTENCE and no longer does: the
-  // strip said "round N · k changes" over the top of the prose, and the round
-  // now says both of those things where it happened — the tinted block, the WAS
-  // text under it, the eyebrow's `NEEDS YOUR APPROVAL` (frame.ts). A banner
-  // repeating a count for changes the reviewer can see is one more surface to
-  // dismiss before reading the document. The frame paint is what is left; the
-  // method survives this task only so its callers still resolve, and Task 14
-  // deletes it with the strip itself.
-  showArrival(this: AppShell) {
-    if (!this.arrival) {
-      return;
-    }
-    this.paintFrame();
-  },
-
-  toggleVersions(this: AppShell) {
-    const panel = this.versionsPanel;
-    // Two full surfaces stacked is one surface nobody can reach. The sheet is
-    // the review's list and this is the record; opening one puts the other
-    // away rather than drawing them over each other.
-    if (!panel.open && this.sheetOpen) {
-      this.closeSheet();
-    }
-    // AN ARRIVAL LANDS ON ITSELF, IN PLACE. Opening the record cold is still the
-    // document (DEFAULT_VIEW); opening it because something arrived answers the
-    // question that made you open it.
-    if (!panel.open && this.arrival) {
-      const { n } = this.arrival;
-      this.arrival = null;
-      // showRound's own promise bottoms out in load()'s bare `.catch(() =>
-      // {})` (versions.ts) — a fetch failure is already absorbed there and
-      // never reaches here to be reported. `void` names that as intentional
-      // rather than leaving the click's own promise unmarked.
-      void panel.showRound(n, 'inplace');
-      this.paintVersionsButton();
-      return;
-    }
-    // OPENING IT COLD IS THE LANDING. The record's two stages answer two
-    // different questions — "what has happened to this document" and "what did
-    // round N do" — and a door pressed with no news behind it is the first
-    // question. A reviewer who left History mid-round and comes back to a
-    // reading state they did not ask for would be reading somebody else's
-    // answer to a question they had not put.
-    if (!panel.open) {
-      panel.stage = STAGE_ROUNDS;
-    }
-    // Same absorption as showRound above: toggle()'s show() path runs
-    // through refresh()'s own bare `.catch(() => {})`, so there is nothing
-    // left for a handler here to report.
-    void panel.toggle();
-    this.paintVersionsButton();
-  },
-
-  paintVersionsButton(this: AppShell) {
-    const open = !!this.versionsPanel.open;
-    // THE CHIP IS A DOOR, NOT A READOUT. It carried `History · 3`, and the
-    // number was the one thing on it that changed on somebody else's event —
-    // a round landing — in the bar whose oldest rule is that nothing may move
-    // under the cursor. The record's size is inside the record; what belongs
-    // out here is the way in, and whether there is something new behind it
-    // (`is-new`, which is paint and takes no width). historyCount is kept and
-    // still read — the readout's `round N` is it (paintReadout).
-    //
-    // AND IT IS TWO ELEMENTS NOW, PAINTED HERE AND ONLY HERE. The narrow bar
-    // carries its own History chip beside its own Instructions door (board 1i),
-    // and only one of the two bars is ever on screen. A second painter for the
-    // second chip would be two answers to "has something arrived" — this
-    // repository's most-repeated defect, on the one signal that tells a
-    // reviewer the agent came back.
-    // PAINT ONLY. A class on either control may never change its BOX: the wide
-    // one sits in a full bar between the mode switch and Revise, and a control
-    // that grows on somebody else's event slides the neighbour the cursor is
-    // resting on. See the bar's own entry in CLAUDE.md — the reserve is a
-    // rule, not a habit.
-    const arrival = this.arrival;
-    const waiting = !open && !!arrival;
-    // `waiting && arrival` rather than the bare `waiting` this used to read:
-    // `waiting` is a boolean already computed FROM `arrival`, and narrowing
-    // does not travel backward through that computation — TypeScript only
-    // narrows a value that is itself part of the condition it is guarded by.
-    // Naming `arrival` again here is that, and nothing about which branch
-    // runs changes.
-    const title =
-      waiting && arrival
-        ? `${VERSIONS_NAME} — v${arrival.n} just arrived; this opens its changes`
-        : `${VERSIONS_NAME} — every version of this document, and what was asked for`;
-    for (const chip of [this.versionsButton, this.bar.versions]) {
-      if (!chip) {
-        continue;
-      }
-      chip.textContent = VERSIONS_LABEL;
-      chip.setAttribute('aria-expanded', open ? 'true' : 'false');
-      chip.classList.toggle('is-open', open);
-      chip.classList.toggle('is-new', waiting);
-      chip.title = title;
-    }
   },
 };
