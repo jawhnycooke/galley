@@ -172,8 +172,9 @@ export const historyMethods = {
     // three-round fixture); the draft coming back then grows the page above the
     // viewport, and Chrome's scroll anchoring adjusts the offset AFTER this
     // line to keep its chosen anchor still — landing at 330 where this asked
-    // for 228. `overflow-anchor: none` on the paper and the stage (editor.css)
-    // is what leaves this line the last word.
+    // for 228. `overflow-anchor: none` on the root (editor.css) is what leaves
+    // this line the last word — the docslot returning above the paper on this
+    // same path anchored just the same once the papers alone were opted out.
     window.scrollTo({ top: this.historyScroll });
   },
 
