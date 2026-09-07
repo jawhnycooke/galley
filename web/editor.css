@@ -2397,9 +2397,19 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) {
    is served first, up to its cap, and the spacer gets the remainder. Same
    window, same document, with this factor: status 121px, spacer 1px. Above the
    cap the two are indistinguishable, because there the cap is what binds. */
+/* STILL THE YIELDING CELL (basis 0, so no sentence can fold the bar), but
+   CAPPED at 56ch, because the live switch sits right after it now: at any
+   window wide enough the cell is exactly 56ch whatever the readout says, so
+   a readout that grows on a press (`revision requested · round 16 · …`)
+   cannot carry the switch with it. 56ch holds the longest sentence the
+   readout speaks; anything longer truncates with its full text in the title,
+   as before. Narrower than that, the cell shrinks and the text truncates. */
 .gly-bar .gly-status {
   flex: 100 1 0;
-  max-width: max-content;
+  min-width: 0;
+  max-width: 56ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- the readout dot, and the restyled header lockup (Task 3) --- */

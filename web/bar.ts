@@ -484,8 +484,14 @@ export const barMethods = {
     hold.append(holdOff, holdOn);
     hold.addEventListener('click', () => this.toggleHold());
 
+    // BESIDE THE READOUT, NOT AT THE FAR RIGHT (2026-09-07): the switch is
+    // about the round the readout describes, so it sits just after it and
+    // before the flexible cell; the theme button is what remains on the
+    // right. The readout's cell is a fixed 56ch (editor.css) so a readout
+    // that changes on a press — `revision requested · …` — cannot move the
+    // switch, which the bar rule forbids.
     const bar = document.querySelector('.gly-bar');
-    const anchor = document.getElementById('gly-revise');
+    const anchor = bar && bar.querySelector('.gly-spacer');
     if (bar && anchor) {
       bar.insertBefore(toggle, anchor);
       bar.insertBefore(hold, anchor);

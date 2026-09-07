@@ -73,9 +73,7 @@ export function cycleTheme(this: AppShell): void {
   this.applyTheme();
 }
 
-// The button sits BEFORE the live switch, so the two controls the reviewer
-// reaches for read as one pair at the bar's right; hold follows live and is
-// collapsed while the page is not live (see .gly-hold.gly-reserved).
+// The button is the bar's last child — the far-right corner, on its own.
 export function makeThemeButton(this: AppShell): void {
   const b = document.createElement('button');
   b.type = 'button';
@@ -86,9 +84,9 @@ export function makeThemeButton(this: AppShell): void {
   label.className = 'gly-theme-label';
   b.append(swatch, label);
   b.addEventListener('click', () => this.cycleTheme());
-  const anchor = document.querySelector<HTMLElement>('.gly-mode');
-  if (anchor) anchor.insertAdjacentElement('beforebegin', b);
-  else document.querySelector('.gly-bar')?.appendChild(b);
+  // The far-right corner is the theme button's alone: the live switch sits
+  // beside the readout now (bar.ts), so this is the last thing in the bar.
+  document.querySelector('.gly-bar')?.appendChild(b);
   this.themeButton = b;
   this.applyTheme();
 }

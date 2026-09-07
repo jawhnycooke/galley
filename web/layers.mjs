@@ -713,34 +713,24 @@ console.log('\n--- §1d · the bar has one readout ---');
       ),
     ),
   );
+  // THE LIVE SWITCH AND HOLD SIT BESIDE THE READOUT NOW (2026-09-07, the
+  // reviewer's ask): they are controls between the doc and the flexible
+  // cell, deliberately. The readout claims are about the READOUTS in that
+  // region — what is left once the two controls are set aside.
+  const readouts = region
+    ? region.between.filter((b) => !/gly-(mode|hold)\b/.test(b.cls))
+    : [];
   check(
     'and there is exactly ONE readout in it',
-    !!region && region.between.length === 1,
+    !!region && readouts.length === 1,
     region && region.between,
   );
   check(
-    "it is the shell's own #gly-status — the element that exists before the bundle does",
-    !!region &&
-      region.between.length === 1 &&
-      region.between[0].id === 'gly-status',
+    "it is the shell's own #gly-status \u{2014} the element that exists before the bundle does",
+    !!region && readouts.length === 1 && readouts[0].id === 'gly-status',
     region && region.between,
   );
-  // NON-VACUOUS: one EMPTY cell would satisfy every line above. The readout
-  // has to be saying both of the things the three cells used to say between
-  // them, on a page nobody has pressed anything on yet.
-  //
-  // THE STANDING SENTENCE HAS MOVED, AND THIS CHECK MOVED WITH IT RATHER THAN
-  // BEING DROPPED. `UNTRACKED_NOTE` was the second clause of the bar's one
-  // readout — "instructions in this round" — and it is the SHEET's head now
-  // (`paintSheet`, and §7b below reads it there, once). What the bar's readout
-  // carries instead is the round and the draft's state: `round 1 · draft ·
-  // saved just now`, measured. The claim is unchanged in shape — one element,
-  // saying more than one thing, from the first paint, on a page nobody has
-  // pressed anything on — so it is asserted against what that element actually
-  // says. The alternative was to keep asserting a sentence that lives
-  // elsewhere, which is a check that can only fail, or to drop the clause,
-  // which leaves one EMPTY cell satisfying every other line in this block.
-  const line = region && region.between[0] ? region.between[0].text : '';
+  const line = readouts[0] ? readouts[0].text : '';
   check(
     "and it is saying the round and the session's state, in one line",
     /round \d+/.test(line) && /(connected|connecting|saved|draft)/.test(line),
@@ -750,9 +740,7 @@ console.log('\n--- §1d · the bar has one readout ---');
   // because there is nothing else in the region.
   check(
     'the one readout is the yielding cell — basis 0, so no text in it can fold the bar',
-    !!region &&
-      region.between.length === 1 &&
-      region.between[0].basis === '0px',
+    !!region && readouts.length === 1 && readouts[0].basis === '0px',
     region && region.between,
   );
 }
