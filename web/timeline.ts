@@ -204,6 +204,10 @@ export function forgetVersionHTML(n: number): void {
   htmlCache.delete(n);
 }
 
+// The ticket every scrubTo takes, so a late fetch can tell whether the handle
+// has moved on since it was asked for.
+let scrubSeq = 0;
+
 export function scrubTo(this: AppShell, t: number): void {
   const max = this.scrubMax();
   const s = scrubState(t, max);
@@ -232,18 +236,26 @@ export function scrubTo(this: AppShell, t: number): void {
   const lo = Math.floor(this.scrubT);
   const hi = Math.min(Math.ceil(this.scrubT), max);
   const [pa, pb] = ui.papers;
+  // THE LAST MOVE WINS, NOT THE LAST FETCH. A drag fires scrubTo dozens of
+  // times and each uncached version is its own request; they resolve in
+  // whatever order the network hands them back. Guarding only on the paper's
+  // own `data-v` lets a fetch started three moves ago land last and paint a
+  // version the handle, the label and the opacities have all moved off. Every
+  // call takes a ticket and a resolution that is no longer the current one is
+  // dropped.
+  const seq = ++scrubSeq;
   // innerHTML, and the server is what makes it safe: internal/diff escapes
   // every character of the document before it draws anything. Same reasoning,
   // and the same endpoint, as VersionsPanel.load.
   void versionHTML(lo).then((h) => {
-    if (pa.dataset.v !== String(lo)) {
+    if (seq === scrubSeq && pa.dataset.v !== String(lo)) {
       pa.innerHTML = h;
       pa.dataset.v = String(lo);
     }
   });
   if (hi !== lo) {
     void versionHTML(hi).then((h) => {
-      if (pb.dataset.v !== String(hi)) {
+      if (seq === scrubSeq && pb.dataset.v !== String(hi)) {
         pb.innerHTML = h;
         pb.dataset.v = String(hi);
       }
