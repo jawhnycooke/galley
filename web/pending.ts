@@ -13,7 +13,7 @@
 // `this` IS TYPED AGAINST `AppShell` (web/appshell.ts) — see that file's own
 // header for the this-typing decision this and every other mixin now shares.
 
-import { getJSON, postJSON } from './net.ts';
+import { getJSON } from './net.ts';
 import { runFor, markElement, runTop } from './runs.ts';
 import { flash } from './card.ts';
 import { verdictLabel } from './verdict.ts';
@@ -24,6 +24,7 @@ import {
   queueArrivals,
 } from './arrivals.ts';
 import { AUTHOR } from './rail.ts';
+import { revertChange } from './cards.ts';
 import type { SuggestionLike } from './suggestions.ts';
 import type {
   AppShell,
@@ -80,17 +81,10 @@ function makeRevertFloat(app: AppShell): HTMLButtonElement {
     if (!key) {
       return;
     }
-    void postJSON('/_galley/revert', { key }).then((res) => {
-      if (res.ok) {
-        return app.refreshPending();
-      }
-      // THE SERVER'S OWN SENTENCE, for revertButton's reason (cards.ts): it
-      // refuses a revert it cannot do exactly, and that reason is the only
-      // thing that says why the words did not come back.
-      return res.text().then((said) => {
-        app.say(said.trim() || 'that edit could not be put back');
-      });
-    });
+    // The rail's armed pill and this one ask the SAME question of the server
+    // and must carry back the same refusal — so both go through revertChange
+    // (cards.ts) rather than each keeping a copy of the sentence.
+    void revertChange(app, key);
   });
   document.body.appendChild(b);
   app.revertFloat = b;

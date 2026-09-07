@@ -867,7 +867,7 @@ try {
     .innerText();
   check(
     'and the row wears the slot\u2019s own pill class',
-    (await page.locator('.gly-docslot .gly-row.gly-row-doc').count()) === 1,
+    (await page.locator('.gly-docslot .gly-row-doc').count()) === 1,
   );
   check(
     'it is the whole-doc slot\u2019s first row, and its head names the anchor',

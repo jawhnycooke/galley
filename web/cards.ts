@@ -225,6 +225,27 @@ function lostAnchorLine(heading: string): HTMLElement {
   return lost;
 }
 
+// revertChange asks the server to put one reviewer edit back. It is a free
+// function and not a method because it has TWO callers that are not the same
+// surface — revertButton's armed pill in the rail (below) and the floating
+// `× revert` over a deletion ghost (pending.ts) — and the server's refusal
+// sentence must read the same from both. One rule, one place.
+export function revertChange(app: AppShell, key: string): Promise<void> {
+  return postJSON('/_galley/revert', { key }).then((res) => {
+    if (res.ok) {
+      return app.refreshPending();
+    }
+    return res.text().then((said) => {
+      // THE SERVER'S OWN SENTENCE. It refuses a revert it cannot do
+      // exactly — an ambiguous match, a partial removal — and that reason
+      // is the only thing that tells the reviewer why the words did not
+      // come back. Replacing it with a generic failure would be this
+      // codebase's own "a status code means what the server meant by it".
+      app.say(said.trim() || 'that edit could not be put back');
+    });
+  });
+}
+
 export const cardMethods = {
   // The growth watch, over this rail's own cards. See growthWatch: observing an
   // element already observed is a no-op, so this is safe to call on every
@@ -500,9 +521,12 @@ export const cardMethods = {
         index: -1,
         region: null,
       });
-      // `.gly-row-doc` is the slot's own pill, and `paintFrame` counts these
-      // to decide whether the slot still needs its empty line.
-      row.classList.add('gly-row', 'gly-row-doc');
+      // `.gly-row-doc` is the slot's own pill — ONE class, carrying its own
+      // whole rule, and deliberately not also `.gly-row`: that class belongs
+      // to the rows pinned inside the paper (rows.ts) and its bare selector
+      // would win over this one on background and margin. `paintFrame` counts
+      // these to decide whether the slot still needs its empty line.
+      row.classList.add('gly-row-doc');
       list.appendChild(row);
     }
   },
@@ -1076,19 +1100,7 @@ export const cardMethods = {
         return;
       }
       this.armedRevert = null;
-      void postJSON('/_galley/revert', { key }).then((res) => {
-        if (res.ok) {
-          return this.refreshPending();
-        }
-        return res.text().then((said) => {
-          // THE SERVER'S OWN SENTENCE. It refuses a revert it cannot do
-          // exactly — an ambiguous match, a partial removal — and that reason
-          // is the only thing that tells the reviewer why the words did not
-          // come back. Replacing it with a generic failure would be this
-          // codebase's own "a status code means what the server meant by it".
-          this.say(said.trim() || 'that edit could not be put back');
-        });
-      });
+      void revertChange(this, key);
     });
     return b;
   },
