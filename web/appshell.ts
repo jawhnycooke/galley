@@ -131,6 +131,7 @@ import type { ReviseWatchView } from './verdict.ts';
 import type { growthWatch } from './card.ts';
 import type { ThemeChoice } from './theme.ts';
 import type { Phase } from './phase.ts';
+import type { TimelineUI } from './timeline.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -375,12 +376,20 @@ export interface AppState {
   reviseSecs?: HTMLElement;
   reviseApprove?: HTMLElement;
   reviseBack?: HTMLElement;
-  // The footer's left column (Task 6 fills it) and its trail label
-  // (`edits, instructions →`), both built alongside the button in
-  // makeRevise — null until the first build, the same nullability as
-  // `revise` itself.
+  // The footer's left column and its trail label (`edits, instructions →`),
+  // both built alongside the button in makeRevise — null until the first
+  // build, the same nullability as `revise` itself.
   timelineLeft: HTMLElement | null;
   reviseTrail: HTMLSpanElement | null;
+
+  // --- the scrubber (web/timeline.ts) ---
+  // `scrubT` is continuous in [1, scrubMax()]; at the max the page is the live
+  // editor and nothing is faded. `timeline` is null until makeTimeline runs —
+  // it needs `timelineLeft`, which makeRevise builds, and the first rounds
+  // fetch, which resolves after the constructor.
+  // Constructor: `this.scrubT = 1; this.timeline = null;`.
+  scrubT: number;
+  timeline: TimelineUI | null;
   // The verdict menu — built on the first press that needs it
   // (`this.verdictMenu = null;` is the constructor's own direct,
   // unconditional line; `openVerdictMenu` fills it in later).
@@ -645,6 +654,18 @@ export interface AppMethods {
   enterHistory(): void;
   leaveHistory(): void;
   didRestore(version: number, error: string): void;
+
+  // --- the footer scrubber (web/timeline.ts) ---
+  makeTimeline(): void;
+  paintTimeline(): void;
+  scrubMax(): number;
+  scrubTo(t: number): void;
+  scrubStep(delta: -1 | 1): void;
+  scrubHome(): void;
+  // OPTIONAL UNTIL TASK 7 BUILDS IT. The scrubber repaints the frame around
+  // the sheet after every move; until that frame exists there is nothing to
+  // repaint, and `?.` at the two call sites is the honest way to say so.
+  paintFrame?(): void;
 
   // --- the keyboard (web/keys.ts) ---
   onKey(event: KeyboardEvent): void;

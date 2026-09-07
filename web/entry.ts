@@ -142,6 +142,8 @@ import { verdictMethods } from './verdict.ts';
 import { sealMethods } from './seal.ts';
 import * as theme from './theme.ts';
 import { phase } from './phase.ts';
+import * as timeline from './timeline.ts';
+import type { TimelineUI } from './timeline.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
@@ -832,6 +834,8 @@ class App implements AppState {
   reviseBack?: HTMLElement;
   timelineLeft: HTMLElement | null;
   reviseTrail: HTMLSpanElement | null;
+  scrubT: number;
+  timeline: TimelineUI | null;
   verdictMenu: HTMLElement | null;
   reviseRunning: boolean;
   approveNotBefore: number;
@@ -1053,6 +1057,10 @@ class App implements AppState {
       onStage: () => {
         this.paintReadout();
         this.paintRevise();
+        // The rounds are the keyframes: a refresh that changes the record
+        // changes the track. This is refresh()'s own hook, fired after
+        // `rounds` is set, so the panel needs no reference back to the App.
+        this.paintTimeline();
       },
     });
     this.versionsButton = this.makeVersionsButton();
@@ -1065,7 +1073,12 @@ class App implements AppState {
     // reviewer opens it — refresh()'s own bare `.catch(() => {})`
     // (versions.ts) already absorbs the error, so there is nothing left for
     // this call site to report either.
-    void this.versionsPanel.refresh();
+    // AND THE SCRUBBER IS BUILT ON THAT SAME FETCH. makeTimeline needs two
+    // things this line is between: `timelineLeft`, which makeRevise builds
+    // further down this constructor, and the rounds this refresh reads — so it
+    // is chained onto the promise rather than called beside it. The `.then`
+    // cannot run before the constructor returns, by which time makeRevise has.
+    void this.versionsPanel.refresh().then(() => this.makeTimeline());
     // THE ARRIVAL. Phase 2's agent writes its revision INTO the document, so the
     // change lands under the reviewer's cursor with nothing pending to announce
     // it — the rail counts proposals and there are none. `seenRound` is what
@@ -1137,6 +1150,8 @@ class App implements AppState {
     this.verdictOpen = false;
     this.timelineLeft = null;
     this.reviseTrail = null;
+    this.scrubT = 1;
+    this.timeline = null;
     this.revise = this.makeRevise();
 
     // THE HANDOFF. While the agent holds the file the document is read-only
@@ -2432,6 +2447,18 @@ Object.assign(App.prototype, {
   applyTheme: theme.applyTheme,
   cycleTheme: theme.cycleTheme,
   makeThemeButton: theme.makeThemeButton,
+});
+// The footer scrubber — the keyframe track, the drag, and the crossfade
+// between two versions of the sheet — is its own module too — see
+// web/timeline.ts — mixed in for the same reason. Only the DOM half is mixed
+// in; the pure half above it in that file is imported by name where needed.
+Object.assign(App.prototype, {
+  makeTimeline: timeline.makeTimeline,
+  paintTimeline: timeline.paintTimeline,
+  scrubMax: timeline.scrubMax,
+  scrubTo: timeline.scrubTo,
+  scrubStep: timeline.scrubStep,
+  scrubHome: timeline.scrubHome,
 });
 // The one derived phase — see web/phase.ts's own header for why it is never
 // stored.

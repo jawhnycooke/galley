@@ -34,6 +34,7 @@ import {
   VERSIONS_NAME,
 } from './versions.ts';
 import type { AppShell, ReviseView } from './appshell.ts';
+import { forgetVersionHTML } from './timeline.ts';
 
 // CAPTURE_LABEL is the bar's visible door to writing an instruction about the
 // document as a whole. It names the object galley makes — `Instruction`, the
@@ -212,11 +213,22 @@ export const historyMethods = {
     // page cannot take.
     this.paintRevise();
     this.paintReadout();
-    window.scrollTo({ top: 0 });
+    // NO SCROLL TO THE TOP. History is the scrubber's reading stage now, and
+    // the scrubber enters it mid-drag — a jump to the top on the first frame
+    // would throw the sentence the reviewer is scrubbing off the screen. The
+    // scroll position is still recorded above, and leaveHistory still restores
+    // it, so a drag out to the right edge comes back where it started.
   },
 
   leaveHistory(this: AppShell) {
     document.body.classList.remove('gly-history-mode');
+    // LEAVING IS RETURNING TO THE HEAD. Escape closes the panel directly
+    // (keys.ts), which reaches here without going through scrubTo — so the
+    // scrubber's own position is settled here rather than left pointing at a
+    // version nothing is showing any more.
+    document.body.classList.remove('gly-scrubbing');
+    this.scrubT = this.scrubMax();
+    this.paintTimeline();
     this.editor.setEditable(!this.sealed);
     this.paintSurfaces();
     this.paintVersionsButton();
@@ -270,6 +282,10 @@ export const historyMethods = {
     this.seenCannot = why;
     this.arrival = { n, exception, why };
     this.say(arrivalSaid(this.arrival));
+    // THE HEAD'S HTML JUST CHANGED. The scrubber caches one fetch per version
+    // for the life of the tab (timeline.ts); the round that just landed is the
+    // one version whose rendering is no longer what was cached.
+    forgetVersionHTML(n);
     // THE STRIP IS RAISED FROM THE RECORD, NOT FROM THIS PAYLOAD. `/_galley/revise`
     // carries the number that landed and nothing about what it did; the counts
     // the strip prints — the round's ordinal and its `k changes` — are the

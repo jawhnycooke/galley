@@ -4095,6 +4095,43 @@ body.gly-page .ProseMirror p.gly-shell-marker {
 .gly-timeline-left { min-width: 0; }
 .gly-timeline-right { display: flex; align-items: center; gap: 10px; padding-bottom: 22px; position: relative; }
 .gly-revise-trail { font-size: 11px; color: var(--gly-muted); white-space: nowrap; min-width: 23ch; text-align: right; }
+
+/* THE SCRUBBER. Keyframes over a track over two end labels, all in the
+   footer's left column. The track is the only thing the pointer drags, and it
+   moves nothing in the bar: the handle and the fill are absolutely placed
+   inside it, and the `now` readout sits in a row whose ends are fixed text. */
+.gly-scrub { font-family: var(--gly-mono); font-size: 11px; }
+.gly-scrub-keys { position: relative; height: 22px; }
+.gly-scrub-key { position: absolute; transform: translateX(-50%); background: none; border: 0; padding: 0; cursor: pointer; color: var(--gly-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; white-space: nowrap; font: inherit; }
+.gly-scrub-key.is-near { color: var(--gly-fg); }
+.gly-scrub-key[data-tone="accent"] { color: var(--gly-accent); }
+.gly-scrub-key[data-tone="coral"] { color: var(--gly-coral); }
+.gly-scrub-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid currentColor; background: var(--gly-muted); display: block; box-sizing: border-box; }
+.gly-scrub-key[data-fill="none"] .gly-scrub-dot { background: transparent; }
+.gly-scrub-key[data-fill="accent"] .gly-scrub-dot { background: var(--gly-accent); }
+.gly-scrub-track { position: relative; height: 28px; cursor: ew-resize; touch-action: none; user-select: none; }
+.gly-scrub-rail { position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: var(--gly-line); }
+.gly-scrub-fill { position: absolute; left: 0; top: 13px; height: 2px; background: var(--gly-accent); opacity: .5; }
+.gly-scrub-handle { position: absolute; top: 0; width: 14px; height: 28px; margin-left: -7px; border-radius: 3px; background: var(--gly-accent); box-shadow: 0 0 0 4px rgba(214, 255, 61, .18), 0 0 24px rgba(214, 255, 61, .45); }
+.gly-scrub-labels { display: flex; justify-content: space-between; color: var(--gly-muted); margin-top: 6px; }
+.gly-scrub-now { color: var(--gly-fg); }
+/* THE STAGE IS WHAT THE SECOND PAPER IS ABSOLUTE AGAINST, and it exists so that
+   `.gly-versions-body` does not have to be: History's rail is positioned off
+   `.gly-versions` deliberately (see its own note above), and making the body a
+   containing block moves the rail 40px when the mode changes. The stage is out
+   of flow entirely until the handle leaves the head — two empty papers sitting
+   in the body's grid push everything under them down a row each. */
+.gly-scrub-stage { display: none; position: relative; }
+body.gly-scrubbing .gly-scrub-stage { display: block; }
+.gly-scrub-paper { transition: opacity .08s, filter .08s; }
+.gly-scrub-paper + .gly-scrub-paper { position: absolute; inset: 0; }
+/* History's landing chrome is not part of the scrub: while the handle is off
+   the head the stage is one sheet and nothing else. */
+body.gly-scrubbing .gly-versions-sub, body.gly-scrubbing .gly-versions-rail { display: none; }
+/* And History's own paper goes with them: while the handle is off the head the
+   two scrub papers ARE the sheet. The panel keeps writing into its own paper —
+   the landing is still whole until Task 14 — it is just not on screen here. */
+body.gly-scrubbing .gly-versions-paper:not(.gly-scrub-paper) { display: none; }
 main { padding-bottom: 220px; }
 
 #gly-revise.gly-revise { border: 0; border-radius: 8px; padding: 11px 18px; font: 600 14px/1.2 var(--gly-sans); display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; cursor: pointer; background: var(--gly-accent); color: var(--gly-on-accent); box-shadow: var(--gly-accent-glow); transition: filter .15s; }
