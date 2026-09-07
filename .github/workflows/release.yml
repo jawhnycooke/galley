@@ -1,4 +1,10 @@
 name: release
+# FORK MODE. Signing/notarization and the galley.tools publish are opt-in by
+# repository VARIABLES, so a fork without Apple or AWS material still cuts a
+# GitHub release with unsigned tarballs + checksums.txt — which is what
+# install.sh in this repository installs from:
+#   GALLEY_SIGN=true        import the Developer ID cert, codesign, notarize
+#   GALLEY_PUBLISH_DL=true  publish to the galley.tools download bucket
 
 # Merge to main = release. Muster's process, adopted wholesale — the VERSION
 # file is the knob: when a merge lands on main and no tag v<VERSION> exists
@@ -104,7 +110,7 @@ jobs:
         if: steps.rel.outputs.skip == 'false' && steps.rel.outputs.create == 'false'
         run: git fetch --tags && git checkout "${{ steps.rel.outputs.tag }}"
       - name: Import the Developer ID certificate
-        if: steps.rel.outputs.skip == 'false'
+        if: steps.rel.outputs.skip == 'false' && vars.GALLEY_SIGN == 'true'
         env:
           P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -138,13 +144,18 @@ jobs:
       - name: Build and package all targets
         if: steps.rel.outputs.skip == 'false'
         env:
+          SIGN: ${{ vars.GALLEY_SIGN }}
           NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
         run: |
           set -euo pipefail
-          [ -n "$NOTARY_KEY" ] || { echo "::error::APPLE_NOTARY_KEY is unset — cannot notarize."; exit 1; }
-          printf %s "$NOTARY_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          if [ "$SIGN" = "true" ]; then
+            [ -n "$NOTARY_KEY" ] || { echo "::error::APPLE_NOTARY_KEY is unset — cannot notarize."; exit 1; }
+            printf %s "$NOTARY_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          else
+            echo "GALLEY_SIGN is not 'true': building unsigned, skipping notarization."
+          fi
           tag="${{ steps.rel.outputs.tag }}"
           version="${tag#v}"
           commit="$(git rev-parse --short HEAD)"
@@ -159,6 +170,7 @@ jobs:
           # hardened runtime, which notarization requires; without it the
           # submission is rejected rather than merely unsigned.
           sign() {
+            [ "$SIGN" = "true" ] || return 0
             case "$1" in
               *_darwin_*) codesign --sign "$GALLEY_SIGN_IDENTITY" --options runtime \
                             --timestamp --force "$1" ;;
@@ -200,17 +212,19 @@ jobs:
           # dominate the job. Bare executables cannot be stapled — stapler only
           # works on bundles, dmgs and pkgs — so Gatekeeper verifies these
           # online.
-          ditto -c -k --keepParent dist "$RUNNER_TEMP/notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
-            --key "$RUNNER_TEMP/notary.p8" \
-            --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" \
-            --wait --timeout 30m | tee "$RUNNER_TEMP/notary.log"
-          grep -q "status: Accepted" "$RUNNER_TEMP/notary.log" || {
-            echo "::error::notarization did not return Accepted"
-            xcrun notarytool log "$(awk '/id:/{print $2; exit}' "$RUNNER_TEMP/notary.log")" \
-              --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" || true
-            exit 1
-          }
+          if [ "$SIGN" = "true" ]; then
+            ditto -c -k --keepParent dist "$RUNNER_TEMP/notarize.zip"
+            xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+              --key "$RUNNER_TEMP/notary.p8" \
+              --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" \
+              --wait --timeout 30m | tee "$RUNNER_TEMP/notary.log"
+            grep -q "status: Accepted" "$RUNNER_TEMP/notary.log" || {
+              echo "::error::notarization did not return Accepted"
+              xcrun notarytool log "$(awk '/id:/{print $2; exit}' "$RUNNER_TEMP/notary.log")" \
+                --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" || true
+              exit 1
+            }
+          fi
 
           # Tar only after signing and notarization, so the archives contain
           # the signed binaries rather than the originals.
@@ -241,13 +255,13 @@ jobs:
       # write. The Release role can ONLY PutObject to Downloads + CreateInvalidation
       # on the galley.tools distribution — no other access.
       - name: Configure AWS credentials (downloads)
-        if: steps.rel.outputs.skip == 'false'
+        if: steps.rel.outputs.skip == 'false' && vars.GALLEY_PUBLISH_DL == 'true'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.GALLEY_RELEASE_ROLE_ARN }}
           aws-region: us-east-1
       - name: Publish binaries to galley.tools/dl
-        if: steps.rel.outputs.skip == 'false'
+        if: steps.rel.outputs.skip == 'false' && vars.GALLEY_PUBLISH_DL == 'true'
         env:
           BUCKET: ${{ secrets.GALLEY_DOWNLOADS_BUCKET }}
           TAG: ${{ steps.rel.outputs.tag }}
@@ -265,7 +279,7 @@ jobs:
         # Only a real, non-prerelease release moves `latest`. A dispatch rebuild
         # (create=false) and an -rc pre-release (prerelease=true) publish their
         # versioned paths above but never move the pointer.
-        if: steps.rel.outputs.skip == 'false' && steps.rel.outputs.create == 'true' && steps.rel.outputs.prerelease == 'false'
+        if: steps.rel.outputs.skip == 'false' && steps.rel.outputs.create == 'true' && steps.rel.outputs.prerelease == 'false' && vars.GALLEY_PUBLISH_DL == 'true'
         env:
           BUCKET: ${{ secrets.GALLEY_DOWNLOADS_BUCKET }}
           TAG: ${{ steps.rel.outputs.tag }}

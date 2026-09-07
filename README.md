@@ -13,7 +13,7 @@ Each time you send, and each time Claude answers, a copy of the file is saved be
 ## Install
 
 ```sh
-curl -fsSL https://galley.tools/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jawhnycooke/galley/main/install.sh | sh
 ```
 
 ## Connect Claude Code
