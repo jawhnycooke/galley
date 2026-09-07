@@ -58,12 +58,15 @@ export function applyTheme(this: AppShell): void {
   const b = this.themeButton;
   if (!b) return;
   const resolved = resolveTheme(this.theme, media().matches);
-  b.querySelector('.gly-theme-label')!.textContent = themeLabel(this.theme);
+  // NO WORD WHILE FOLLOWING THE SYSTEM. `auto` is the absence of a choice, and
+  // a label for the default was noise: the glyph shows the theme the page is
+  // in (☀ / ☾) and the word appears only when the reviewer has pinned one.
+  b.querySelector('.gly-theme-label')!.textContent =
+    this.theme === 'system' ? '' : themeLabel(this.theme);
   const swatch = b.querySelector<HTMLElement>('.gly-theme-swatch')!;
   swatch.dataset.theme = resolved;
-  // The glyph says the CHOICE (☀ light, ☾ dark, ◐ auto); the resolved theme
-  // is what the page already shows.
-  swatch.dataset.choice = this.theme;
+  // The glyph is the RESOLVED theme in every state; the choice is the word.
+  swatch.dataset.choice = resolved;
   b.title = `theme: ${themeLabel(this.theme)}${this.theme === 'system' ? ` (following browser: ${resolved})` : ''} · click to change`;
 }
 

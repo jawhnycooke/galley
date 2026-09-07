@@ -2571,8 +2571,9 @@ body.gly-revising .gly-dot {
   min-width: 5ch;
   text-align: left;
 }
-/* A glyph, not a swatch: ☀ light, ☾ dark, ◐ auto — the choice, which is the
-   thing the press changes; the resolved theme is what the whole page shows. */
+/* A glyph, not a swatch: ☀ light, ☾ dark — the theme the page is in. The
+   choice is the word beside it, and there is no word while following the
+   system (theme.ts). */
 .gly-theme-swatch {
   display: inline-block;
   width: 1.2em;
@@ -2581,7 +2582,7 @@ body.gly-revising .gly-dot {
   line-height: 1;
 }
 .gly-theme-swatch::before {
-  content: "◐";
+  content: "☀";
 }
 .gly-theme-swatch[data-choice="light"]::before {
   content: "☀";
