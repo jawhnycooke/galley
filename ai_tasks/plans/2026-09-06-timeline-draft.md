@@ -19,7 +19,8 @@
 - Do not touch the agent protocol (`/_galley/ack`, `galley round`, channel events).
 - Fonts self-hosted (loopback server; no CDN at runtime): Instrument Sans 400/500/600 (+400 italic), JetBrains Mono 400/500/600, both OFL.
 - Gates that must stay green after every task: `just types`, `just assets` (runs `probe.mjs`), `just verify-go`, `just rounds-ux` (this is where the no-motion-on-click check lives — `web/rounds-ux.mjs` `barRects()` :1127–1140; **there is no `just motion`**), `just verify` before the final PR.
-- Commit after every task. Commit subjects in imperative mood, no self-attribution in the body; trailers per the session's attribution setting.
+- Commit after every task. Commit subjects in imperative mood, no self-attribution in the body; trailers per the session's attribution setting. **Local commits only: never push, never open a PR.**
+- Toolchain: `source .superpowers/sdd/env.sh` before every command (Node 22 for `probe.mjs`; go/golangci-lint from brew). The user's default Node 20 cannot import `.ts`.
 - `ai_tasks/todo.md` is the tracker: tick tasks there as they land.
 
 ## Corrections to the handoff plan (verified against the code)
@@ -1862,7 +1863,7 @@ git commit -m "Retire the rail, History landing, arrival strip and census"
 - [ ] **Step 2:** Walk the six states end-to-end on `learn-anything.md` with `galley edit` + a second terminal for `galley ack`/`galley cannot`, in both themes, at 1302×794 and at 900px wide (the bar wraps; the footer grid collapses `.gly-timeline-right` under the track — add `@media (max-width: 720px) { .gly-timeline-grid { grid-template-columns: 1fr; } }` if it does not). Compare against `screenshots/01–08`.
 - [ ] **Step 3:** Update `docs/reviewing.md` lines 64–147 where they describe the rail, the History chip, and the `+ Instruction` bar button, in the product's own words (rows under the block; the timeline; the slot above the sheet).
 - [ ] **Step 4:** Add a review section to `ai_tasks/todo.md` (what shipped, what was deferred — Task 16 if skipped, gap #2 per-block morph).
-- [ ] **Step 5:** `git push -u origin feat/timeline-draft` and open the PR with `gh pr create` — summary: the six states, the token re-valuation decision, the corrections table above, and the test plan (gates + manual walk).
+- [ ] **Step 5:** **Local only — do not push, do not open a PR** (user instruction 2026-09-06: the work will later move to a fork under the JawhnyCooke GitHub account). Leave the branch `feat/timeline-draft` checked out and the editor serving `learn-anything.md` for review.
 
 ---
 
