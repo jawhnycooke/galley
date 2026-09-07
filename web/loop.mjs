@@ -631,41 +631,37 @@ check(
   !!instruction && instruction.text === REVIEWER_ASKED,
   instruction,
 );
-// THE CARD IS ON SCREEN AND CARRIES ONE SIDE, which is the whole shape of an
-// instruction: it is a fact of a round, not a conversation. Asserted rather
-// than assumed, because the thread card component is shared with review mode's
-// two-sided one and a reply box appearing here would be the product quietly
-// growing a conversation back.
+// THE INSTRUCTION IS ON SCREEN AS A ROW UNDER ITS OWN BLOCK, and it carries
+// ONE SIDE — which is the whole shape of an instruction: it is a fact of a
+// round, not a conversation. Asserted rather than assumed, because the surface
+// it is drawn on is the same paper the reviewer types into, and a reply box
+// appearing here would be the product quietly growing a conversation back.
 //
-// ONE SIDE IS THE CLAIM, AND IT IS NOT THE SAME CLAIM AS ONE VERB — this check
-// asserted both under one name and the second half went stale the day the rail
-// gained `edit`. A reviewer's own words must be revisable, so an instruction
-// card carries edit at settle weight and delete at destroy weight; what would
-// mean the conversation had grown back is a REPLY BOX (`reply === false`) and a
-// second speaker in `said`, both of which are still asserted exactly. The verbs
-// are pinned as a pair rather than by count so that a third one arriving is a
+// THE RAIL CARD THIS USED TO READ IS DELETED. A mark-anchored instruction had a
+// card in the band AND a row under its block — one instruction on two surfaces —
+// and the row is the one the spec keeps. So the verb pair `['edit','delete']`
+// this check pinned is retired with the card: the row offers `×` and nothing
+// else, and revising your own words is done by removing the row and writing the
+// instruction again. One verb is asserted exactly, so a second arriving is a
 // decision somebody has to come here and make.
-const railCard = await page.evaluate(() => {
-  const el = document.querySelector('.gly-rail-band .gly-thread');
+const railRow = await page.evaluate(() => {
+  const el = document.querySelector('.ProseMirror .gly-row');
   if (!el) return null;
   return {
-    said: Array.from(el.querySelectorAll('.gly-thread-entry p')).map(
-      (p) => p.textContent,
-    ),
+    said: el.querySelector('.gly-row-text')?.textContent ?? null,
     reply: !!el.querySelector('[data-draft]'),
-    verbs: Array.from(el.querySelectorAll('.gly-card-actions button')).map(
-      (b) => (b.firstChild ? b.firstChild.textContent : '').trim(),
+    verbs: Array.from(el.querySelectorAll('button')).map((b) =>
+      (b.textContent || '').trim(),
     ),
   };
 });
 check(
-  'and it is a card in the rail carrying ONE side — an instruction is not a conversation',
-  !!railCard &&
-    railCard.said.length === 1 &&
-    railCard.said[0] === REVIEWER_ASKED &&
-    railCard.reply === false &&
-    JSON.stringify(railCard.verbs) === JSON.stringify(['edit', 'delete']),
-  railCard,
+  'and it is a row under its block carrying ONE side — an instruction is not a conversation',
+  !!railRow &&
+    railRow.said === REVIEWER_ASKED &&
+    railRow.reply === false &&
+    JSON.stringify(railRow.verbs) === JSON.stringify(['×']),
+  railRow,
 );
 
 // THE AGENT HAS HEARD NONE OF IT. Two writes that reached the document — a

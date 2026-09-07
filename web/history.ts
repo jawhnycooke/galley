@@ -142,7 +142,6 @@ export const historyMethods = {
 
   enterHistory(this: AppShell) {
     this.historyScroll = window.scrollY;
-    document.body.classList.add('gly-history-mode');
     this.editor.setEditable(false);
     this.closeSheet();
     this.closeCapture();
@@ -161,7 +160,6 @@ export const historyMethods = {
   },
 
   leaveHistory(this: AppShell) {
-    document.body.classList.remove('gly-history-mode');
     // LEAVING IS RETURNING TO THE HEAD. Escape closes the panel directly
     // (keys.ts), which reaches here without going through scrubTo — so the
     // scrubber's own position is settled here rather than left pointing at a
@@ -173,9 +171,18 @@ export const historyMethods = {
     this.paintSurfaces();
     this.paintRevise();
     this.paintReadout();
-    // ESC RETURNS WITH THE SCROLL PRESERVED, which is the whole reason History
-    // is a mode and not a page: the sentence the reviewer was reading is still
+    // ESC RETURNS WITH THE SCROLL PRESERVED, which is the whole reason this is
+    // a mode and not a page: the sentence the reviewer was reading is still
     // under the cursor when they come back to it.
+    //
+    // AND IT IS WHY THE TWO PAPERS DECLINE TO BE SCROLL ANCHORS. An earlier
+    // version is usually a SHORTER document than the draft, so the browser
+    // clamps the scroll while it is on screen (measured: 228 -> 0 on a
+    // three-round fixture); the draft coming back then grows the page above the
+    // viewport, and Chrome's scroll anchoring adjusts the offset AFTER this
+    // line to keep its chosen anchor still — landing at 330 where this asked
+    // for 228. `overflow-anchor: none` on the paper and the stage (editor.css)
+    // is what leaves this line the last word.
     window.scrollTo({ top: this.historyScroll });
   },
 

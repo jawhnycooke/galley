@@ -18,7 +18,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AppShell } from './appshell.ts';
 import { postJSON } from './net.ts';
 
-export interface RowSpec {
+interface RowSpec {
   key: string;
   index: number;
   text: string;
@@ -31,7 +31,7 @@ export interface WasSpec {
   was: string;
   note?: string;
 }
-export interface RowsState {
+interface RowsState {
   rows: RowSpec[];
   was: WasSpec[];
   marked: number[];
@@ -266,7 +266,7 @@ export function rowsPlugin(onRemove: (key: string) => void): Plugin {
 // beat — the 1.5s pending poll and the 1s revise poll — and a transaction per
 // tick is a decoration rebuild per tick over a document nobody touched, on top
 // of a redraw that can land under the reviewer's own caret.
-export function setRows(view: EditorView, s: RowsState): void {
+function setRows(view: EditorView, s: RowsState): void {
   const now = rowsKey.getState(view.state);
   if (now && JSON.stringify(now.spec) === JSON.stringify(s)) {
     return;

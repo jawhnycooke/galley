@@ -11,7 +11,7 @@ import { scrubState } from './timeline.ts';
 
 export const WHOLE_DOC_LABEL = '+ instruction on the whole document';
 export const WHOLE_DOC_PLACEHOLDER = 'add an instruction on the whole doc…';
-export const SLOT_EMPTY =
+const SLOT_EMPTY =
   'Select words to instruct that block, or add an instruction on the whole document.';
 export const HELP_LINES = [
   'Select words → type the instruction → ↵ pin. It waits under that block.',
@@ -123,7 +123,18 @@ export function paintFrame(this: AppShell): void {
   }
   const rounds = this.versionsPanel.rounds ?? [];
   const max = Math.max(1, rounds.length);
-  const s = scrubState(this.scrubT, max);
+  // NOT SCRUBBING IS BEING AT THE HEAD, and asking `scrubT` before the scrubber
+  // exists is how this frame told itself otherwise. `scrubT` is set to the
+  // maximum when the timeline is BUILT, which waits on the record's own fetch —
+  // so every paint before that answered `scrubState(1, max)`, which is "reading
+  // v1" on any document with more than one version: the whole-doc slot went
+  // `is-off` and the restore verb appeared, and both flipped back a fetch later,
+  // moving 119px of prose under the cursor. `body.gly-scrubbing` is the one
+  // place that knows whether the reviewer has left the head, and it is the same
+  // invariant paintTimeline enforces from the other side.
+  const s = document.body.classList.contains('gly-scrubbing')
+    ? scrubState(this.scrubT, max)
+    : scrubState(max, max);
   const round = rounds.length ? rounds[rounds.length - 1].n : 1;
   // ageSaid already returns the chrome's own uppercase shorthand (versions.ts)
   // and an unparseable `at` returns '', which eyebrowLeft reads as no age.

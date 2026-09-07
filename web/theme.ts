@@ -4,7 +4,7 @@
 // prefers-color-scheme block decides, and re-decides when the OS flips.
 import type { AppShell } from './appshell.ts';
 
-export const THEME_KEY = 'galley-theme';
+const THEME_KEY = 'galley-theme';
 export type ThemeChoice = 'system' | 'light' | 'dark';
 export type Theme = 'light' | 'dark';
 

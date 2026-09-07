@@ -187,8 +187,11 @@ const filed = await page.evaluate(async () => {
   return r.status;
 });
 check('filing an instruction is accepted', filed === 200, String(filed));
+// WAIT FOR THE INSTRUCTION'S OWN SURFACE, which is the ROW under the block it
+// is about — the rail card an anchored instruction also had is deleted (Task
+// 14), so `.gly-rail-band .gly-card` is a wait for something nothing builds.
 await page.waitForFunction(
-  () => !!document.querySelector('.gly-rail-band .gly-card'),
+  () => !!document.querySelector('.ProseMirror .gly-row'),
   { timeout: 8000 },
 );
 const afterFiling = await text();

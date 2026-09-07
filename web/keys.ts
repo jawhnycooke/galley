@@ -52,28 +52,16 @@ export const keyMethods = {
         this.closeSheet();
         return;
       }
-      // THE ROUNDS, and the position in this chain is the ordering rule this
-      // chain is built on: TOPMOST FIRST. The record floats at z-index 44, over
-      // the whole-document panel below it, so Esc has to reach it before the
-      // panel — otherwise a reviewer with both open presses Esc, watches
-      // something they cannot see close, and presses it again.
+      // THE VERSION ON SCREEN, and the position in this chain is the ordering
+      // rule this chain is built on: TOPMOST FIRST. The read-only version
+      // floats at z-index 44, over the whole-document panel below it, so Esc
+      // has to reach it before the panel — otherwise a reviewer with both open
+      // presses Esc, watches something they cannot see close, and presses it
+      // again.
+      // READING A VERSION is one surface with one exit: Esc returns to the
+      // head. It used to be two stacked meanings — release the pinned change,
+      // then leave the reading mode — and the pin went with the change rail.
       if (this.versionsPanel.open) {
-        // ONE KEY MAY NOT DO TWO THINGS IN ONE PRESS, and inside History Esc
-        // has two meanings stacked: release the change a reviewer pinned, and
-        // leave the reading mode. The pin is the innermost, so it goes first —
-        // the same TOPMOST-FIRST rule this whole chain is built on, one level
-        // further in. `unpin` reports whether it had anything to release, so
-        // the outer meaning is not swallowed on a press with nothing pinned.
-        if (this.versionsPanel.unpin()) {
-          return;
-        }
-        this.versionsPanel.hide();
-        return;
-      }
-      // SCRUBBING THE TIMELINE is its own surface — `body.gly-scrubbing` marks
-      // it, same as the versions panel marks History — and Esc returns to now
-      // rather than falling through to the capture card underneath.
-      if (document.body.classList.contains('gly-scrubbing')) {
         this.scrubHome();
         return;
       }
@@ -141,12 +129,12 @@ export const keyMethods = {
     // instruction. The rail's card verbs are edit and delete, and they are on
     // the card.
     //
-    // NOT WHILE HISTORY IS UP. History is a READING mode: `body.gly-history-mode`
-    // takes `main` to `display: none` and puts a version's paper in its place,
-    // and the whole premise of the surface is that it computes nothing and
-    // decides nothing. `j`/`k` are inert there — `markElement` finds nothing
-    // inside a hidden `main` — but they still moved `this.stepped`, which is
-    // state a reading mode may not write. Every neighbour already knew:
+    // NOT WHILE AN EARLIER VERSION IS ON THE SHEET. That is a READING mode:
+    // `body.gly-scrubbing` puts a version's paper where the draft's is and the
+    // whole premise of the surface is that it computes nothing and decides
+    // nothing. `j`/`k` are inert there — the rows they walk are the draft's,
+    // and the draft is not on screen — but they still moved `this.stepped`,
+    // which is state a reading mode may not write. Every neighbour already knew:
     // `paintReadout`, `paintSurfaces` and the Esc chain all branch on the panel
     // being open. This switch was the one reader that did not ask, which is this
     // codebase's most-repeated shape — the rule spelled in every place but one,
@@ -231,7 +219,19 @@ export const keyMethods = {
     for (const card of all) {
       card.el.classList.toggle('gly-stepped', card.thread.key === next);
     }
-    const row = document.querySelector(`.gly-row[data-key="${next}"]`);
+    // AND THE ROW ITSELF WEARS THE STEP. The card that used to carry
+    // `.gly-stepped` for an anchored instruction is deleted — the row is its
+    // one surface now — so a walk that only scrolled would move the page and
+    // mark nothing, which is a stepper the reviewer cannot follow. Same class,
+    // same ring, on whichever surface the instruction actually has.
+    let row: Element | null = null;
+    for (const el of document.querySelectorAll('.gly-row')) {
+      const on = el.getAttribute('data-key') === next;
+      el.classList.toggle('gly-stepped', on);
+      if (on) {
+        row = el;
+      }
+    }
     if (row) {
       row.scrollIntoView({ block: 'center', behavior: motion() });
       return;

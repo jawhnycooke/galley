@@ -18,40 +18,36 @@ export interface Scrub {
   atHead: boolean;
 }
 
-export const REASON_COULD_NOT = 'could-not';
-export const REASON_LANDED = 'landed';
+const REASON_COULD_NOT = 'could-not';
+const REASON_LANDED = 'landed';
 const HEAD_EPS = 0.01;
 
 export function keyframesOf(rounds: RoundView[], sealed: boolean): Keyframe[] {
-  const max = rounds.length;
-  return rounds.map((r, i) => {
-    const n = i + 1;
-    const head = n === max;
-    const cannot = r.reason === REASON_COULD_NOT;
-    const revised = r.reason === REASON_LANDED && r.answers > 0;
-    let label = `R${r.n}`;
-    if (cannot) label += ' · cannot';
-    else if (head && revised && !sealed) label += ' draft';
-    const tone: Keyframe['tone'] = cannot
-      ? 'coral'
-      : head && (revised || sealed)
-        ? 'accent'
-        : 'muted';
-    const fill: Keyframe['fill'] = cannot
-      ? 'none'
-      : head && revised && !sealed
-        ? 'none'
-        : head && sealed
-          ? 'accent'
-          : 'grey';
-    return {
-      n,
-      left: max === 1 ? 0 : ((n - 1) / (max - 1)) * 100,
-      label,
-      fill,
-      tone,
-    };
-  });
+  return rounds.map((r, i) => keyframeAt(r, i + 1, rounds.length, sealed));
+}
+
+// ONE KEYFRAME, AND ITS THREE FACES ARE ONE QUESTION EACH. This was the body of
+// the map above, where the same two booleans were re-asked inside three nested
+// ternaries — `head && revised && !sealed` written out three times, once per
+// property, with nothing holding the three spellings together. DRAFT is that
+// state named: the head, unsealed, carrying work the agent did. It is the only
+// keyframe that is hollow AND accent, which is the whole reason it needs a name.
+function keyframeAt(
+  r: RoundView,
+  n: number,
+  max: number,
+  sealed: boolean,
+): Keyframe {
+  const head = n === max;
+  const cannot = r.reason === REASON_COULD_NOT;
+  const draft = head && !sealed && r.reason === REASON_LANDED && r.answers > 0;
+  return {
+    n,
+    left: max === 1 ? 0 : ((n - 1) / (max - 1)) * 100,
+    label: `R${r.n}${cannot ? ' · cannot' : draft ? ' draft' : ''}`,
+    fill: cannot || draft ? 'none' : head && sealed ? 'accent' : 'grey',
+    tone: cannot ? 'coral' : head && (draft || sealed) ? 'accent' : 'muted',
+  };
 }
 
 export function scrubState(t: number, max: number): Scrub {
@@ -156,11 +152,12 @@ export function makeTimeline(this: AppShell): void {
     dragging = false;
   });
 
-  // TWO PAPERS FOR THE CROSSFADE, mounted beside the one History already has
-  // and hidden with it (`body.gly-scrubbing`, editor.css) rather than in place
-  // of it. Replacing the panel's paper outright — which is what this started
-  // as — detaches the element `VersionsPanel.load` writes into, and with it
-  // the History landing that Task 14, not this one, is the task that retires.
+  // TWO PAPERS FOR THE CROSSFADE, AND THEY GO WHERE THE DRAFT'S PAPER IS.
+  // History's panel — a second document body drawn while `main` was hidden —
+  // is deleted (Task 14), so an earlier version is read on THE SHEET: same
+  // column, same measure, same scroll, under the same eyebrow, which is what
+  // lets that eyebrow carry `restore vN as draft` while the handle is off the
+  // head. The editor's own paper is hidden under `body.gly-scrubbing`.
   const a = document.createElement('div');
   a.className = 'gly-versions-paper gly-scrub-paper';
   const b = document.createElement('div');
@@ -168,7 +165,8 @@ export function makeTimeline(this: AppShell): void {
   const stage = document.createElement('div');
   stage.className = 'gly-scrub-stage';
   stage.append(a, b);
-  this.versionsPanel.paper.after(stage);
+  const paper = document.querySelector('.ProseMirror');
+  paper?.after(stage);
   this.timeline = { root, keys, track, fill, handle, label, papers: [a, b] };
   this.scrubT = this.scrubMax();
   this.paintTimeline();

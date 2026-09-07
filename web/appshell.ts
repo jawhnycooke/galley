@@ -695,7 +695,7 @@ export interface AppMethods {
   watchCards(): void;
   paintAnchors(): void;
   paintRailCards(): void;
-  paintRailThreads(band: HTMLElement): HTMLElement[];
+  paintRailThreads(): HTMLElement[];
   bubbleThreadCard(thread: Thread): HTMLElement;
 
   // --- the bar's own builders (web/bar.ts) ---

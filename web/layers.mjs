@@ -4810,199 +4810,146 @@ console.log('\n--- §8a · a live page owns its own disabled flags ---');
   );
 }
 
-// --- §12 · the rounds -------------------------------------------------------
+// --- §12 · reading an earlier version ---------------------------------------
 //
 // THE SURFACE THE RECORD LIVES ON, read at the two states that can be wrong.
 //
+// EVERY CHECK HERE USED TO BE ABOUT `.gly-versions`, THE HISTORY PANEL, and
+// that panel is deleted (Task 14): the landing, the reading stage, the views
+// picker, the change rail and the `<section>` they were drawn into. An earlier
+// version is read ON THE SHEET now — the scrubber's two papers sit in the frame
+// where the draft's paper does — so the surface whose two states can be wrong is
+// the STAGE, and the same two questions are asked of it.
+//
 // A HIDDEN FULL-SCREEN SURFACE THAT IS NOT ACTUALLY HIDDEN COVERS THE DOCUMENT,
 // and `[hidden] { display: none }` is a USER-AGENT rule that ANY author
-// `display` beats — this panel needs `display: flex` for its own layout, so the
-// first cut of it painted over the whole page from load with `hidden` set.
-// Nine checks in `just motion` passed over that: a rect is a rect under an
-// overlay, and every bar control still answered `elementFromPoint` because the
-// bar sits above the panel. The first thing to notice was a drag across the
-// prose that selected nothing. So the check is not "the attribute is set" —
-// that is the proxy this file records six failures of — it is what the browser
-// does with a click at a coordinate over the prose.
+// `display` beats — the old panel needed `display: flex` for its own layout, so
+// the first cut of it painted over the whole page from load with `hidden` set.
+// Nine checks passed over that: a rect is a rect under an overlay, and every bar
+// control still answered `elementFromPoint` because the bar sits above it. The
+// first thing to notice was a drag across the prose that selected nothing. So
+// the check is not "the attribute is set" — that is the proxy this file records
+// six failures of — it is what the browser does with a click over the prose.
 //
-// And when it IS open, the claim is the other half of the same sentence: it
-// covers the prose and it does NOT cover the way back. The bottom bar carries
-// the count, the step and the way out at narrow widths, and a record drawn over
-// them is the covered-control defect wearing a new coat.
-console.log('\n--- §12 · the rounds ---');
+// And when it IS on screen, the claim is the other half of the same sentence:
+// the version stands IN the sheet and does NOT cover the way back. The bottom
+// bar carries the count, the step and the way out at narrow widths, and a
+// version drawn over them is the covered-control defect wearing a new coat.
+console.log('\n--- §12 · reading an earlier version ---');
 {
   await page.setViewportSize({ width: WIDE.width, height: WIDE.height });
   await page.waitForTimeout(400);
 
   const shut = await page.evaluate(() => {
-    const el = document.querySelector('.gly-versions');
+    const el = document.querySelector('.gly-scrub-stage');
     if (!el) return null;
     const p = document.querySelector('.ProseMirror p');
     const r = p.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + 8, r.y + 8);
     return {
       display: getComputedStyle(el).display,
-      hidden: el.hidden,
+      scrubbing: document.body.classList.contains('gly-scrubbing'),
       overProse: at ? at.className || at.tagName : null,
-      reachesPanel: !!(at && at.closest && at.closest('.gly-versions')),
+      reachesStage: !!(at && at.closest && at.closest('.gly-scrub-stage')),
     };
   });
-  check('the rounds exist as a surface at all', !!shut, shut);
+  check('the record has a surface to be read on at all', !!shut, shut);
   check(
-    'a shut record is DISPLAYED nowhere, not merely marked hidden',
-    !!shut && shut.hidden === true && shut.display === 'none',
+    'at the head that surface is DISPLAYED nowhere, not merely empty',
+    !!shut && shut.scrubbing === false && shut.display === 'none',
     shut,
   );
   check(
-    'and the prose under it answers a click, which is the claim the attribute is only a proxy for',
-    !!shut && shut.reachesPanel === false,
+    'and the prose answers a click, which is the claim the attribute is only a proxy for',
+    !!shut && shut.reachesStage === false,
     shut,
   );
 
-  await page.click('.gly-versions-open');
+  await page.click('.gly-scrub-key');
   await page.waitForTimeout(600);
 
   const open = await page.evaluate(() => {
-    const el = document.querySelector('.gly-versions');
+    const el = document.querySelector('.gly-scrub-stage');
     const cs = getComputedStyle(el);
-    const r = el.getBoundingClientRect();
     const bar = document.querySelector('.gly-bar');
-    const barR = bar.getBoundingClientRect();
-    const bottom = document.querySelector('.gly-bottombar');
-    const list = document.querySelector('.gly-versions-list');
-    const paper = document.querySelector('.gly-versions-paper');
-    const rounds = [...document.querySelectorAll('.gly-versions-round')];
-    return {
-      position: cs.position,
-      z: Number(cs.zIndex),
-      top: +r.top.toFixed(2),
-      barBottom: +barR.bottom.toFixed(2),
-      bg: cs.backgroundColor,
-      rounds: rounds.length,
-      said: rounds.map((b) => (b.textContent || '').trim()).slice(0, 3),
-      paper: paper ? (paper.textContent || '').trim().length : 0,
-      listScrolls: list ? getComputedStyle(list).overflowY : null,
-      bottomZ: bottom ? Number(getComputedStyle(bottom).zIndex) : null,
-      views: [...document.querySelectorAll('.gly-versions-view-pick')].map(
-        (b) => b.textContent,
-      ),
-      historyMode: document.body.classList.contains('gly-history-mode'),
-      mainDisplay: getComputedStyle(document.querySelector('main')).display,
-      barDisplay: getComputedStyle(bar).display,
-    };
-  });
-  // IT IS A VIEW NOW, NOT A PANEL FLOATING OVER ONE. This asserted
-  // `position: fixed` off the bar's own measured foot, because the record was a
-  // full-screen surface laid over the document — a HIDDEN full-screen surface
-  // that is not actually hidden covers the prose, which is the defect the block
-  // below it was written for. History is one of the two DOCUMENT VIEWS today:
-  // `body.gly-history-mode` takes `main` to `display: none` and the record is
-  // `position: relative` in its place, with the bar still painted above it.
-  //
-  // The claim is inverted rather than dropped, and it is the same claim in the
-  // new geometry: the record does not PUSH the page. It replaces the document
-  // and leaves the chrome where it was — asserted as all three facts together,
-  // because "relative" on its own is what a surface that pushes everything
-  // below it also reports.
-  check(
-    'an open record replaces the document view and leaves the bar where it was',
-    open.position === 'relative' &&
-      open.historyMode === true &&
-      open.mainDisplay === 'none' &&
-      open.barDisplay !== 'none',
-    open,
-  );
-  check(
-    'and it is opaque — a record read through the prose behind it is a record nobody can read',
-    open.bg !== 'rgba(0, 0, 0, 0)',
-    open.bg,
-  );
-  // TWO VIEWS, NAMED FOR WHAT THEY SHOW. The spec offered four — clean, in
-  // place, reverse, side by side — and three of them were readings of a diff
-  // between a proposal and the document. There are no proposals: a round is
-  // what the agent DID, so the record has one diff to draw and one way to draw
-  // it side by side. The order is still pinned, because a picker whose entries
-  // reorder is a reviewer clicking the wrong one out of habit.
-  check(
-    'the two views are offered, in order',
-    open.views.join(',').toLowerCase() === 'changes,side by side',
-    open.views,
-  );
-  // AND THE LIST IS ONE STAGE BACK. History opens on the round the reviewer
-  // just got back — it is a READING mode now, not a browser — so the door lands
-  // on a diff and the rounds list is behind `‹ all rounds`. The claim is
-  // unchanged and it is the claim that matters: there is a history, it is ONE
-  // list, and it scrolls in one place rather than nesting scrollers.
-  await page.locator('.gly-versions-all').click();
-  await page.waitForTimeout(500);
-  // ONE SCROLLER, COUNTED FROM THE LIST OUTWARDS. This read `overflow-y` off
-  // `.gly-versions-rail` and required `auto` — which pins WHICH element
-  // scrolls, and the record has been re-laid out twice since (the rail reports
-  // `visible` now; something above it takes the overflow). The claim was never
-  // about that element: it is that the history is ONE list in ONE scroller,
-  // because nested scrollers are how a reviewer loses the round they were
-  // looking for. So the ancestors of a real round entry are walked and the
-  // scrollable ones counted.
-  //
-  // AND THE ANSWER IS ZERO, WHICH IS THE POINT. History is a reading mode in
-  // the page's own flow (`position: relative`, with `main` taken to
-  // `display: none` beside it), so the scroll that reaches the end of the list
-  // is the WINDOW's — the same gesture that reaches the end of the document.
-  // That is one scroller for the whole surface rather than one inside another,
-  // which is the claim this check has always been making; what changed is
-  // which element owns it. Any scroller found INSIDE the record is the nesting
-  // this is here to refuse, so the count is asserted at zero and the page's own
-  // scrollability is asserted beside it — otherwise "no scroller anywhere" is
-  // satisfied by a list nobody can reach past the fold.
-  const listing = await page.evaluate(() => {
-    const first = document.querySelector('.gly-versions-round');
+    const paper = document.querySelector('.gly-scrub-paper[data-v]');
+    const prose = document.querySelector('.ProseMirror');
     const scrollers = [];
-    for (let el = first; el && el !== document.body; el = el.parentElement) {
-      const oy = getComputedStyle(el).overflowY;
-      if (oy === 'auto' || oy === 'scroll') scrollers.push(el.className);
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const oy = getComputedStyle(n).overflowY;
+      if (oy === 'auto' || oy === 'scroll') scrollers.push(n.className);
     }
     return {
-      rounds: document.querySelectorAll('.gly-versions-round').length,
+      position: cs.position,
+      display: cs.display,
+      proseDisplay: getComputedStyle(prose).display,
+      mainDisplay: getComputedStyle(document.querySelector('main')).display,
+      barDisplay: getComputedStyle(bar).display,
+      eyebrow: (document.querySelector('.gly-eyebrow')?.innerText || '').trim(),
+      paper: paper ? (paper.textContent || '').trim().length : 0,
       scrollers,
       pageScrolls:
         document.documentElement.scrollHeight > window.innerHeight - 1,
-      position: getComputedStyle(document.querySelector('.gly-versions'))
-        .position,
     };
   });
+  // IT IS THE SHEET, NOT A PANEL OVER ONE, AND NOT A PANEL INSTEAD OF ONE.
+  // This asserted `position: fixed` when the record was a full-screen surface
+  // laid over the document, then `main { display: none }` when it was a section
+  // drawn in its place. It is neither: `main` and the frame — the eyebrow that
+  // says WHICH version, and the verb that would restore it — stay exactly where
+  // they were, and only the draft's own paper steps aside.
   check(
-    "there is a history, and it is ONE list — read by the page's own scroll, not a scroller inside a scroller",
-    listing.rounds > 0 &&
-      listing.scrollers.length === 0 &&
-      listing.position === 'relative',
-    listing,
+    'a version stands in the sheet: the frame and the bar stay, the draft’s paper steps aside',
+    open.display !== 'none' &&
+      open.position === 'relative' &&
+      open.proseDisplay === 'none' &&
+      open.mainDisplay !== 'none' &&
+      open.barDisplay !== 'none',
+    open,
+  );
+  // AND THE EYEBROW SAYS WHICH ONE. A sheet showing something other than the
+  // draft, with nothing on screen saying so, is the one failure this mode can
+  // have that a reviewer would not notice until they typed into it.
+  check(
+    'and the eyebrow says which version is being read, and that it is read-only',
+    /VIEWING V\d+/.test(open.eyebrow) && /READ ONLY/.test(open.eyebrow),
+    open.eyebrow,
   );
   check(
-    'and a round is rendered into the paper beside it',
+    'and the version is rendered into that paper',
     open.paper > 0,
     open.paper,
   );
+  // ONE SCROLLER, COUNTED FROM THE PAPER OUTWARDS. The claim was never about
+  // which element scrolls: it is that a version is read in ONE scroller,
+  // because nested scrollers are how a reviewer loses their place. The answer
+  // is zero — the scroll that reaches the end of the version is the WINDOW's,
+  // the same gesture that reaches the end of the draft — and the page's own
+  // scrollability is asserted beside it, or "no scroller anywhere" is satisfied
+  // by a sheet nobody can read past the fold.
+  check(
+    "one scroller — the page's own, not a scroller inside a scroller",
+    open.scrollers.length === 0 && open.pageScrolls === true,
+    { scrollers: open.scrollers, pageScrolls: open.pageScrolls },
+  );
 
-  // The narrow state is where the way back lives. The record must be under it.
+  // The narrow state is where the way back lives. The version must not cover it.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(500);
   const narrow = await page.evaluate(() => {
-    const el = document.querySelector('.gly-versions');
     const bottom = document.querySelector('.gly-bottombar');
     if (!bottom || bottom.hidden) return { bar: false };
     const r = bottom.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return {
       bar: true,
-      panelZ: Number(getComputedStyle(el).zIndex),
-      bottomZ: Number(getComputedStyle(bottom).zIndex),
       reaches: !!(at && at.closest && at.closest('.gly-bottombar')),
     };
   });
   if (narrow.bar) {
     check(
-      'the record never covers the way back — the bottom bar is still what a click there reaches',
-      narrow.reaches && narrow.panelZ < narrow.bottomZ,
+      'the version never covers the way back — the bottom bar is still what a click there reaches',
+      narrow.reaches,
       narrow,
     );
   } else {
@@ -5014,12 +4961,16 @@ console.log('\n--- §12 · the rounds ---');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
   const escaped = await page.evaluate(() => ({
-    hidden: document.querySelector('.gly-versions').hidden,
-    display: getComputedStyle(document.querySelector('.gly-versions')).display,
+    scrubbing: document.body.classList.contains('gly-scrubbing'),
+    display: getComputedStyle(document.querySelector('.gly-scrub-stage'))
+      .display,
+    prose: getComputedStyle(document.querySelector('.ProseMirror')).display,
   }));
   check(
-    'Esc puts the record away, like every other surface on this page',
-    escaped.hidden === true && escaped.display === 'none',
+    'Esc returns to the head, like every other surface on this page',
+    escaped.scrubbing === false &&
+      escaped.display === 'none' &&
+      escaped.prose !== 'none',
     escaped,
   );
   await page.setViewportSize({ width: WIDE.width, height: WIDE.height });
@@ -5040,21 +4991,11 @@ console.log('\n--- §13 · an applied round ---');
   await page.setViewportSize({ width: WIDE.width, height: WIDE.height });
   await page.waitForTimeout(400);
 
-  const before = await page.evaluate(() => {
-    const door = document.querySelector('.gly-versions-open');
-    const r = door.getBoundingClientRect();
-    return {
-      prose: document.querySelector('.ProseMirror').innerText,
-      cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
-      door: {
-        w: +r.width.toFixed(2),
-        h: +r.height.toFixed(2),
-        x: +r.x.toFixed(2),
-      },
-      isNew: door.classList.contains('is-new'),
-      colour: getComputedStyle(door).color,
-    };
-  });
+  const before = await page.evaluate(() => ({
+    prose: document.querySelector('.ProseMirror').innerText,
+    cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
+    keys: document.querySelectorAll('.gly-scrub-key').length,
+  }));
 
   // The reviewer asks, and the agent revises — through the real write surface,
   // from a process that is not this page.
@@ -5106,25 +5047,16 @@ console.log('\n--- §13 · an applied round ---');
   );
   await page.waitForTimeout(2600);
 
-  const after = await page.evaluate(() => {
-    const door = document.querySelector('.gly-versions-open');
-    const r = door.getBoundingClientRect();
-    return {
-      prose: document.querySelector('.ProseMirror').innerText,
-      cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
-      marks: document.querySelectorAll(
-        '.ProseMirror .gly-ins, .ProseMirror .gly-del',
-      ).length,
-      door: {
-        w: +r.width.toFixed(2),
-        h: +r.height.toFixed(2),
-        x: +r.x.toFixed(2),
-      },
-      isNew: door.classList.contains('is-new'),
-      colour: getComputedStyle(door).color,
-      said: (document.querySelector('#gly-status') || {}).innerText || '',
-    };
-  });
+  const after = await page.evaluate(() => ({
+    prose: document.querySelector('.ProseMirror').innerText,
+    cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
+    marks: document.querySelectorAll(
+      '.ProseMirror .gly-ins, .ProseMirror .gly-del',
+    ).length,
+    keys: document.querySelectorAll('.gly-scrub-key').length,
+    was: document.querySelectorAll('.ProseMirror .gly-was').length,
+    said: (document.querySelector('#gly-status') || {}).innerText || '',
+  }));
 
   // THE WORDS MOVED, ON SCREEN, WITH NOBODY PRESSING ANYTHING. This is the rule
   // CLAUDE.md states about Apply, asked of the biggest write it has ever
@@ -5157,22 +5089,17 @@ console.log('\n--- §13 · an applied round ---');
     after.cards === 0 && after.marks === 0,
     { cards: [before.cards, after.cards], marks: after.marks },
   );
-  // THE DOOR IS MARKED, AND ITS BOX IS UNTOUCHED. It is toggled by SOMEBODY
-  // ELSE'S event, in the bar whose oldest rule is that nothing may move under
-  // the cursor — and `just motion` cannot see this, because it compares rects
-  // across a CLICK and this arrives without one.
+  // THE ARRIVAL REACHES THE RECORD, AND THE RECORD IS THE TIMELINE. `the
+  // arrival marks the bar's door` and `marking it moved nothing — same box,
+  // different paint` both read the amber ring on the History chip, and the chip
+  // is deleted. What arrives instead is a KEYFRAME: the round the agent just
+  // landed is on the track, and the track is where the reviewer goes to read
+  // it. Nothing moves under the cursor because the track is in the footer and
+  // grows along itself.
   check(
-    'the arrival marks the bar’s door to the record',
-    after.isNew === true && before.isNew === false,
-    { before: before.isNew, after: after.isNew },
-  );
-  check(
-    'and marking it moved nothing — same box, different paint',
-    after.door.w === before.door.w &&
-      after.door.h === before.door.h &&
-      after.door.x === before.door.x &&
-      after.colour !== before.colour,
-    { before, after: { door: after.door, colour: after.colour } },
+    'the arrival reaches the record — the round is a keyframe on the timeline',
+    after.keys === before.keys + 1,
+    { before: before.keys, after: after.keys },
   );
   // THE SENTENCE IS THE REVIEWER'S ONLY NOTICE, so it is read off the screen and
   // not off a field: a string check on the bundle is green through a readout
@@ -5183,56 +5110,32 @@ console.log('\n--- §13 · an applied round ---');
   check(
     'and the readout says which round arrived and where to read it, without being cut',
     /v\d+/.test(after.said) &&
-      /History|rounds/.test(after.said) &&
+      /timeline|rounds/.test(after.said) &&
       !after.said.includes('…'),
     after.said,
   );
 
-  // AND PRESSING IT LANDS ON THAT ROUND, IN PLACE. The default view is still the
-  // document — this is the one override, and it is what the flip is.
-  await page.click('.gly-versions-open');
-  await page.waitForTimeout(900);
+  // AND THE ROUND IS READ WHERE IT HAPPENED. `the door opens on the round that
+  // arrived, read in place` and `the diff is painted` pressed the History chip
+  // and read the reading state's sub-head and its marks. Both are deleted, and
+  // what replaced them is not a smaller version of the same thing: Task 11 put
+  // the round INSIDE the paper — the changed block tints, and the WAS strip
+  // under it carries what the sentence said before, struck through in the
+  // removal colour. So the claim is asked of the sheet the reviewer is already
+  // reading, which is a stronger form of it: nothing had to be pressed at all.
   const landed = await page.evaluate(() => {
-    const on = document.querySelector('.gly-versions-view-pick.is-on');
-    // WHICH ROUND IS OPEN, READ OFF THE HEADER RATHER THAN OFF A LIST ENTRY.
-    // History is a READING mode: the door opens straight onto the round that
-    // just came back, so there is no rounds list on screen and no
-    // `.gly-versions-round.is-on` to be selected. The panel's own sub-head
-    // names it — `ROUND 2 · V4 → V5` — which is what a reviewer reads to know
-    // where they are, and is the same fact the selected entry used to carry.
-    const where = document.querySelector(
-      '.gly-versions-sub, .gly-versions-where',
-    );
-    const paper = document.querySelector('.gly-versions-paper');
+    const was = document.querySelector('.ProseMirror .gly-was');
     return {
-      view: on ? on.dataset.view : null,
-      round: where ? (where.textContent || '').trim() : null,
-      said: where ? (where.textContent || '').trim() : '',
-      // THE AGENT'S WORD, WHEREVER THE RECORD PUTS IT. The round's own button
-      // used to carry the `--note` in its line; the record pairs the ask with
-      // the answer on a card of its own now (`.gly-versions-requests`), so the
-      // sentence is looked for across the whole open panel. What is asserted is
-      // that the agent's word REACHED the reviewer, not which element it landed
-      // in — the second is layout and would have to be rewritten every time the
-      // record is re-laid out, which is what just happened to it.
-      panel: (
-        document.querySelector('.gly-versions')?.textContent || ''
-      ).trim(),
-      painted: paper.querySelectorAll('.gly-ins, .gly-del').length,
-      door: document
-        .querySelector('.gly-versions-open')
-        .classList.contains('is-new'),
+      was: document.querySelectorAll('.ProseMirror .gly-was').length,
+      revised: document.querySelectorAll('.ProseMirror .gly-revised').length,
+      said: was ? (was.textContent || '').trim() : '',
+      keys: document.querySelectorAll('.gly-scrub-key').length,
     };
   });
   check(
-    'the door opens on the round that arrived, read in place',
-    !!landed.round && /round/i.test(landed.round),
+    'the round is read where it happened — the block that moved carries what it WAS',
+    landed.was > 0 && landed.revised > 0 && /WAS/.test(landed.said),
     landed,
-  );
-  check(
-    'and the diff is painted, so “what changed” is answered rather than promised',
-    landed.painted > 0,
-    landed.painted,
   );
 
   // AND HERE IS THE OTHER HALF OF §8's REMOVAL VOCABULARY, read where both
@@ -5259,8 +5162,12 @@ console.log('\n--- §13 · an applied round ---');
         bg: cs.backgroundColor,
       };
     };
+    // THE SETTLED REMOVAL IS THE WAS STRIP'S NOW. It was `.gly-versions-paper
+    // .gly-del`, the del mark inside History's reading state; a settled round
+    // is read inline at the head instead, and what carries the words it took
+    // out is the `<s>` inside the WAS strip under the block that moved.
     return {
-      settled: of('.gly-versions-paper .gly-del'),
+      settled: of('.ProseMirror .gly-was s'),
       outgoing: of('.ProseMirror .gly-trail-ghost'),
     };
   });
@@ -5273,6 +5180,8 @@ console.log('\n--- §13 · an applied round ---');
     'they are the SAME red — one vocabulary for removal, whoever did it',
     !!vocabulary.settled &&
       !!vocabulary.outgoing &&
+      // The strip's own ink is muted; the removal it carries is struck in the
+      // removal colour, which is what `text-decoration-color` reports.
       vocabulary.settled.color === vocabulary.outgoing.color,
     vocabulary,
   );
@@ -5287,32 +5196,26 @@ console.log('\n--- §13 · an applied round ---');
   );
   // THE PAIRING, on the surface. A diff says what moved; a diff beside the
   // instruction says whether the agent understood you.
-  // WHAT THE ROUND CARRIES, READ OFF THE ROUND. This asked for the agent's
-  // `--note` verbatim — "rewrote the ninth paragraph rather than proposing
-  // against it" — because the round's own line used to print it. It does not:
-  // measured, the line is `v5 · agent · 1 change` and the sentence is nowhere
-  // in `.gly-versions`, on a round with a real ask attached and a real ack
-  // note behind it. The panel is printed as a NOTE so that absence is on the
-  // record rather than asserted into a permanent red, and what IS asserted is
-  // the pairing the surface does make: the round names WHOSE hand it was and
-  // how much it did — which is the claim that goes red if a round ever stops
-  // saying which side of the loop wrote it.
-  note('the record, with an agent round selected', landed.panel.slice(0, 400));
-  // WHICH ROUND, AND WHICH TWO VERSIONS IT IS A DIFF OF. The line used to be
-  // `v5 · agent · 1 change` on the selected list entry; the reading mode's
-  // sub-head says `ROUND 2 · V4 → V5`. Either way the claim is that the record
-  // tells the reviewer WHERE THEY ARE without their having to count — a panel
-  // that opens on a diff and does not say which one is a panel nobody can trust
-  // to be showing them the round that just landed.
+  //
+  // THREE CHECKS HERE READ HISTORY AND ARE RETIRED WITH IT: the panel's whole
+  // text printed as a note, `it says which round, between which two versions`
+  // off the reading state's sub-head, and `the door stops being marked once it
+  // has been read` off the chip's amber ring. The pairing is drawn inline now —
+  // the agent's own sentence about a change sits under the WAS strip it goes
+  // with — so that is what is read, on the sheet, with nothing pressed.
+  const paired = await page.evaluate(() => {
+    const note = document.querySelector('.ProseMirror .gly-agent-note');
+    return {
+      label: (
+        note?.querySelector('.gly-agent-note-label')?.textContent || ''
+      ).trim(),
+      said: (note?.textContent || '').trim(),
+    };
+  });
   check(
-    'and it says which round, between which two versions',
-    /round\s*\d+/i.test(landed.said) &&
-      /v\d+\s*(→|->)\s*v\d+/i.test(landed.said),
-    landed.said,
-  );
-  check(
-    'and the door stops being marked once it has been read',
-    landed.door === false,
+    'and the agent’s own word about the change is beside the change',
+    /agent/i.test(paired.label) && paired.said.length > paired.label.length,
+    paired,
   );
 
   await page.keyboard.press('Escape');
@@ -5331,9 +5234,12 @@ console.log('\n--- §13 · an applied round ---');
   await page.waitForTimeout(2600);
   const exception = await page.evaluate(() => ({
     said: (document.querySelector('#gly-status') || {}).innerText || '',
-    marked: document
-      .querySelector('.gly-versions-open')
-      .classList.contains('is-new'),
+    keys: [...document.querySelectorAll('.gly-scrub-key')].map((k) => ({
+      label: (k.innerText || '').trim(),
+      tone: k.dataset.tone,
+      fill: k.dataset.fill,
+      colour: getComputedStyle(k).color,
+    })),
   }));
   // READ OFF THE SCREEN WITH innerText, which is defined over the RENDERED text
   // — the cell ellipsises, and a check on textContent is green over a sentence
@@ -5345,80 +5251,32 @@ console.log('\n--- §13 · an applied round ---');
       !exception.said.includes('…'),
     exception.said,
   );
+  // AND IT IS ON THE RECORD, APART BY SHAPE. `it marks the same door the
+  // revision does`, `the exception is in the history as a round of its own`,
+  // `drawn apart from an ordinary round by shape` and the selected-exception
+  // cascade check all read History's round cards and the chip's amber ring;
+  // both are deleted. The record is the timeline, and the exception is a
+  // keyframe there: HOLLOW where an ordinary round is filled, CORAL where an
+  // ordinary round is muted or accent, and labelled `· cannot`. Apart by shape
+  // AND by colour, asserted as the inequality rather than as one treatment —
+  // reading one pins it and goes green the day another replaces it.
+  const cannotKey = exception.keys.find((k) => /· cannot$/.test(k.label));
+  const ordinary = exception.keys.find((k) => !/· cannot$/.test(k.label));
   check(
-    'and it marks the same door the revision does',
-    exception.marked === true,
+    'the exception is on the record as a round of its own',
+    !!cannotKey,
+    exception.keys,
   );
-
-  await page.click('.gly-versions-open');
-  await page.waitForTimeout(900);
-  // BACK TO THE LIST. The door opens on the round that arrived, so the rounds
-  // are one stage behind `‹ all rounds` — and this block is about how an
-  // exception reads IN THE LIST, beside the ordinary rounds it has to be told
-  // apart from.
-  await page.locator('.gly-versions-all').click();
-  await page.waitForTimeout(600);
-  const listed = await page.evaluate(() => {
-    const cannot = document.querySelector(
-      '.gly-versions-round.gly-versions-cannot',
-    );
-    const other = [...document.querySelectorAll('.gly-versions-round')].find(
-      (b) => !b.classList.contains('gly-versions-cannot'),
-    );
-    const style = (el) => {
-      if (!el) return null;
-      const cs = getComputedStyle(el);
-      // THE ENTRY'S OWN LINES. `.gly-versions-round-line` was one span; a round
-      // button is a head, an ask and a foot now, so the italic is read off the
-      // ASK — which is the line an exception replaces with its reason and the
-      // one the shape rule is about — and the text off the whole entry.
-      const line =
-        el.querySelector('.gly-versions-ask') ||
-        el.querySelector('.gly-versions-round-line');
-      return {
-        style: cs.borderLeftStyle,
-        colour: cs.borderLeftColor,
-        italic: line ? getComputedStyle(line).fontStyle : null,
-        text: (el.textContent || '').trim(),
-      };
-    };
-    return {
-      cannot: style(cannot),
-      other: style(other),
-      selected: cannot ? cannot.classList.contains('is-on') : false,
-    };
-  });
-  check(
-    'the exception is in the history as a round of its own',
-    !!listed.cannot && listed.cannot.text.includes('could not'),
-    listed.cannot,
-  );
-  // THE INEQUALITY, not "it is dashed": reading one treatment pins it and goes
-  // green the day another replaces it. Apart by shape AND by colour from the
-  // entry beside it.
   check(
     'and it is drawn apart from an ordinary round by shape, not only by word',
-    !!listed.cannot &&
-      !!listed.other &&
-      listed.cannot.style === 'dashed' &&
-      listed.cannot.style !== listed.other.style &&
-      listed.cannot.italic === 'italic',
-    listed,
+    !!cannotKey &&
+      !!ordinary &&
+      cannotKey.fill === 'none' &&
+      cannotKey.tone === 'coral' &&
+      cannotKey.tone !== ordinary.tone &&
+      cannotKey.colour !== ordinary.colour,
+    { cannot: cannotKey, ordinary },
   );
-  // AND THE SELECTED EXCEPTION KEEPS ITS DASH. `.is-on` and this rule tie at
-  // (0,3,0) and source order decides; moving either block past the other in the
-  // stylesheet reverses it silently.
-  if (listed.selected) {
-    check(
-      'and a SELECTED exception still reads as one — the cascade tie went the right way',
-      listed.cannot.style === 'dashed',
-      listed.cannot,
-    );
-  } else {
-    note(
-      'the exception is not the selected round in this state, so the cascade tie has nothing to be asked of',
-    );
-  }
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
 }
@@ -5433,9 +5291,11 @@ console.log('\n--- §13 · an applied round ---');
 // There is no reopen. `makeSeal` builds the terminal verbs into a group it sets
 // `hidden` and never appends — approval is terminal in the rounds-only
 // workflow — so the seal is now a one-way door and everything downstream of it
-// runs on a sealed page. Measured: §12's first `.gly-versions-open` click hung
-// for thirty seconds and threw, because the History door lives inside the
-// census strip and `sealHides` takes the whole strip off a sealed bar.
+// runs on a sealed page. Measured: §12's first click on History's door hung for
+// thirty seconds and threw, because that door lived inside the census strip and
+// `sealHides` takes the whole strip off a sealed bar. Both the door and the
+// strip are deleted now; the ordering they bought is kept, because a sealed
+// page is still the last state this document reaches.
 //
 // So the block MOVED rather than being weakened, and the file's own opening
 // note is what licenses that: it is sequenced by STATE, not by section number.

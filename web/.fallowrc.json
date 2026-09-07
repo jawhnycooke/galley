@@ -19,5 +19,9 @@
     "schemacheck.mjs",
     "schemacorpus.mjs",
     "eslint.config.mjs"
+  ],
+  "ignoreDependencies": [
+    "@fontsource/instrument-sans",
+    "@fontsource/jetbrains-mono"
   ]
 }

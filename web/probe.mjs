@@ -114,25 +114,12 @@ import {
   VERDICT_DISCARDED,
 } from './verdict.ts';
 import {
-  VIEWS,
-  DEFAULT_VIEW,
-  COULD_NOT,
-  ALL_ROUNDS,
   BACK_TO_DRAFT,
-  IDENTICAL_SAID,
   ageSaid,
-  changedSaid,
-  changeHead,
-  roundHead,
-  roundFoot,
-  whereSaid,
   workRounds,
   roundCards,
   ordinalOf,
   arrivalSaid,
-  askedOf,
-  VERSIONS_LABEL,
-  VERSIONS_NAME,
 } from './versions.ts';
 import {
   diffPending,
@@ -7663,14 +7650,14 @@ function bindsContentField(src) {
         ) &&
         !/\.gly-rail\{[^}]*position:fixed/.test(css),
     );
-    // AND BOTH RAILS HANG OFF THE ONE TOKEN. Read off the BUILT stylesheet
-    // because that is what the binary embeds: a rule that agreed in the source
-    // and was overridden in the bundle is the shape this file exists to catch.
+    // AND THE TOKEN IT HANGS OFF IS STILL DECLARED. History's rail was the
+    // second column that had to agree with this one; it is deleted, so that
+    // half of the check is retired and what remains is the number itself —
+    // read off the BUILT stylesheet, because that is what the binary embeds.
     check(
-      'and History’s rail hangs off the same reserved row, so a mode switch moves nothing',
+      'and the reserved row it is measured from is declared, not guessed',
       /--gly-rail-top:\s*calc\(var\(--gly-sub-h\)/.test(css) &&
-        /--gly-sub-h:\s*40px/.test(css) &&
-        /\.gly-versions-rail\{[^}]*top:var\(--gly-rail-top\)/.test(css),
+        /--gly-sub-h:\s*40px/.test(css),
     );
     // AND IT HAS NO DISCLOSURES LEFT TO FLOAT. `bottom: 100%` on
     // `.gly-settled-list` and `.gly-changed-list` is what grew them upward over
@@ -7946,52 +7933,12 @@ function bindsContentField(src) {
   // Pure logic first: the pairing is what the history is FOR, and it is the one
   // thing here a string check can reach without a browser.
   check(
-    'a round card says which round it is and how long ago',
-    roundHead(3, { at: new Date(Date.now() - 5 * 60 * 1000).toISOString() }) ===
-      'ROUND 3 · 5M AGO',
-    roundHead(3, { at: new Date(Date.now() - 5 * 60 * 1000).toISOString() }),
-  );
-  check(
     'a round that just landed says so in words rather than in a zero',
     ageSaid(new Date().toISOString()) === 'JUST NOW',
   );
-  // AND THE FOOT CARRIES NO ARROW ANY MORE. ← is the ANSWER's, and the answer
-  // is the sentence the agent wrote — the foot is a version and a count beneath
-  // it. While the foot held the arrow, the only ← on the card pointed at a
-  // number, and the agent's own words were rendered after a → as though the
-  // reviewer had said them.
-  check(
-    'and its foot names the version it produced and how far it moved',
-    roundFoot({ n: 4, changed: 3 }) === 'v4 · 3 changes',
-    roundFoot({ n: 4, changed: 3 }),
-  );
-  check(
-    'one change is one change, not 1 changes',
-    changedSaid(1) === '1 change' &&
-      changedSaid(3) === '3 changes' &&
-      changedSaid(0) === 'no changes',
-  );
-  // ONE COPY OF THE WORDS, AND THE SERVER JOINED THEM. The ask carries the
-  // instruction; the answer points at it. Both arrive middot-joined by
-  // reviewerInstruction and are RENDERED, never re-joined — two joiners are two
-  // spellings of one rule.
-  check(
-    'the round that asked carries the instruction',
-    askedOf({ n: 4, instruction: 'shorten the second paragraph · say why' }) ===
-      'shorten the second paragraph · say why',
-  );
-  check(
-    'and the round that answered reaches the one it is answering',
-    askedOf({ n: 5, answers: 4, asked: 'shorten the second paragraph' }) ===
-      'shorten the second paragraph',
-  );
-  check(
-    'a round with nothing asked of it says nothing',
-    askedOf({ n: 1 }) === '',
-  );
-  // THE FILE AS GALLEY OPENED IT IS NOT A ROUND ANYBODY HAD, so it is not in
-  // the list and it does not take an ordinal. It is the landing's dashed foot
-  // card, which is a different claim from "it is hidden".
+  // THE FILE AS GALLEY OPENED IT IS NOT A ROUND ANYBODY HAD, so it is not one
+  // of the exchanges and it does not take an ordinal. It is the timeline's
+  // first keyframe, which is a different claim from "it is hidden".
   check(
     'the starting version is not counted as a round of work',
     workRounds([
@@ -8036,46 +7983,15 @@ function bindsContentField(src) {
       ordinalOf(exchange, 4),
     ]),
   );
-  // `CHANGE k OF K` IS COMPUTED AT RENDER, from the list the server just
-  // handed back. An ordinal renumbers; nothing persists one.
-  // The place arrives LOWERCASED from the server and the head is uppercased by
-  // the stylesheet, which is the chrome layer's rule and not this string's.
-  check(
-    'a change card names its place in this reading and the place on the page',
-    changeHead(2, 3, 'the budget') === 'CHANGE 2 OF 3 · the budget',
-    changeHead(2, 3, 'the budget'),
-  );
-  check(
-    'and a change with no heading above it says only which change it is',
-    changeHead(1, 1, '') === 'CHANGE 1 OF 1',
-  );
-  check(
-    'the sub-bar names the round and the two versions it sits between',
-    whereSaid(3, 3, 4) === 'ROUND 3 · V3 → V4',
-    whereSaid(3, 3, 4),
-  );
-  // IDENTICAL SIDES SAY SO. An empty diff with no sentence over it reads as a
-  // surface that failed to load, which is the one thing a record must not do.
-  check(
-    'two identical sides say so rather than showing a blank page',
-    IDENTICAL_SAID === 'identical — no changes in this round',
-  );
   // --- phase 2: the agent's changes are APPLIED ---
   //
-  // THE EXCEPTION READS AS ENGLISH IN THE ONE SLOT THE EYE IS ALREADY ON. A
-  // round where nothing happened has no author to name, and `v5 · could-not` is
-  // the wire's reason word leaking onto the surface a reviewer reads.
-  check(
-    'an exception says so where the count would be, in words',
-    roundFoot({ n: 5, reason: COULD_NOT, changed: 0 }) ===
-      'v5 · the agent could not',
-    roundFoot({ n: 5, reason: COULD_NOT, changed: 0 }),
-  );
-  // AND THE ARRIVAL NAMES THE same visible door the reviewer can press.
+  // AND THE ARRIVAL NAMES THE SURFACE THAT CAN SHOW THE ROUND, which is the
+  // timeline: the History chip it used to name is deleted, and a sentence
+  // pointing at a door that is not there is worse than one pointing nowhere.
   check(
     'a round arriving names what happened and where to read it',
-    arrivalSaid({ n: 7 }) === 'v7 · agent revised · see History' &&
-      arrivalSaid({ n: 7 }).includes(VERSIONS_LABEL),
+    arrivalSaid({ n: 7 }) === 'v7 · agent revised · see timeline' &&
+      arrivalSaid({ n: 7 }).includes('timeline'),
   );
   // AND IT FITS THE CELL IT IS PRINTED IN. The readout ellipsises at its END, so
   // a sentence longer than the box loses its last clause — measured at 1440px,
@@ -8103,28 +8019,14 @@ function bindsContentField(src) {
     'nothing arrives before the page has been told anything',
     arrivalSaid(null) === '' && arrivalSaid({ n: 0 }) === '',
   );
-  // THE DEFAULT VIEW IS THE DOCUMENT — decision 6. v12 is just v12, and every
-  // other reading is on demand.
+  // THE VIEWS PICKER IS DELETED WITH THE READING STAGE — `changes` and `side
+  // by side` were two panes of the History drawer, and the spec is one sheet.
+  // What is left is the one way out, and it wears the arrow that says it leaves
+  // rather than the `‹` that used to go up a level inside History.
   check(
-    'the default history reading shows the changes',
-    DEFAULT_VIEW === 'inplace',
+    'the way back out of a version is the primary’s own face',
+    BACK_TO_DRAFT === '← back to draft',
   );
-  check(
-    'history offers only the two useful comparisons',
-    VIEWS.map((v) => v.key).join(',') === 'inplace,sbs' &&
-      VIEWS.map((v) => v.label).join(',') === 'changes,side by side',
-  );
-  // TWO ARROWS OF ONE WEIGHT A FEW INCHES APART READ AS TWO SPELLINGS OF ONE
-  // GESTURE, and they are not one gesture: `‹ all rounds` goes up a level
-  // inside History, `← back to draft` leaves it. Apart by shape, in the
-  // vocabulary the rest of this surface is drawn with.
-  check(
-    'the two ways back are told apart by their own glyphs',
-    ALL_ROUNDS === '‹ all rounds' && BACK_TO_DRAFT === '← back to draft',
-  );
-  // ONE LIST AND THEN IT STOPS. The spec names squashing, grouping, filtering
-  // and a timeline as deliberately not built, so the panel must not have grown
-  // a control for any of them.
 
   const bundle = (() => {
     try {
@@ -8145,18 +8047,15 @@ function bindsContentField(src) {
       bundle.includes('/_galley/versions') &&
         bundle.includes('/_galley/versions/view'),
     );
+    // THE DOOR TO THE RECORD IS THE TIMELINE ITSELF. The History chip is
+    // deleted, so the two checks that asserted its label and its accessible
+    // name are retired; the scrubber's own track is what the bundle must carry.
     check(
-      'the built bundle carries the bar’s door to the record, at one width',
-      bundle.includes(VERSIONS_LABEL),
+      'the built bundle carries the scrubber that replaced the chip',
+      bundle.includes('gly-scrub-key') && bundle.includes('gly-scrub-track'),
     );
     check(
-      'and the visible door says what its accessible name says',
-      VERSIONS_LABEL === 'History' &&
-        VERSIONS_NAME === 'history' &&
-        bundle.includes('aria-label'),
-    );
-    check(
-      'and History exposes the explicit restore-as-draft mutation',
+      'and the record exposes the explicit restore-as-draft mutation',
       bundle.includes('/_galley/versions/restore'),
     );
     // ONE LIST AND THEN IT STOPS. Squashing, grouping, filtering and a timeline
@@ -8167,8 +8066,8 @@ function bindsContentField(src) {
     // names of things somebody chose not to build is a check that goes red on
     // the documentation of its own claim.
     check(
-      'the history is one list — no squash, no group, no filter, no timeline',
-      !/gly-versions-(filter|group|timeline|squash)/.test(bundle),
+      'the record has grown no browsing surface — no squash, group or filter',
+      !/gly-versions-(filter|group|squash)/.test(bundle),
     );
     // PHASE 2's TWO ENDPOINTS reach the bundle's own poll: the arrival number
     // and the exception ride GET /_galley/revise, which the page already reads
@@ -8178,9 +8077,9 @@ function bindsContentField(src) {
       'the built bundle reads the arrival off the poll it already makes',
       bundle.includes('landed') && bundle.includes('cannot'),
     );
-    // THE DEFAULT VIEW IS STILL THE DOCUMENT. The flip is which view an ARRIVAL
-    // lands on, and it is the only override of DEFAULT_VIEW in the bundle.
-    check('an arrival lands on the Changes view', bundle.includes('inplace'));
+    // THE ONE VIEW LEFT IS THE DOCUMENT WEARING ITS MARKS, which is what both
+    // the scrubber's papers and the arrival's WAS strips are rendered from.
+    check('every reading is the in-place one', bundle.includes('inplace'));
   }
 
   const roundsCss = (() => {
@@ -8194,20 +8093,19 @@ function bindsContentField(src) {
     }
   })();
   if (roundsCss) {
-    // IT COVERS, IT DOES NOT DISPLACE, and it hangs off the bar's MEASURED
-    // height — the bar wraps, so a constant here is drawn under the fold.
+    // IT IS THE SHEET, NOT A SURFACE OVER IT. `History uses the page layout
+    // rather than a full-screen overlay` and `it sits below the bottom bar`
+    // both read `.gly-versions`, the section History drew itself into while
+    // `main` was `display: none`. That section is deleted: the scrubber's two
+    // papers sit in the frame where the draft's paper does. So the claim those
+    // two checks made — a version is read IN the page, never over it — is
+    // asserted on what replaced them: the stage is in flow, and the draft's own
+    // paper is the thing that steps aside for it.
     check(
-      'History uses the page layout rather than a full-screen overlay',
-      /\.gly-versions\{[^}]*position:relative/.test(roundsCss) &&
-        /body\.gly-history-mode>main\{display:none/.test(roundsCss),
-    );
-    // BELOW the bottom bar, which carries the count, the step and the way back
-    // at narrow widths. A record must never be what covers them.
-    const z = roundsCss.match(/\.gly-versions\{[^}]*z-index:(\d+)/);
-    check(
-      'and it sits below the bottom bar, which is the way back',
-      !!z && Number(z[1]) < 50,
-      z && z[1],
+      'a version is read on the sheet itself, never on a surface over it',
+      /\.gly-scrub-stage\{[^}]*position:relative/.test(roundsCss) &&
+        !/\.gly-scrub-stage\{[^}]*position:fixed/.test(roundsCss) &&
+        /body\.gly-scrubbing \.ProseMirror\{display:none/.test(roundsCss),
     );
     // A MOVE IS NEITHER AN INSERTION NOR A DELETION, and the check is the
     // INEQUALITY — reading "it is muted" would pin one treatment and go green
@@ -8237,33 +8135,21 @@ function bindsContentField(src) {
         roundsCss,
       ),
     );
-    // AN EXCEPTION IS APART BY SHAPE AS WELL AS BY WORD, which is the same
-    // discipline the moved rule above is drawn with and the trail ghost was
-    // corrected to. It is a round in which nothing happened, in a list where
-    // every other entry is a diff.
-    const cannot = roundsCss.match(
-      /\.gly-versions \.gly-versions-round\.gly-versions-cannot\{([^}]*)\}/,
-    );
+    // THE EXCEPTION'S ROUND CARD AND THE DOOR'S ARRIVAL RING ARE BOTH DELETED
+    // SURFACES — the landing's card list went with History and the chip it
+    // ringed went with it, so the two rules those checks read are gone. The
+    // exception is drawn on the timeline now, and it is apart by shape there
+    // for the same reason: hollow and coral, never a wash of ins or del.
     check(
-      'a round the agent could not do is apart by shape, not only by word',
-      !!cannot && /dashed/.test(cannot ? cannot[1] : ''),
-      cannot && cannot[1],
-    );
-    // THE DOOR'S ARRIVAL STATE IS PAINT AND NOTHING ELSE. It is toggled by
-    // SOMEBODY ELSE'S event, in a bar whose oldest rule is that nothing may move
-    // under the cursor — so this declaration may not carry width, padding,
-    // border-width, font-size or margin. `box-shadow` draws inside the border
-    // box and contributes no geometry.
-    const isNew = roundsCss.match(
-      /\.gly-bar \.gly-versions-open\.is-new\{([^}]*)\}/,
-    );
-    check(
-      'the arrival marks the door in paint only — no geometry on somebody else’s event',
-      !!isNew &&
-        !/(^|;)(width|padding|margin|font-size|border-width|border:)/.test(
-          isNew ? isNew[1] : '',
+      'a round the agent could not do is apart by shape on the timeline',
+      // The built stylesheet is minified and drops the attribute quotes, so
+      // the pattern may not require them.
+      /\.gly-scrub-key\[data-fill=["']?none["']?\] \.gly-scrub-dot\{[^}]*background:transparent/.test(
+        roundsCss,
+      ) &&
+        /\.gly-scrub-key\[data-tone=["']?coral["']?\]\{[^}]*color:var\(--gly-coral/.test(
+          roundsCss,
         ),
-      isNew && isNew[1],
     );
   }
 }

@@ -993,10 +993,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
      is not a collapse; it is the same two-implementations problem with one of
      them harder to find.
 
-     TWO NEIGHBOURING DISTANCES ARE DELIBERATELY NOT THIS ONE, and they say so
-     where they are declared: `.gly-rail-head`'s 12px separates CHROME from
-     WORK rather than one card from the next, and `.gly-versions-note`'s -12px
-     is a padding being cancelled, not a gap at all. */
+     A NEIGHBOURING DISTANCE IS DELIBERATELY NOT THIS ONE, and it says so where
+     it is declared: `.gly-rail-head`'s 12px separates CHROME from WORK rather
+     than one card from the next. */
   --gly-rail-gap: 10px;
   /* THE CARD'S TYPE, ONCE. `13px/1.55 var(--gly-sans)` was declared on the
      draft rail's container and then FOUR MORE TIMES inside History — once per
@@ -1020,11 +1019,10 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
      height is NOT this stylesheet's to know — it folds, its status line wraps,
      the reviewer's font size is their own — so it is measured in the browser
      and republished (see App.watchBar, and CLAUDE.md's entry on it). The
-     sub-bar is a single row of fixed mono chips that cannot wrap, so its height
-     IS this stylesheet's, and the honest form is to DECLARE the row and have
-     the sub-bar obey it (`.gly-versions-sub` takes its height from this token)
-     rather than to guess at it and hope. A guessed height was the failure mode;
-     an owned one is not.
+     sub-bar was a single row of fixed mono chips that could not wrap, so its
+     height WAS this stylesheet's, declared rather than guessed. The row itself
+     is deleted with History; the number stays because the rail's top is still
+     measured from it, and moving it would move the one column that is left.
 
      THE ROW IS RESERVED IN BOTH MODES. In History that is `visibility` rather
      than `display` on the landing, so the paper and the rail begin at the same
@@ -2811,14 +2809,16 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    is how the wrong colour got as far as a browser at all. Same trap
    `.gly-thread-delete` shipped with; see the destroy weight in the rail. */
 
-/* --- History (web/versions.js) ---
+/* --- READING AN EARLIER VERSION (web/versions.ts, web/timeline.ts) ---
 
-   HISTORY IS A READING MODE, NOT A SECOND APPLICATION. It does not float and it
-   does not cover: `body.gly-history-mode` takes `main` off the page and this
-   section takes its place in the flow, under the same sticky bar, scrolling the
-   same window. That is why there is no `position: fixed` and no `--gly-bar-h`
-   arithmetic here any more — both were the geometry of a panel drawn OVER the
-   document, and there is no such panel.
+   IT IS A READING MODE, NOT A SECOND APPLICATION, AND IT IS NOT A DRAWER.
+   History — a landing of round cards, a views picker, side by side, a change
+   rail, and a `<section>` of its own drawn while `main` was `display: none` —
+   is DELETED. An earlier version is read ON THE SHEET: the scrubber's two
+   papers sit in the frame where the draft's paper does, under the same eyebrow
+   and the same sticky bar, scrolling the same window. So there is no panel
+   geometry left here at all — no `position: fixed`, no `--gly-bar-h`
+   arithmetic, no second column — because there is no second surface.
 
    THE SECOND TYPOGRAPHY IS DELETED. This block used to set 15px/1.6 on a 46rem
    measure, so a reviewer reading their own document in History was reading a
@@ -2833,87 +2833,6 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    and a diff view that invented a third red would be this stylesheet's own
    "one surface, one language" complaint arriving through a new door. */
 
-.gly-versions {
-  position: relative;
-  z-index: 4;
-  min-height: calc(100vh - var(--gly-bar-h, 3.4rem));
-  background: var(--gly-bg);
-  color: var(--gly-fg);
-}
-body.gly-history-mode > main {
-  display: none;
-}
-/* THIS PANEL IS THE ELEMENT THAT TAUGHT THE PRODUCT WHAT `hidden` COSTS — it
-   carried `display: flex` for its own layout, had its `hidden` attribute set,
-   and painted over the whole page from load. Its guard is in the one rule at
-   the foot of this file with every other surface's, and the measurement that
-   bought it is written out there. The base rule above declares no `display`
-   today; the guard stays anyway, because the day somebody adds one back is the
-   day it is needed and nobody will remember. */
-
-/* THE SUB-BAR IS THE READING STATE'S OWN ROW, and the landing has none — the
-   landing offers no view to switch and no version to restore, so a row of
-   controls that could not be used would be chrome explaining itself. */
-.gly-versions-sub {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* The row's height is the TOKEN's, not the other way round — see
-     --gly-sub-h, where the difference from the measured --gly-bar-h is the
-     whole argument. */
-  height: var(--gly-sub-h);
-  padding: 0 var(--gly-gutter);
-  border-bottom: 1px solid var(--gly-line);
-  font: 11px/1 var(--gly-mono);
-}
-/* RESERVED ON THE LANDING, NOT COLLAPSED — `visibility`, not `display`.
-   The landing offers no view to switch and no version to restore, so the row
-   has nothing in it; collapsing it moved the paper up by 40px while the rail's
-   `top` did not follow, and the landing rail sat that far below the document it
-   is a map of, permanently. Reserving it is also what keeps the rail's top one
-   number across the two stages. `visibility: hidden` takes the controls out of
-   the tab order exactly as `display: none` did, which is the property that
-   matters — a control that cannot be seen may not be reachable by keyboard. */
-.gly-versions-sub[hidden] {
-  visibility: hidden;
-}
-.gly-versions-where {
-  color: var(--gly-muted);
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.gly-versions-views {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-/* Scoped, not bare. A PER-ELEMENT CLASS IN THIS STYLESHEET LOSES TO ITS OWN
-   CONTAINER, and this file already ships the scars — `.gly-thread-delete`
-   rendered as an ordinary pill for a whole phase because `.gly-card button` is
-   (0,1,1) and a bare class is (0,1,0). */
-.gly-versions .gly-versions-view-pick {
-  font: 11px/1 var(--gly-mono);
-  color: var(--gly-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-.gly-versions .gly-versions-view-pick:hover:not([disabled]) {
-  color: var(--gly-fg);
-}
-.gly-versions .gly-versions-view-pick.is-on {
-  color: var(--gly-fg);
-  border-color: var(--gly-line);
-  background: var(--gly-card);
-}
-.gly-versions .gly-versions-view-pick[disabled] {
-  opacity: 0.4;
-  cursor: default;
-}
 /* RESTORE IS AT DESTROY WEIGHT AND MAY NEVER AGAIN SHARE A ROW-STYLE WITH THE
    VIEW TOGGLES.
 
@@ -2922,8 +2841,8 @@ body.gly-history-mode > main {
    draft`) sitting in the same row as `Changes` and `Side by side` and wearing
    the same box — so the loudest-consequence control on the page looked exactly
    like a way of LOOKING at something, and the eye had nothing to tell them
-   apart with. The toggles are deleted with the landing and the button lives in
-   the sheet's eyebrow now — see `.gly-eyebrow .gly-versions-restore`, which
+   apart with. The toggles are deleted with the reading stage and the button
+   lives in the sheet's eyebrow — see `.gly-eyebrow .gly-versions-restore`, which
    carries its paint. This rule is the one piece that is the same wherever it
    hangs: ONE GRID CELL FOR ALL THREE LABELS, `.gly-thread-delete`'s own
    arrangement said again for the other destroy-weight verb, so the control
@@ -2932,61 +2851,12 @@ body.gly-history-mode > main {
 .gly-versions-restore > span {
   grid-area: label;
 }
-/* THE SAME TWO COLUMNS THE DRAFT HAS, AT THE SAME MEASURE. `main` is at most
-   `--gly-col + --gly-rail-w + --gly-gutter * 2` and centred; so is this, so a
-   sentence is in the same place with History open as with it shut. The three
-   numbers are read from the tokens rather than copied — a second copy would
-   drift the first time one of them moved, and the symptom would be a rail that
-   no longer lines up with the document it is a map of. */
-/* ONE RAIL, ONE EDGE, ACROSS BOTH VIEWS — AND THIS LAID IT OUT TWICE.
-   
-   The draft's rail is `position: absolute; right: 0; width: 320px`, pinned to
-   the window, with every card inset GUTTER_PX inside it. This was a CENTRED
-   GRID — the paper and the rail centred together under a max-width — so the
-   same rail sat somewhere else in each view. Measured at 1600px: the rail's
-   right edge 1584 in the draft and 1270 here, and the cards 278 wide at a
-   26px inset there against 320 wide flush to the column here.
-   
-   Both halves of that are faults this codebase has already paid for once. The
-   widths are "these are not the same width" — one left edge down the whole
-   rail is what the reviewer reads. And the 314px is MOTION ON A CLICK: opening
-   History is a navigation press, and the rail sliding a third of a screen
-   under the cursor is the thing `web/motion.mjs` exists to refuse.
-   
-   So the rail is taken out of this grid and given the draft's own geometry
-   verbatim. The paper keeps the column it always had; `padding-right` reserves
-   the rail's width so a wide window cannot run the prose under it. */
-.gly-versions-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  max-width: calc(var(--gly-col) + var(--gly-rail-w) + var(--gly-gutter) * 2);
-  margin: 0 auto;
-  /* TWO gutters on the right, which is `body > main`'s own arithmetic said
-     again — one gutter left the paper 20px wider than the draft's. */
-  padding: var(--gly-page-pad) calc(var(--gly-rail-w) + var(--gly-gutter) * 2) 40vh var(--gly-gutter);
-}
-.gly-versions .gly-versions-rail {
-  /* Off `.gly-versions`, which spans the window — NOT off `.gly-versions-body`,
-     which is centred under a max-width, and whose right edge is therefore 294px
-     short of the draft rail's at 1600. The containing block IS the fix here;
-     `right: 0` was already correct. */
-  position: absolute;
-  /* The reserved sub-bar row plus the body's own top padding — the SAME
-     `--gly-rail-top` the draft rail hangs off, which is what stops the column
-     jumping 64px when the mode changes. It used to read `calc(var(--gly-sub-h,
-     40px) + 24px)` against a `--gly-sub-h` that was defined nowhere. */
-  top: var(--gly-rail-top);
-  right: 0;
-  width: var(--gly-rail-w);
-  padding: 0 var(--gly-rail-pad) 0 0;
-}
-/* GUTTER_PX, the same 26 the band insets its own cards by, so a card's left
-   edge is the same fact in both views rather than two arrangements that happen
-   to look alike at one window width. */
-.gly-versions .gly-versions-rail > * {
-  margin-left: var(--gly-rail-gutter);
-}
+/* THE COLUMN IS THE DRAFT'S OWN, AND IT IS THE DRAFT'S BECAUSE IT IS THE SAME
+   ELEMENT'S PLACE IN THE FLOW. `.gly-versions-body` declared `main`'s measure a
+   second time — max-width, the two right gutters, the page padding — for a
+   panel that no longer exists. The stage sits inside the frame now, so it
+   inherits every one of those numbers instead of restating them, which is the
+   only arrangement that cannot drift. */
 /* THE DRAFT'S PAPER, WEARING DIFF MARKS — and the paper itself, its block
    rhythm and its whole heading scale are declared with `.ProseMirror`'s at the
    head of this file, on one rule each. What is left here is what History has
@@ -3050,220 +2920,7 @@ body.gly-history-mode > main {
   white-space: nowrap;
 }
 
-/* SIDE BY SIDE IS TWO HALVES OF ONE COLUMN, AND BOTH HALVES KEEP THE DRAFT'S
-   TYPE. Each version reads as ITSELF, so nothing is struck or inserted here —
-   the changed sentences are washed on both sides and that is all. The heads are
-   mono corner labels and carry the VERSION NUMBERS, written by the panel (see
-   nameSides): the renderer is handed two documents and told nothing about where
-   they came from, so `before`/`after` is the most it can honestly say. */
-.gly-versions-paper .gly-sbs {
-  display: flex;
-  gap: calc(var(--gly-gutter) * 2);
-  max-width: none;
-}
-.gly-versions-paper .gly-sbs-col {
-  flex: 1;
-  min-width: 0;
-}
-.gly-versions-paper .gly-sbs-head {
-  font: 11px/1 var(--gly-mono);
-  color: var(--gly-muted);
-  text-transform: lowercase;
-  letter-spacing: 0.06em;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--gly-line);
-  margin-bottom: 16px;
-}
-.gly-versions-paper .gly-lit-old {
-  background: var(--gly-del-bg);
-}
-.gly-versions-paper .gly-lit-new {
-  background: var(--gly-ins-bg);
-}
-
 /* --- History's rail --- */
-
-.gly-versions-rail {
-  min-width: 0;
-  /* THE CARD'S TYPE, DECLARED ON THE COLUMN — the draft rail's own line, said
-     the same way. It used to be declared four times inside this rail, once per
-     card kind, each one added the day somebody noticed that card had inherited
-     the page's 16px. */
-  font: var(--gly-card-font);
-}
-.gly-versions-rail-title {
-  color: var(--gly-muted);
-  font: 11px/1.4 var(--gly-mono);
-  letter-spacing: 0.06em;
-}
-/* `‹ all rounds` is a HANDLE, not a verb: quiet, full width, and the only thing
-   above the cards, so the way back out of a round is where the eye enters the
-   rail rather than somewhere it has to be hunted for. */
-.gly-versions .gly-versions-all {
-  display: block;
-  width: 100%;
-  text-align: left;
-  font: 11px/1 var(--gly-mono);
-  color: var(--gly-muted);
-  background: var(--gly-card);
-  border: 1px solid var(--gly-line);
-  border-radius: 6px;
-  padding: 10px 12px;
-  cursor: pointer;
-}
-.gly-versions .gly-versions-all:hover {
-  color: var(--gly-fg);
-}
-/* THE CARDS ARE PLACED BY ARITHMETIC, so their container is the coordinate
-   system. `position: relative` is also what align() ASKS — at a width where
-   this collapses to flow there is no "beside its mark" to aim at, and the
-   script reads this declaration back rather than re-deriving the breakpoint. */
-.gly-versions-cards {
-  position: relative;
-}
-/* EVERY CARD IN THIS RAIL, ONE ANATOMY. These three rules were scoped to
-   `.gly-versions-change` and the round card, the seed card and the reading
-   rail's round card each re-declared their own padding, their own head spacing
-   and their own type — which is what a second implementation of the card looks
-   like from the stylesheet's side. `.gly-card` gives the border, the radius,
-   the background and the hover; this gives the head/body spacing every card in
-   the column shares. */
-.gly-versions .gly-card {
-  padding: 0;
-  overflow: hidden;
-}
-.gly-versions .gly-card > .gly-card-head {
-  display: block;
-  padding: 10px 12px 8px;
-  letter-spacing: 0.1em;
-}
-.gly-versions .gly-card > .gly-card-body {
-  margin-top: 0;
-  padding: 0 12px 10px;
-}
-.gly-versions .gly-versions-change {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-left: 3px solid var(--gly-ins);
-  transition: top 0.14s ease;
-}
-/* NO HOVER GEOMETRY AND NO HOVER BORDER. `.gly-card:hover` recolours the border
-   at (0,2,0); selection on this surface is DIMMING and reaches both columns, so
-   a second hover treatment here would be two answers to one question. */
-.gly-versions .gly-card:hover {
-  border-color: var(--gly-line);
-}
-.gly-versions-ask {
-  margin: 0 0 6px;
-  color: var(--gly-fg);
-}
-.gly-versions-ask:last-child {
-  margin-bottom: 0;
-}
-/* THE HAIRLINE IS THE CARD'S OWN, FULL BLEED. The ask is what was sent and the
-   note is what came back, and they are two utterances rather than one
-   paragraph — the rule says so across the whole card rather than stopping short
-   of its padding, which would read as an indent instead of a division. */
-.gly-versions-note {
-  margin: 0 -12px 0;
-  padding: 8px 12px 0;
-  border-top: 1px solid var(--gly-line);
-  color: var(--gly-fg);
-}
-.gly-versions-note.is-quote {
-  color: var(--gly-muted);
-  font-style: italic;
-}
-/* AN ASK NOBODY ANSWERED IS APART BY SHAPE AS WELL AS BY WORD, which is the
-   same discipline the moved sentence and the exception round are drawn with.
-   It is not a change, so it carries no ins edge and no note; it is dashed all
-   round, because what it records is an absence. */
-.gly-versions .gly-versions-unanswered {
-  border: 1px dashed var(--gly-line);
-  border-left: 3px dashed var(--gly-muted);
-  cursor: default;
-}
-.gly-versions .gly-versions-unanswered .gly-versions-ask {
-  color: var(--gly-muted);
-  font-style: italic;
-}
-
-/* SELECTION IS DIMMING AND IT REACHES BOTH COLUMNS.
-   The selected pair stays full, every other card drops to 70% and every other
-   mark on the paper to 60% — so the answer to "which words is this card about"
-   is the only thing left at full strength, in both places at once. NO RINGS: a
-   ring would be a fourth mark in a vocabulary that already has three. NO
-   STEPPERS: the cards are the navigation.
-
-   OPACITY ONLY, AND THAT IS THE RULE RATHER THAN THE STYLE. Nothing here may
-   change a box — a hover that resized a card would restack every card below it,
-   under the cursor that caused it, which is this codebase's oldest complaint
-   about a bar arriving on a rail. */
-.gly-versions-rail.is-picking .gly-versions-change {
-  opacity: 0.7;
-}
-.gly-versions-rail.is-picking .gly-versions-change.is-picked {
-  opacity: 1;
-}
-.gly-versions-paper.is-picking [data-gly-region] {
-  opacity: 0.6;
-}
-.gly-versions-paper.is-picking [data-gly-region].is-picked {
-  opacity: 1;
-}
-
-/* A ROUND CARD IS THE LANDING'S ONE ENTRY, AND IT IS NEUTRAL. Its left edge is
-   transparent and holds its 3px anyway, so the exception's dashed rule and the
-   reading state's ins-teal one arrive in a slot that already exists rather than
-   moving the text when they do. */
-.gly-versions .gly-versions-round {
-  /* WHAT IS LEFT AFTER THE CARD OWNS THE CARD. This rule used to declare the
-     background, the border, the radius, the padding, the cursor, the type and
-     the colour — every one of them `.gly-card`'s own value, spelled again
-     because the element was a `<button>` and a button has a user-agent
-     appearance to undo. It is an `<article class="gly-card">` now (see
-     cardShell), so what remains is the two things that are this card's and not
-     every card's: the neutral 3px slot its left edge reserves, and the gap
-     below it. */
-  border-left: 3px solid transparent;
-  margin-bottom: var(--gly-rail-gap);
-}
-.gly-versions .gly-versions-round:hover {
-  border-color: var(--gly-signal);
-}
-.gly-versions-foot {
-  display: block;
-  margin-top: 8px;
-  font: 11px/1.4 var(--gly-mono);
-  color: var(--gly-muted);
-  font-variant-numeric: tabular-nums;
-}
-/* THE EXCEPTION IS APART BY SHAPE AS WELL AS BY WORD. A round where the agent
-   could not do what was asked moved nothing, in a list where every other entry
-   is a diff — so the rule down its left is DASHED and the ask is italic, the
-   same discipline the moved-sentence rule and the trail ghost are drawn with
-   (apart by colour AND by shape, never by one alone). */
-.gly-versions .gly-versions-round.gly-versions-cannot {
-  border-left: 3px dashed var(--gly-muted);
-}
-.gly-versions .gly-versions-round.gly-versions-cannot .gly-versions-ask {
-  font-style: italic;
-  color: var(--gly-muted);
-}
-/* THE FILE AS GALLEY OPENED IT. Dashed, muted, and NOT A BUTTON — there is no
-   earlier version to read v1 against, so a click would open a reading state
-   with nothing in it, which is the exact state this phase exists to stop
-   History landing on by itself. */
-.gly-versions .gly-versions-seed {
-  border-style: dashed;
-  color: var(--gly-muted);
-  cursor: default;
-}
-.gly-versions-empty {
-  color: var(--gly-muted);
-  padding: 8px 0;
-}
 
 /* THE WAY OUT SITS IN THE PRIMARY'S SLOT, OUTLINED RATHER THAN FILLED. The
    filled box is what the reviewer presses to move the document forward and
@@ -3284,19 +2941,6 @@ body.gly-history-mode > main {
   background: var(--gly-card);
 }
 
-/* THE DOOR SAYS A ROUND ARRIVED — IN PAINT, AND ONLY IN PAINT.
-   `.gly-versions-open` sits in a full bar between the mode switch and Revise,
-   and this class is toggled by SOMEBODY ELSE'S event (the agent returning), so
-   anything here that changed the control's box would slide the neighbour the
-   reviewer's cursor is resting on — the bar's oldest rule. A colour and an inset
-   ring: `box-shadow` draws inside the border box and contributes no geometry at
-   all, where a border-width would. Amber is the token for "on, arrived, or
-   here", which is exactly what this is. */
-.gly-bar .gly-versions-open.is-new {
-  color: var(--gly-accent);
-  box-shadow: inset 0 0 0 1px var(--gly-accent);
-}
-
 /* Below the two-column width the rail goes under the paper.
 
    THIS USED TO CLAIM THE SCRIPT READ THE BREAKPOINT BACK OFF THIS RULE —
@@ -3311,23 +2955,6 @@ body.gly-history-mode > main {
    sits beside a comment naming rail.ts's constant as the one to change with
    it. A comment teaching a rule the code stopped following is worse than no
    comment, which is why this one was rewritten rather than left. */
-@media (max-width: 991px) {
-  .gly-versions-body {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 24px;
-  }
-  .gly-versions-cards {
-    position: static;
-  }
-  .gly-versions .gly-versions-change {
-    position: static;
-    margin-bottom: var(--gly-rail-gap);
-  }
-  .gly-versions-paper .gly-sbs {
-    flex-direction: column;
-  }
-}
-
 /* The whole-document composer is the first item in the instruction rail. It
    shares the rail's width and card language instead of opening a second panel
    over the document. */
@@ -3455,36 +3082,6 @@ body.gly-history-mode > main {
 .gly-menu-detail:empty { display: none; }
 .gly-instruction-actions { justify-content: flex-end; }
 
-/* NO TYPE OF ITS OWN. The ask and the answer are two utterances of one
-   exchange and must read as a pair — so neither sets a size or a weight, and
-   both inherit the card body's. This declared 13px while `.gly-versions-ask`
-   declared nothing, so the two lines came out at different sizes on the same
-   card, with the reviewer's words larger than the agent's reply to them. */
-.gly-versions .gly-versions-answer {
-  display: block;
-  margin-top: 4px;
-  color: var(--gly-fg);
-}
-
-/* THE ROUND CARD IN THE READING RAIL. Same anatomy as every other card here —
-   it is the exchange itself, above the changes it produced, carrying the ask
-   and the agent's sentence back. No kind edge of its own: it is not a change,
-   and a coloured edge would file it among them. */
-.gly-versions .gly-versions-round-card {
-  margin: 0 0 var(--gly-rail-gap) var(--gly-rail-gutter);
-  border-left-color: var(--gly-line);
-  /* NO HAND. `.gly-card` offers a pointer for every card on every surface, and
-     this one has no reveal — it is the exchange, not a change, and points at
-     nothing on the paper. Same rule as `.gly-card.gly-thread:not([title])` and
-     the seed card: a card is a hand only where the hand does something. */
-  cursor: default;
-}
-.gly-versions .gly-versions-round-card .gly-versions-answer {
-  display: block;
-  margin: 6px 0 0;
-  color: var(--gly-fg);
-}
-
 /* --- WHAT `hidden` MEANS HERE, ONCE AND LAST ---
 
    `[hidden] { display: none }` IS A USER-AGENT RULE AND ANY AUTHOR `display`
@@ -3517,11 +3114,10 @@ body.gly-history-mode > main {
    at a coordinate over the PROSE, because "the attribute is set" is a proxy
    for the claim and this bug lived inside that proxy for a whole phase.
 
-   ONE ELEMENT IS DELIBERATELY ABSENT. `.gly-versions-sub[hidden]` is
-   `visibility: hidden` and NOT this — the History landing has no view to
-   switch and no version to restore, so its sub-bar row is RESERVED rather than
-   collapsed; taking its 40px out of the flow moved the paper up while the
-   rail's top did not follow. It keeps its own rule, beside the reason. */
+   THE ELEMENT THAT USED TO BE DELIBERATELY ABSENT HERE IS DELETED.
+   `.gly-versions-sub[hidden]` was `visibility: hidden` and not this, because
+   History's landing reserved the row it could not use; there is no sub-bar and
+   no landing any more. */
 .ProseMirror .gly-figure-source[hidden],
 .ProseMirror .gly-region-draft[hidden],
 .gly-bubble[hidden],
@@ -3540,7 +3136,6 @@ body.gly-history-mode > main {
 .gly-sheet-settled[hidden],
 .gly-sheet-settled-list[hidden],
 .gly-verdict-menu[hidden],
-.gly-versions[hidden],
 .gly-versions-restore[hidden] { display: none; }
 
 /* THE REVIEWER'S OWN EDITS, IN THE RAIL. One surface: the rail is the list of
@@ -3771,23 +3366,24 @@ body.gly-page .ProseMirror p.gly-shell-marker {
 .gly-scrub-handle { position: absolute; top: 0; width: 14px; height: 28px; margin-left: -7px; border-radius: 3px; background: var(--gly-accent); box-shadow: 0 0 0 4px rgba(214, 255, 61, .18), 0 0 24px rgba(214, 255, 61, .45); }
 .gly-scrub-labels { display: flex; justify-content: space-between; color: var(--gly-muted); margin-top: 6px; }
 .gly-scrub-now { color: var(--gly-fg); }
-/* THE STAGE IS WHAT THE SECOND PAPER IS ABSOLUTE AGAINST, and it exists so that
-   `.gly-versions-body` does not have to be: History's rail is positioned off
-   `.gly-versions` deliberately (see its own note above), and making the body a
-   containing block moves the rail 40px when the mode changes. The stage is out
-   of flow entirely until the handle leaves the head — two empty papers sitting
-   in the body's grid push everything under them down a row each. */
+/* THE STAGE IS WHAT THE SECOND PAPER IS ABSOLUTE AGAINST, and it sits in the
+   frame beside the draft's own paper — same column, same measure, same scroll.
+   It is out of flow entirely until the handle leaves the head: two empty papers
+   in the sheet's flow would push everything under them down. And while it IS on
+   screen the draft's paper is not, because two sheets in one column is the
+   panel this deleted. */
+/* NEITHER PAPER MAY BE A SCROLL ANCHOR. They swap places — one is `display:
+   none` while the other is on screen — so the page grows and shrinks above the
+   viewport, and Chrome's scroll anchoring answers that by moving the scroll
+   offset to keep an anchor still. That adjustment lands AFTER leaveHistory has
+   put the reviewer's own position back, which is the one thing this mode
+   promises (history.ts). Measured: asked for 228, read back 330. */
+.gly-scrub-stage, .gly-scrub-paper, .ProseMirror { overflow-anchor: none; }
 .gly-scrub-stage { display: none; position: relative; }
 body.gly-scrubbing .gly-scrub-stage { display: block; }
+body.gly-scrubbing .ProseMirror { display: none; }
 .gly-scrub-paper { transition: opacity .08s, filter .08s; }
 .gly-scrub-paper + .gly-scrub-paper { position: absolute; inset: 0; }
-/* History's landing chrome is not part of the scrub: while the handle is off
-   the head the stage is one sheet and nothing else. */
-body.gly-scrubbing .gly-versions-sub, body.gly-scrubbing .gly-versions-rail { display: none; }
-/* And History's own paper goes with them: while the handle is off the head the
-   two scrub papers ARE the sheet. The panel keeps writing into its own paper —
-   the landing is still whole until Task 14 — it is just not on screen here. */
-body.gly-scrubbing .gly-versions-paper:not(.gly-scrub-paper) { display: none; }
 main { padding-bottom: 220px; }
 
 #gly-revise.gly-revise { border: 0; border-radius: 8px; padding: 11px 18px; font: 600 14px/1.2 var(--gly-sans); display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; cursor: pointer; background: var(--gly-accent); color: var(--gly-on-accent); box-shadow: var(--gly-accent-glow); transition: filter .15s; }
@@ -3842,6 +3438,13 @@ main { padding-bottom: 220px; }
   text-transform: uppercase;
   cursor: pointer;
 }
+/* AND THE GUARD, HERE RATHER THAN ONLY IN THE FOOT'S LIST. `hidden` on this
+   button is what keeps it off the eyebrow at the head, and the list at the foot
+   of this file is `.gly-versions-restore[hidden]` — (0,2,0), which TIES with the
+   rule above and loses on source order, so the attribute did nothing and three
+   labels sat in the eyebrow of every draft. That is exactly the failure the
+   list's own header describes; the fix is a rule that cannot tie. */
+.gly-eyebrow .gly-versions-restore[hidden] { display: none; }
 .gly-eyebrow .gly-versions-restore.is-armed { color: var(--gly-coral); }
 .gly-help-open { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gly-line); background: transparent; color: var(--gly-muted); font: 11px var(--gly-mono); cursor: pointer; }
 .gly-help { background: var(--gly-panel-bg); border: 1px solid var(--gly-line); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font: 13px/1.5 var(--gly-sans); color: var(--gly-muted2); }
@@ -3910,6 +3513,11 @@ body.gly-revising .ProseMirror > .gly-marked { background: var(--gly-accent-fill
 .gly-row-text { flex: 1; min-width: 0; }
 .gly-row-remove { background: none; border: 0; color: var(--gly-muted); cursor: pointer; font-size: 16px; padding: 0 2px; }
 .gly-row-remove:hover { color: var(--gly-coral); }
+/* THE STEP LANDS ON THE ROW, and it says so in the ring `.gly-card.gly-stepped`
+   already uses — one class, one look, on whichever surface the instruction has.
+   Paint only: a border-width here would move the prose under the key that was
+   pressed. */
+.gly-row.gly-stepped { box-shadow: 0 0 0 1px var(--gly-signal); }
 /* Nothing is removable while the agent is holding the round. */
 body.gly-revising .gly-row-remove { display: none; }
 

@@ -287,7 +287,7 @@ dead-code: check-entries _web-deps
 # run — today it is trail.ts `apply`/`reanchor`/`settleEntries`/`loadedEntry`/
 # `retractReverted`/`placeEmptyBlocks`, schemacheck.mjs `build`/`checkDrift`,
 # rail.ts `carryDrafts`, preflight.mjs `armLoop`/`anchor`, keys.ts `onKey`,
-# versions.ts `paintChanges`, bar.ts `paintReadout`. No per-function
+# bar.ts `paintReadout`. No per-function
 # inherent/accreted verdict is recorded anywhere in this repo any more (the
 # .superpowers/ assessment this comment used to cite is gone), so this does not
 # claim a split — what survives #143 is the count.

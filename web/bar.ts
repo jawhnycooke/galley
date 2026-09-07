@@ -26,7 +26,7 @@
 import { getJSON, postJSON } from './net.ts';
 import { railSurfaces } from './rail.ts';
 import { age } from './suggestions.ts';
-import { roundCards, STAGE_READING } from './versions.ts';
+import { roundCards } from './versions.ts';
 import type { AppShell } from './appshell.ts';
 import { dotFor } from './phase.ts';
 
@@ -251,29 +251,21 @@ export const barMethods = {
     // ahead of the text, rather than duplicated into every return path.
     const dot = this.readoutDot ?? makeReadoutDot(this);
     dot.dataset.tone = dotFor(this.phase(), this.pendingCount);
-    // HISTORY SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
+    // A VERSION SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
     // in one clause so the mode can never be mistaken for the draft. The whole
     // fixed grammar below — the phase, the connection, the save age — is about
     // the DRAFT, and every one of those clauses is false of a reading mode:
     // nothing here is being saved, and `round N · draft` under a page showing
     // v2 of a document is the readout arguing with the paper.
     if (this.versionsPanel && this.versionsPanel.open) {
-      const panel = this.versionsPanel;
-      const where =
-        panel.stage === STAGE_READING
-          ? `reading round ${panel.selectedOrdinal() || panel.selected}`
-          : (() => {
-              // THE COUNT IS THE CARDS, NOT THE ROWS. `historyCount` is every row
-              // the store holds — v1, which is the file as galley opened it and not
-              // a round anybody had, and both halves of every exchange. The landing
-              // draws one card per exchange, so counting anything else would put
-              // the readout ahead of the cards under it. See roundCards.
-              const n = roundCards(panel.rounds).length;
-              return `${n} ${n === 1 ? 'round' : 'rounds'}`;
-            })();
-      this.status.textContent = `${where} · draft is untouched`;
+      // THE COUNT IS THE EXCHANGES, NOT THE ROWS. `historyCount` is every row
+      // the store holds — v1, which is the file as galley opened it and not a
+      // round anybody had, and both halves of every exchange — so counting it
+      // would put the readout ahead of the keyframes under it. See roundCards.
+      const n = roundCards(this.versionsPanel.rounds).length;
+      this.status.textContent = `${n} ${n === 1 ? 'round' : 'rounds'} · draft is untouched`;
       this.status.title =
-        'History is read-only — nothing here changes the draft';
+        'an earlier version is read-only — nothing here changes the draft';
       return;
     }
     if (this.sealed) {

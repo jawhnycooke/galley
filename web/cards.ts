@@ -890,7 +890,7 @@ export const cardMethods = {
     // Instructions whose original highlight is gone still belong in this
     // rail. They cannot be positioned beside prose, so collect their complete
     // cards for a small in-flow section after the anchored map.
-    const unplaced = this.paintRailThreads(band);
+    const unplaced = this.paintRailThreads();
 
     // The figures, after the cards: a pin's click has to find a card that is
     // already in the DOM.
@@ -924,9 +924,9 @@ export const cardMethods = {
   // `this.blocks`, `this.threadCard`) rather than because it is a second
   // component: it is the same one loop, called from the one place that ever
   // called it, now named for what it does. Returns the anchorless cards for
-  // paintRailCards' own unplaced section; mark-anchored ones it appends to
-  // `band` itself, in document order, as it goes.
-  paintRailThreads(this: AppShell, band: HTMLElement): HTMLElement[] {
+  // paintRailCards' own unplaced section; an instruction that HAS a place in
+  // the document is drawn by its row and gets no card here at all.
+  paintRailThreads(this: AppShell): HTMLElement[] {
     const unplaced: HTMLElement[] = [];
     for (const thread of railThreads(this.comments)) {
       if (thread.run && this.held.has(thread.run)) {
@@ -945,28 +945,19 @@ export const cardMethods = {
       // sent every one of them out of the map, far from the figure it was
       // about, and drew a connector from it to nothing (that line is deleted;
       // the wrong question outlived it, which is why this is still here).
-      // threadPlacement is the
-      // question that was actually being asked: does this thread have a place
-      // in the document, and how is it found?
+      // threadPlacement is the question that was actually being asked: does
+      // this thread have a place in the document, and how is it found?
+      //
+      // AN INSTRUCTION WITH A PLACE HAS A ROW, AND A ROW IS ALL IT HAS. The
+      // block-anchored ones lost their card when the row took over everything
+      // it carried; the mark-anchored ones lose it here, for the same reason
+      // and by the spec's own rule that a pinned row offers `×` and nothing
+      // else. One instruction on two surfaces was the whole defect, and
+      // "revising your own words" is not a second surface's job.
       const place = threadPlacement(thread, this.blocks);
       if (place.where === 'anchorless') {
         unplaced.push(this.threadCard(thread, place));
-        continue;
       }
-      // NOT BUILT AT ALL, rather than built and left unplaced: a rail card is
-      // `position: absolute` inside the band, so a card the anchor pass never
-      // writes a `top` onto is not an invisible card — it is a card drawn on
-      // top of every other one at the band's own origin.
-      //
-      // AND ONLY THE BLOCK-ANCHORED ONES. A block instruction's row carries
-      // everything the card did, so a card as well would be one instruction on
-      // two surfaces. A mark-anchored one has a row too (rows.ts's
-      // runBlockIndex fallback) and still has its card, because the row's one
-      // verb is `×` and revising the words you wrote is the card's `edit`.
-      if (place.where === 'block') {
-        continue;
-      }
-      band.appendChild(this.threadCard(thread, place));
     }
     return unplaced;
   },
