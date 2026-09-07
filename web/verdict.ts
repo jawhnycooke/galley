@@ -386,7 +386,9 @@ export const verdictMethods = {
     el.classList.add('gly-revise');
     el.textContent = '';
     const idle = document.createElement('span');
-    idle.className = 'gly-revise-label';
+    // `.gly-revise-idle` carries the face's 13ch reserve — see editor.css,
+    // "THE RESERVE IS ON THE FACE, NOT ON THE COUNT".
+    idle.className = 'gly-revise-label gly-revise-idle';
     // `Revise` · N · `▾`, in three nodes rather than one string, because the
     // middle one has to be a box that a count cannot resize. See
     // reviseIdleLabel for what the three read as together.

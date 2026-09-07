@@ -2757,10 +2757,17 @@ body.gly-revising .gly-dot {
    number (filing an instruction from a card is a click) changes the text and
    not the box.
 
-   5ch is a BOUND and is stated as one: ` · 99` is five units in the bar's
-   mono. Past 99 pending the button grows, and because `.gly-bar` wraps, what
-   that costs is a FOLDED ROW rather than a slide — the same trade the 4ch of
-   seconds beside it makes.
+   THE RESERVE IS ON THE FACE, NOT ON THE COUNT. It was `min-width: 5ch` on
+   this span, and that put the slack INSIDE the label — between the digit and
+   the `▾` when left-aligned, either side of the clause when centred — so the
+   reviewer read `Revise  · 1  ▾` as a caret adrift from its verb. The idle
+   face (`.gly-revise-idle`, below) now holds a 13ch box, left-aligned, sized
+   for `Revise · 99 ▾`: `Revise` never moves when the number changes, the
+   slack trails after the caret where nothing reads it, and the box is
+   constant. The idle face never shows without a count — at zero pending the
+   primary is `Approve` (spec §1) — so the box is never wider than its words by
+   more than the digits it reserves. Past 99 pending the label grows; the
+   button, being the widest of four stacked faces, grows with it once.
 
    `white-space: pre` and not `nowrap`, and it is not cosmetic: the clause is
    composed with its own leading space, an inline-block starts its own line
@@ -2770,12 +2777,6 @@ body.gly-revising .gly-dot {
    DOM. `pre` preserves it and implies no wrapping. */
 .gly-revise-count {
   display: inline-block;
-  min-width: 5ch;
-  /* CENTRED, NOT LEFT: the reserve is wider than ` · 2`, and left-aligned the
-     spare width all landed between the digit and the `▾`, which read as a
-     caret drifting away from its label. Centred, the slack splits either
-     side of the clause and the caret stays beside the number. */
-  text-align: center;
   white-space: pre;
 }
 /* THE TRAIL'S CLAUSE LEFT THE BUTTON AND KEPT ITS 23ch RESERVE, one element to
@@ -3919,6 +3920,11 @@ main {
 #gly-revise .gly-revise-label {
   font-variant-numeric: tabular-nums;
 }
+/* The idle face's reserve — the argument is above `.gly-revise-count`. */
+#gly-revise .gly-revise-idle {
+  min-width: 13ch;
+  text-align: left;
+}
 /* THE SEAL DOES NOT HIDE THE PRIMARY, and this is where that used to happen.
    `#gly-revise.gly-seal-off { display: none }` shipped here to beat the rule
    above — and it worked, which was the defect: spec §5 leaves the primary on
@@ -3981,6 +3987,10 @@ main {
   color: var(--gly-fg);
   font: inherit;
   cursor: pointer;
+  /* The explanations are sentences and the menu is 300px: they WRAP. The
+     bar's `nowrap` (inherited through the earlier button rule) ran both lines
+     out past the panel's right edge. */
+  white-space: normal;
 }
 .gly-verdict-menu button:hover {
   background: var(--gly-panel-hover);

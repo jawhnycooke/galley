@@ -7600,7 +7600,9 @@ function bindsContentField(src) {
     // on somebody else's click may move the text and never the button.
     check(
       'the pending count sits in a reserved box on the primary itself',
-      /\.gly-revise-count\{[^}]*min-width:5ch/.test(css) &&
+      /\.gly-revise-idle\{[^}]*min-width:13ch/.test(css) &&
+        /\.gly-revise-idle\{[^}]*text-align:left/.test(css) &&
+        !/\.gly-revise-count\{[^}]*min-width/.test(css) &&
         !css.includes('.gly-census'),
     );
     // And the label those three nodes read as is one spelling, not two: the
