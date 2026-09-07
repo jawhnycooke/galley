@@ -3667,39 +3667,30 @@ body.gly-revising .gly-dot {
    already uses one rail over.
    ========================================================================= */
 
-/* The segmented control rides just under the sticky bar, spanning the working
-   area. It borrows the bar buttons' shape (0,1,1 base rule above) and adds only
-   the pressed state, the layout and the sticky position that differ. */
-body.gly-page .gly-viewbar {
-  position: sticky;
-  top: var(--gly-bar-h, 3.4rem);
-  z-index: 6;
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 0;
-  background: var(--gly-bg);
-}
-body.gly-page .gly-view-btn {
-  font: inherit;
-  font-size: 12px;
-  padding: 5px 16px;
+/* The segmented control lives in the sheet's eyebrow (web/preview.ts moves it
+   there on mount) as a pill: one bordered, clipped strip of three plain-text
+   buttons, the pressed one picking up the panel-hover fill. */
+.gly-eyebrow .gly-viewbar {
+  display: inline-flex;
   border: 1px solid var(--gly-line);
-  border-radius: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.gly-eyebrow .gly-view-btn {
   background: transparent;
-  color: inherit;
+  border: 0;
+  color: var(--gly-muted);
+  padding: 2px 10px;
+  font: 11px var(--gly-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   cursor: pointer;
 }
-body.gly-page .gly-view-btn:hover {
-  border-color: var(--gly-signal);
-}
-/* The pressed segment wears the action fill, the one filled control the bar's
-   own primary uses — "this is the view you are in", read the same way the bar
-   reads "this is the press". */
-body.gly-page .gly-view-btn.is-active {
-  background: var(--gly-signal);
-  border-color: var(--gly-signal);
-  color: var(--gly-signal-ink);
+/* The pressed segment reads as "this is the view you are in" against the rest
+   of the pill. */
+.gly-eyebrow .gly-view-btn.is-active {
+  background: var(--gly-panel-hover);
+  color: var(--gly-fg);
 }
 
 /* --- ONE LAYOUT FOR ALL THREE VIEWS, so switching never reflows. ---
@@ -3736,13 +3727,31 @@ body.gly-page #gly-preview {
   background: var(--gly-card);
 }
 
-/* HTML: the rendered page fills the working width, the editor steps out (the
-   flex row gives its half back). The rail STAYS visible, exactly as in Both and
-   Content — the round's instructions belong to the document regardless of which
-   view shows it, and keeping the rail painted means every view shares the same
-   right edge (no blank strip where the reserve sits). `main` keeps its constant
-   geometry so the centred view toggle never shifts. */
+/* HTML: the rendered page fills the working width, the editor steps out — but
+   `#editor` does not go `display:none`, and is instead taken out of the flex
+   row with `position: absolute` at its normal spot: the eyebrow (Task 15's
+   pill lives there now) is a CHILD of `#editor` (frame.ts's makeFrame inserts
+   it before the sheet), so hiding the whole element, or leaving it competing
+   for flex width, would hide or squeeze the one control that can switch the
+   view back — the reviewer would be stuck, or the page would not be full
+   width. Only the prose and the frame's other content step out; the eyebrow
+   keeps its box, floating over the iframe. The rail STAYS
+   visible, exactly as in Both and Content — the round's instructions belong
+   to the document regardless of which view shows it, and keeping the rail
+   painted means every view shares the same right edge (no blank strip where
+   the reserve sits). `main` keeps its constant geometry so the centred view
+   toggle never shifts. */
+body.gly-page.gly-view-html .gly-panes {
+  position: relative;
+}
 body.gly-page.gly-view-html #editor {
+  position: absolute;
+  z-index: 5;
+}
+body.gly-page.gly-view-html #editor > .ProseMirror,
+body.gly-page.gly-view-html .gly-docslot,
+body.gly-page.gly-view-html .gly-cannot,
+body.gly-page.gly-view-html .gly-help {
   display: none;
 }
 body.gly-page.gly-view-html #gly-preview {
