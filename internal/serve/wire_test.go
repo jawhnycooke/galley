@@ -61,6 +61,7 @@ var wireRoots = []any{
 	ReviseStateView{},
 	versionsView{},
 	roundView{},
+	askView{},
 	diffView{},
 	changeView{},
 }

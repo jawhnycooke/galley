@@ -4,7 +4,7 @@
 // It is a MIXIN — an object of methods `Object.assign`ed onto `App.prototype`
 // in entry.ts — not a class of its own, so every method here still reads and
 // writes `this` on the live App instance exactly as it did before the move
-// (`this.status`, `this.census`, `this.bar`, `this.modeUI`, and so on). `this`
+// (`this.status`, `this.bar`, `this.modeUI`, and so on). `this`
 // IS TYPED AGAINST `AppShell` (web/appshell.ts) — see that file's own header
 // for the this-typing decision.
 //
@@ -26,8 +26,9 @@
 import { getJSON, postJSON } from './net.ts';
 import { railSurfaces } from './rail.ts';
 import { age } from './suggestions.ts';
-import { roundCards, STAGE_READING } from './versions.ts';
+import { roundCards } from './versions.ts';
 import type { AppShell } from './appshell.ts';
+import { dotFor } from './phase.ts';
 
 /** THE READOUT SAYS WHERE THE DOCUMENT IS, IN A GRAMMAR THAT ALWAYS FITS.
  *
@@ -133,6 +134,43 @@ export function nextMode(mode: Mode): Mode {
   return mode === MODE_LIVE ? MODE_ASK : MODE_LIVE;
 }
 
+/** makeReadoutDot builds the one small dot that opens `.gly-status`, AND THE
+ * SPAN THE SENTENCE IS WRITTEN INTO — which is why they are one function.
+ *
+ * The dot was inserted `afterbegin` of `#gly-status` and then never rendered,
+ * on any state, because every branch of `paintReadout` writes
+ * `status.textContent`: assigning `textContent` REPLACES every child, so the
+ * dot was removed by the next paint and the App went on holding a detached
+ * element it kept re-tinting. A cached node with no parent is invisible in
+ * exactly the way a stylesheet cannot show you.
+ *
+ * So the readout has two children — the dot, and a span for the words — and
+ * nothing ever writes text into `#gly-status` itself. `readoutText` is where
+ * `paintReadout` writes, and the dot is beside it rather than inside the string
+ * it keeps rewriting. */
+function makeReadoutDot(app: AppShell): HTMLSpanElement {
+  const readout = document.getElementById('gly-status');
+  const dot = document.createElement('span');
+  dot.className = 'gly-dot';
+  const text = document.createElement('span');
+  text.className = 'gly-status-text';
+  // Whatever the shell rendered into the readout before this ran is the first
+  // sentence, and it moves into the span rather than being dropped.
+  text.textContent = readout?.textContent ?? '';
+  readout?.replaceChildren(dot, text);
+  app.readoutDot = dot;
+  app.readoutText = text;
+  return dot;
+}
+
+/** The span `paintReadout` writes into — built with the dot, above. */
+function readoutText(app: AppShell): HTMLElement {
+  if (!app.readoutText) {
+    makeReadoutDot(app);
+  }
+  return app.readoutText ?? app.status;
+}
+
 export const barMethods = {
   // --- status ---
 
@@ -232,33 +270,32 @@ export const barMethods = {
    * A SEALED REVIEW PRINTS ONLY WHAT THE SEAL SAID. The terminal bar is the
    * record; this line is where a reopen's reason lands and nothing else. */
   paintReadout(this: AppShell) {
-    // HISTORY SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
+    // THE DOT IS THE ONE THING EVERY BRANCH BELOW AGREES ON — it reads the
+    // phase and the pending count, neither of which the versions-panel or
+    // sealed branches below change the meaning of, so it is painted once,
+    // ahead of the text, rather than duplicated into every return path.
+    const dot = this.readoutDot ?? makeReadoutDot(this);
+    dot.dataset.tone = dotFor(this.phase(), this.pendingCount);
+    const line = readoutText(this);
+    // A VERSION SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
     // in one clause so the mode can never be mistaken for the draft. The whole
     // fixed grammar below — the phase, the connection, the save age — is about
     // the DRAFT, and every one of those clauses is false of a reading mode:
     // nothing here is being saved, and `round N · draft` under a page showing
     // v2 of a document is the readout arguing with the paper.
-    if (this.versionsPanel && this.versionsPanel.open) {
-      const panel = this.versionsPanel;
-      const where =
-        panel.stage === STAGE_READING
-          ? `reading round ${panel.selectedOrdinal() || panel.selected}`
-          : (() => {
-              // THE COUNT IS THE CARDS, NOT THE ROWS. `historyCount` is every row
-              // the store holds — v1, which is the file as galley opened it and not
-              // a round anybody had, and both halves of every exchange. The landing
-              // draws one card per exchange, so counting anything else would put
-              // the readout ahead of the cards under it. See roundCards.
-              const n = roundCards(panel.rounds).length;
-              return `${n} ${n === 1 ? 'round' : 'rounds'}`;
-            })();
-      this.status.textContent = `${where} · draft is untouched`;
+    if (!this.atHead()) {
+      // THE COUNT IS THE EXCHANGES, NOT THE ROWS. `historyCount` is every row
+      // the store holds — v1, which is the file as galley opened it and not a
+      // round anybody had, and both halves of every exchange — so counting it
+      // would put the readout ahead of the keyframes under it. See roundCards.
+      const n = roundCards(this.versionsPanel.rounds).length;
+      line.textContent = `${n} ${n === 1 ? 'round' : 'rounds'} · draft is untouched`;
       this.status.title =
-        'History is read-only — nothing here changes the draft';
+        'an earlier version is read-only — nothing here changes the draft';
       return;
     }
     if (this.sealed) {
-      this.status.textContent = this.said;
+      line.textContent = this.said;
       this.status.title = '';
       return;
     }
@@ -291,12 +328,21 @@ export const barMethods = {
       // a live session than a socket state is.
       parts.push('connected');
     }
+    // YOUR EDITS APPLY, AND THE READOUT SAYS SO WHILE THERE ARE ANY (spec §1).
+    // A hand edit lands in the document immediately — there is no accept step
+    // and no draft copy — and the one place that was ever stated was this
+    // cell's `title`, which appears on hover, after a second, and never on
+    // touch. It is a clause now, and only while it is TRUE: with nothing
+    // changed it would be a promise about work that does not exist.
+    if (this.changes.length > 0) {
+      parts.push('your edits apply');
+    }
     if (this.handoff && this.draftError) {
       // The one case the fixed grammar cannot state: the agent's save is on
       // disk and NOT on this page, and silence there reads as a lost save.
       parts.push(HANDOFF_NOTE_HELD);
     }
-    this.status.textContent = parts.join(' · ');
+    line.textContent = parts.join(' · ');
     // The full sentence, always, because the cell is allowed to lose the end of
     // it. This is the title the untracked cell used to carry, moved with it.
     this.status.title =
@@ -304,113 +350,25 @@ export const barMethods = {
       'your instructions go to the agent as one round when you press Revise';
   },
 
-  // --- the census strip ---
-
-  // The census answers HOW MUCH. It is a separate surface from the rail for one
-  // reason: the rail can only show what is near, and a number that changes with
-  // the scroll position is not a census. Every number here comes from the
-  // /_galley/pending payload — the same projection the document is built from.
-  makeCensus(this: AppShell): { root: HTMLElement; count: HTMLButtonElement } {
-    const root = document.createElement('div');
-    root.className = 'gly-census';
-
-    // THE COUNT IS THE DOOR TO THE WHOLE LIST, and it had to become one.
-    //
-    // It was a `<span>`: a readout, and the only way to the sheet was the
-    // narrow layout's bottom bar (`.gly-bar-count`, `.gly-bar-list`), so above
-    // the breakpoint the sheet could not be opened at all. That was correct
-    // while the sheet was the rail's REPLACEMENT — a surface for the width the
-    // rail does not exist at. It stopped being correct the moment the rail
-    // stopped holding settled conversations: `↺ reopen` is the only way back
-    // from a mis-clicked `✓ resolve`, and it would have lived on a surface no
-    // desktop reviewer could reach. Anchorless conversations went the same way.
-    //
-    // So the sheet is the review's list at every width (railSurfaces), and this
-    // is how it is reached at every width — the same element, in the same
-    // place, saying the same number it always said. A button rather than a new
-    // control beside it, because the bar's fold arithmetic is paid for in
-    // pixels and this one already carries the count somebody would click.
-    //
-    // `.gly-census-count`'s 24ch reserve is unchanged and is still a BOUND: the
-    // label's width varies with the counts, and every control to its right sits
-    // downstream of it.
-    const count = document.createElement('button');
-    count.type = 'button';
-    count.className = 'gly-census-count';
-    count.title = 'show the current draft and its instructions';
-    count.addEventListener('click', () => this.openInstructions());
-
-    // R1'S SURVIVING HALF IS NOT A CELL OF THIS STRIP'S ANY MORE, AND NOT A
-    // CELL OF THE BAR'S EITHER. The sentence — the design, since the
-    // reviewer's-hand cut, rather than an admission of a gap — used to be
-    // appended here as `.gly-census-untracked`, a bar cell beside the strip.
-    // Its journey was: inside the strip (where its full width sat in the
-    // strip's flex basis and decided where the bar folded — 1467px with a
-    // nine-character name), then a basis-0 bar cell of its own beside two other
-    // basis-0 readouts. That last shape is what Court read off the screen as
-    // three truncated fragments. It is the last clause of the ONE readout now;
-    // see paintReadout, which owns the sentence, its order and its title.
-    //
-    // The strip keeps its `flex: 0 0 auto` and everything left in it really is
-    // a count or a control, which is what that declaration has always claimed.
-
-    // `✓ all` IS GONE FROM THIS FUNCTION, NOT MERELY UNAPPENDED. It swept
-    // every proposal and settled every answered thread through POST
-    // /_galley/sweep — one of the twelve endpoints
-    // internal/serve/rounds_surface_test.go asserts are 404 — and it was
-    // already doubly unreachable: `makeCensus` built it and never put it in the
-    // document, and `paintCensus` wrote `disabled = true` over it on every poll.
-    // Neither population it acted on exists any more, so nothing takes its
-    // place: an instruction is not decided in bulk or singly, it is written,
-    // edited or deleted, and then sent as a round. The strip keeps its
-    // `flex: 0 0 auto` and its measured layout; the count beside it is the
-    // census's one verb now, and it opens the sheet.
-    root.append(count);
-    const bar = document.querySelector('.gly-bar');
-    // BEFORE THE READOUT, not merely before the spacer. The census carries
-    // three controls, and the readout after it changes width whenever the
-    // server says something — measured: one press of Revise put
-    // `revision requested` into the status and slid `✓ all`, the since-retired
-    // `✗ all` and the whole-doc handle 140.89px. A readout that pushes a button
-    // is the same defect as a button that pushes its neighbour. The bar reads
-    // left to right: controls, the ONE readout, the one flexible cell,
-    // controls — so every control sits upstream of the only cell that
-    // breathes. There used to be three readouts here and the ordering rule was
-    // the same; consolidating them changed how much has to be said, not what
-    // has to be true.
-    const anchor =
-      document.getElementById('gly-status') ||
-      document.querySelector('.gly-spacer');
-    if (bar && anchor) {
-      bar.insertBefore(root, anchor);
-    } else if (bar) {
-      bar.appendChild(root);
+  // paintBarCount labels the NARROW bar's one door to the review's list. The
+  // wide bar's census strip that used to carry the same number beside it is
+  // deleted with the rest of the retired chrome; below the breakpoint this is
+  // the only way to the sheet, so the count is still painted.
+  //
+  // AND THE FLAG IS DERIVED, NOT ASSERTED. `.gly-bar-count` is in SEALED_VERBS
+  // (see seal.ts for why the door to a list of dead verbs dies with them), and
+  // it is built ONCE in `makeBottomBar` — so an unconditional `false` here
+  // would be a second writer overruling the seal on the next poll, which is
+  // the pair-of-writers shape SEAL_ONLY_VERBS exists to keep to one. Reading
+  // `this.sealed` makes this painter the control's one owner in BOTH
+  // directions, which is why the button is not in SEAL_ONLY_VERBS: `applySeal`
+  // calls this function on the unseal edge and the flag comes back here.
+  paintBarCount(this: AppShell) {
+    if (!this.bar) {
+      return;
     }
-    return { root, count };
-  },
-
-  paintCensus(this: AppShell) {
-    const marked = this.comments.length;
-    const parts = [`Instructions · ${marked}`];
-    // THE WHOLE-DOCUMENT CONVERSATION IS THE HANDLE'S TO COUNT, and counting it
-    // here as well is how `3 pending · 3 threads` came to sit beside
-    // `1 doc note` on a document holding three conversations, one of which was
-    // that note. Two surfaces, one partition, each naming its own side of it.
-    //
-    // THIS IS NOT A COUNT OF THE RAIL'S CARDS, and it must not be read as one.
-    // It counts every open conversation that is not about the whole file, and
-    // the rail cards only the ones with a PLACE in the document — so on a
-    // document holding an anchorless thread the bar says one more than the map
-    // shows, correctly, and `paintRailCards`' notice is what reconciles them.
-    // A version of this comment claimed the sum WAS what the rail holds; it was
-    // written when the anchorless cards were still in the rail and it survived
-    // them leaving, which is the shape this file's own entries warn about.
-    this.census.count.textContent = parts.join(' · ');
-    this.census.count.disabled = false;
-    if (this.bar) {
-      this.bar.count.textContent = parts.join(' · ');
-      this.bar.count.disabled = false;
-    }
+    this.bar.count.textContent = `Instructions · ${this.comments.length}`;
+    this.bar.count.disabled = this.sealed;
   },
 
   // --- which surfaces are on screen ---
@@ -424,7 +382,6 @@ export const barMethods = {
   // already carrying conversations — and two spellings of the same width test
   // is exactly how the two come to disagree about which surface owns a thread.
   surfaces(this: AppShell): {
-    rail: boolean;
     bar: boolean;
     sheet: boolean;
     collapsed: boolean;
@@ -437,8 +394,7 @@ export const barMethods = {
 
   paintSurfaces(this: AppShell) {
     const s = this.surfaces();
-    const history = !!(this.versionsPanel && this.versionsPanel.open);
-    this.rail.root.hidden = history || !s.rail;
+    const history = !this.atHead();
     this.bar.root.hidden = history || !s.bar;
     this.sheet.root.hidden = history || !s.sheet;
     // Below the breakpoint `railSurfaces` forces `collapsed` regardless of any
@@ -455,16 +411,15 @@ export const barMethods = {
     // the clause it writes is unchanged there and the readout's box does not
     // move — which is what motion.mjs holds.
     this.paintReadout();
-    if (s.rail) {
-      // Hidden cards measure zero, so anything painted while collapsed has to
-      // be re-measured the moment the rail comes back.
-      this.scheduleAnchors();
-    } else {
-      // THE CARD GOES WITH THE COLUMN IT IS IN. The capture card is a child of
-      // the rail and positioned against the window at the moment it opened; a
-      // rail that has just been hidden takes it off screen with it, and leaving
-      // it "open" would mean the next width change put a half-typed instruction
-      // back at coordinates measured for a window that no longer exists.
+    // THE CARD GOES WITH THE COLUMN IT IS IN, and there is no column any more.
+    // The capture card used to be a child of the rail, positioned against the
+    // window at the moment it opened, so a width change that hid the rail took
+    // it off screen with it — and leaving it "open" meant the next resize put a
+    // half-typed instruction back at coordinates measured for a window that no
+    // longer existed. It is in the sheet's dashed slot now, in flow, so the
+    // coordinates cannot go stale; the close stays because a resize is still a
+    // layout the reviewer did not ask the composer to survive.
+    if (!s.sheet) {
       this.closeCapture();
     }
     // The bar's capture door is dead exactly where its card has nowhere to
@@ -529,8 +484,14 @@ export const barMethods = {
     hold.append(holdOff, holdOn);
     hold.addEventListener('click', () => this.toggleHold());
 
+    // BESIDE THE READOUT, NOT AT THE FAR RIGHT (2026-09-07): the switch is
+    // about the round the readout describes, so it sits just after it and
+    // before the flexible cell; the theme button is what remains on the
+    // right. The readout's cell is a fixed 56ch (editor.css) so a readout
+    // that changes on a press — `revision requested · …` — cannot move the
+    // switch, which the bar rule forbids.
     const bar = document.querySelector('.gly-bar');
-    const anchor = document.getElementById('gly-revise');
+    const anchor = bar && bar.querySelector('.gly-spacer');
     if (bar && anchor) {
       bar.insertBefore(toggle, anchor);
       bar.insertBefore(hold, anchor);

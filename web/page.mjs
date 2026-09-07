@@ -392,7 +392,6 @@ await page.waitForTimeout(1500);
 
 await select(OLD_SENTENCE);
 await page.waitForTimeout(300);
-await page.click('.gly-composer .gly-comment-button');
 await page.fill('.gly-composer .gly-composer-text', REVIEWER_ASKED);
 await page.click('.gly-composer .gly-composer-send');
 await page.waitForTimeout(1000);

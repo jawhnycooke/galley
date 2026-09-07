@@ -28,6 +28,7 @@ import {
   VERDICT_DISCARDED,
   clockTime,
   APPROVE_IDLE,
+  APPROVE_DONE,
 } from './verdict.ts';
 import type { AppShell } from './appshell.ts';
 import type { ReviseWatchView } from './verdict.ts';
@@ -170,9 +171,7 @@ export function sealLine(
  *
  * The seven selectors that were already here all match real elements: accept
  * and reject come from `decideButton`, resolve and delete and the reply box
- * from the thread card, and both `.gly-census button` and `.gly-composer button`
- * have live children (the retired `✗ all` was a button, not a class, so its
- * removal left nothing dangling).
+ * from the thread card, and `.gly-composer button` has live children.
  *
  * THE SETTLED CARDS MOVED SURFACES AND NOT ONE SELECTOR MOVED WITH THEM, and
  * that is the design working rather than luck. `.gly-thread-resolve`,
@@ -185,11 +184,11 @@ export function sealLine(
  * revision receipt's deletion made one entry up, arriving a second time, which
  * is why it is written down rather than re-derived.
  *
- * `.gly-census button` also gained a member in the same change: the census
- * count is a `<button>` now (it opens the sheet). A sealed review hides the
- * whole strip, so covering it here is belt to that braces — but it is built
- * once and never rebuilt, so it needs the OTHER half of the invariant. See
- * SEAL_ONLY_VERBS.
+ * The census strip's own entry died the same way, one round later: the strip is
+ * deleted, and `.gly-bar-count` — the narrow bar's `Instructions · N`, the one
+ * door left to that list — is named directly in its place. A group selector
+ * whose container has been deleted is coverage that disappears with the move
+ * and takes no check with it.
  *
  * THE INVARIANT EVERY ENTRY IN THIS LIST OWES, and the one thing to know
  * before adding another: EVERY SELECTOR HERE EITHER HAS A PAINTER THE UNSEAL
@@ -244,22 +243,28 @@ export function sealLine(
 // accident; §8's rule is what would have caught them if they had been left
 // named here.
 //
-// AND `.gly-census button` IS NARROWED BY ONE, WHICH IS THE ONE EXEMPTION THIS
-// LIST HAS. The census strip is a group of VIEW DOORS, and a door is not a
-// verb — it was only ever in here because the count beside it is a door to a
-// list of cards whose every verb dies with the seal. History's door leads
-// somewhere READING is the whole point, and reading is all a sealed review has
-// left. `:not(.gly-versions-open)` says that in the selector rather than in a
-// second sweep that would fight this one.
+// AND `.gly-census button:not(.gly-versions-open)` HAS LEFT THIS LIST WITH THE
+// STRIP IT NAMED. It carried the one exemption this list ever had — the census
+// was a group of VIEW DOORS and History's door led somewhere reading is the
+// whole point, so the narrowing said that in the selector rather than in a
+// second sweep. The strip and the History chip are both deleted (the scrubber
+// is the record's only door now, and it is a keyframe track and not a verb), so
+// the entry and its exemption go together: an exemption whose subject is
+// deleted must be deleted with it, and a selector matching nothing is a dead
+// entry §8 in web/layers.mjs is built to name.
 //
-// Measured before the exemption: the door was shown, on screen and reachable by
-// `elementFromPoint`, and `disabled` — the exact combination that reads as a
-// broken control rather than an absent one, which this codebase already rates
-// as the worse of the two.
+// `.gly-bar-count` IS WHAT REPLACES IT, AND IT IS THE COUNT'S HALF, NOT THE
+// DOOR'S. The narrow bar's `Instructions · N` is the one surviving way into the
+// review's list (`openInstructions`), and on a sealed page every verb on every
+// one of those cards is dead — which is the exact argument that put
+// `.gly-census-count` here when the census still existed. It is NOT in
+// SEAL_ONLY_VERBS: `paintBarCount` re-derives the flag from `this.sealed`, and
+// `applySeal`'s unseal branch already runs it, so it has a painter this edge
+// runs — the first clause of the invariant below rather than the second.
 export const SEALED_VERBS =
   '.gly-thread-delete, ' +
   '.gly-thread-edit, .gly-thread-edit-text, .gly-thread-edit-save, ' +
-  '.gly-overall-input, .gly-census button:not(.gly-versions-open), ' +
+  '.gly-overall-input, .gly-bar-count, ' +
   '.gly-composer button, ' +
   '.gly-composer-text, .gly-capture button, .gly-capture-open';
 
@@ -287,12 +292,14 @@ export const SEALED_VERBS =
  *     `this.sealed` every time it opens.
  *   - `.gly-composer-send` is built once in `makeComposer` and appended to the
  *     body.
- *   - `.gly-comment-button`, its sibling, was left OUT of this list for one
- *     round on the strength of "it recovers through
- *     `placeComposerButton`/`hideComposer`" — and it does, but only when the
- *     reviewer makes a gesture, and a gesture is not an edge. Its three writers
- *     are `placeComposerButton` (only on the `place` verdict; a selection that
- *     has not moved is `keep`, which writes no flag), `hideComposer` and
+ *   - `.gly-comment-button`, its sibling, was here for the same reason and is
+ *     DELETED WITH THE BUTTON: the composer opens its form on the selection
+ *     now (spec §1), so there is no intermediate press to seal. It was left
+ *     OUT of this list for one round first, on the strength of "it recovers
+ *     through `placeComposerButton`/`hideComposer`" — which it did, but only
+ *     when the reviewer made a gesture, and a gesture is not an edge. Its
+ *     writers were `placeComposerButton` (only on the `place` verdict; a
+ *     selection that has not moved is `keep`, which writes no flag) and
  *     `openSectionComposer`, and the unseal edge runs none of them. So a
  *     composer left placed across a seal came back from Reopen with a dead
  *     comment button, and clicking it could not even fix it: `.gly-composer`
@@ -331,17 +338,18 @@ export const SEALED_VERBS =
  * `sendComment`'s in-flight `settled`, which now defers to the seal for the same
  * reason `fileNote` does.
  *
- * `.gly-census-count` IS THE SIXTH, AND IT JOINED THE MOMENT IT STOPPED BEING A
- * READOUT. It was a `<span>` — nothing to disable, nothing to re-enable — and
- * it is a button now, because the sheet is the review's whole list at every
- * width and this is how it is opened. Like `.gly-census-overall` beside it, it
- * is built ONCE in `makeCensus` and never rebuilt: `paintCensus` writes its
- * TEXT on every poll and re-derives the `disabled` flag of `✓ all` and nothing
- * else. Left out of this list, the first seal would take the way into the
- * settled conversations away for the life of the tab, and Reopen would hand
- * back every verb on the page except the one that reaches the record. It is
- * caught by §8's own rule and not by a fresh one — every selector in
- * SEALED_VERBS either has a painter the unseal edge runs, or is here.
+ * `.gly-census-count` WAS THE SIXTH AND IT IS DELETED, WITH THE STRIP THAT
+ * BUILT IT. It joined the moment it stopped being a readout: built ONCE in
+ * `makeCensus` and never rebuilt, so the seal was the only writer of its flag
+ * in either direction. The census is gone and the count it carried is
+ * `.gly-bar-count`, built once in `makeBottomBar` — but that one is NOT this
+ * list's case, because `paintBarCount` re-derives its flag from `this.sealed`
+ * on every poll and `applySeal`'s unseal branch runs it. It belongs in
+ * SEALED_VERBS with a painter, and a seal-only entry for it would be this list
+ * claiming an owner it does not have — the same distinction `.gly-capture-open`
+ * is held to below. Keeping the dead entry here would have been worse than an
+ * absence: §8b requires every selector this list owns to match something and
+ * be killed, and a selector matching nothing satisfies "killed" vacuously.
  *
  * `.gly-composer-cancel` IS THE SEVENTH AND IT JOINED WITH ITS OWN BIRTH. It
  * is built once in `makeComposer` beside `.gly-composer-send`, appended to the
@@ -387,8 +395,8 @@ export const SEALED_VERBS =
  * requires every selector in it to match something, so a dead entry is a named
  * failure instead of a silent subtraction from a group query. */
 export const SEAL_ONLY_VERBS =
-  '.gly-census-count, .gly-overall-input, .gly-composer-send, ' +
-  '.gly-composer-cancel, .gly-comment-button, .gly-composer-text, ' +
+  '.gly-overall-input, .gly-composer-send, ' +
+  '.gly-composer-cancel, .gly-composer-text, ' +
   '.gly-capture-cancel';
 
 export function reopenLine(by: string, note: string): string {
@@ -454,7 +462,7 @@ export const sealMethods = {
         .then(() => this.readRevise())
         .catch(() => {});
     });
-    anchor.parentNode.insertBefore(b, anchor.nextSibling);
+    anchor.insertAdjacentElement('beforebegin', b);
     this.paintCancelOn(b);
     return b;
   },
@@ -495,6 +503,17 @@ export const sealMethods = {
     this.sealLanding = d.landing || 0;
     if (now !== was) {
       this.applySeal(was, d);
+      // THE FOOTER LEARNS ABOUT THE SEAL HERE OR NEVER. `keyframeAt` flips the
+      // head keyframe to the accent fill on `sealed` (web/timeline.ts) and
+      // `paintTimeline` reads `this.sealed` — but the seal's own edge called
+      // neither painter, and the only other callers are the first build, the
+      // scrub and History. So an approved review kept a grey head keyframe
+      // until the reviewer happened to drag the scrubber: the one mark on the
+      // page that says the document is finished, missing at the moment it
+      // becomes true. The frame goes with it because the eyebrow reads the same
+      // phase (`phaseOf`'s `sealed`).
+      this.paintTimeline();
+      this.paintFrame();
     }
     this.paintSeal();
   },
@@ -538,7 +557,7 @@ export const sealMethods = {
     // — twice: three elements the first time, and the comment button the
     // second, after the invariant was sharpened from "has a painter" to "has a
     // painter THIS EDGE RUNS".
-    this.paintCensus();
+    this.paintBarCount();
     this.paintRail();
     this.releaseSealOnlyVerbs();
     // A reopened review takes the verdict button back from `approved`: the
@@ -655,7 +674,6 @@ export const sealMethods = {
   // than a view door filed with the verbs.
   sealHides(this: AppShell): (HTMLElement | null)[] {
     return [
-      this.census && this.census.count,
       this.modeUI && this.modeUI.toggle,
       this.modeUI && this.modeUI.hold,
       this.revise,
@@ -680,6 +698,16 @@ export const sealMethods = {
         el.disabled = sealed;
       }
     }
+    // THE PRIMARY STAYS ON SCREEN AND SAYS WHAT WAS DECIDED (spec §5). The
+    // past tense used to be written only by the press that earned it
+    // (postVerdict), which is right for the reviewer who pressed it and wrong
+    // for every later load of the same sealed page: the server's seal arrives
+    // on the poll and the button still read `Approve`, disabled, over a review
+    // that was already over. Derived from `sealed` here so both paths agree.
+    if (sealed && this.reviseApprove) {
+      this.reviseApprove.textContent = APPROVE_DONE;
+      this.approved = true;
+    }
     if (!sealed) {
       // HANDED BACK TO THEIR OWN PAINTERS, never left at `false`. hold is
       // disabled on ask and Revise is disabled while a command runs; a blanket
@@ -689,7 +717,7 @@ export const sealMethods = {
       this.paintRevise();
     }
     this.sealUI.readout.classList.toggle('gly-seal-off', !sealed);
-    this.sealUI.readout.textContent = sealed
+    const line = sealed
       ? sealLine(
           this.sealVerdict,
           this.sealAt,
@@ -698,6 +726,18 @@ export const sealMethods = {
           this.sealLanding,
         )
       : '';
+    this.sealUI.readout.textContent = line;
+    // AND THE WHOLE SENTENCE IS REACHABLE WHERE THE CELL CANNOT HOLD IT. The
+    // readout yields and ellipsises rather than pushing the bar past the window
+    // (`.gly-seal`, editor.css) — measured 114px of spill at 390px — and an
+    // ellipsis owes the reader the text it ate. `title` is the bar's own
+    // mechanism for that; it is set from the same string, so the two can never
+    // disagree.
+    if (line) {
+      this.sealUI.readout.title = line;
+    } else {
+      this.sealUI.readout.removeAttribute('title');
+    }
     this.applySealedVerbs();
   },
 

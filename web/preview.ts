@@ -127,8 +127,21 @@ export function mountPreview(
   main.insertBefore(split, mount);
   panes.appendChild(iframe);
   panes.appendChild(mount);
-  split.appendChild(viewbar);
   split.appendChild(panes);
+
+  // The pill lives in the sheet's eyebrow, not the split — page mode is the
+  // only mode this file ever runs in (see the header), so the eyebrow this
+  // build already made (frame.ts's makeFrame, run in the App constructor
+  // before mountPreview is ever called) is always on the page by now. Sit it
+  // before the `?` button, the eyebrow's own last child.
+  const editorMount = document.getElementById('editor');
+  if (editorMount?.dataset.pageMode === '1') {
+    const eyebrow = document.querySelector('.gly-eyebrow');
+    const helpBtn = eyebrow?.querySelector('.gly-help-open');
+    if (eyebrow && helpBtn) {
+      eyebrow.insertBefore(viewbar, helpBtn);
+    }
+  }
 
   // One scroll for both panes: the iframe carries no internal scrollbar; it is
   // sized to its own content height so the window scrolls the page and the

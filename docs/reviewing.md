@@ -16,21 +16,30 @@ The model is one paragraph. You edit the draft directly, and those edits are the
 
 Every round is a version. Nothing is a proposal you have to accept.
 
-## The bar
+## The frame
 
-The bar across the top carries, left to right: the document's name, `Instructions · N`, `History`, the status readout, then the `live` switch, `⏸ hold`, and the primary button.
+There are three strips around the document, and each answers a different question.
 
-The status readout is one line, composed newest-first, and it ellipsizes from the right:
+**The header** carries the document's name, the directory it is in, and the status readout — a small dot, then one line composed newest-first, ellipsizing from the right:
 
 ```
-requesting a revision… · round 3 · draft · saved just now
+requesting a revision… · round 3 · draft · your edits apply · saved just now
 ```
 
 - The first clause, when there is one, is the server's reply to whatever you last pressed.
 - Then where the document is: `round N` — the number of rounds this document has been through — or `v1` before the first round exists, followed by `draft` while the document is yours, `with the agent` while it is not, or `settled` once the review is over.
+- `your edits apply` appears while you have unsent edits of your own, because that is the one thing about this editor that surprises people.
 - Then the connection: `saved just now` (or `2m ago`, `1h ago`), or plain `connected` before anything has been written, or `connecting…` if the socket is not up.
 
-`Instructions · N` counts the instructions you have written and not yet sent. Pressing it opens the list. `History` opens the record of rounds; it turns amber when something has arrived that you have not read.
+The dot tracks the same state in colour: green while the document is yours and quiet, coral while something is pending, accent while the agent is writing (it pulses then).
+
+**The eyebrow**, directly above the paper, says which version you are looking at — `WORKING DRAFT · ROUND 3` on the draft, `ROUND 3 · V4` once a round has landed, `VIEWING V2 · 4M AGO` while you are reading an earlier one. At its right are the theme button, `restore v2 as draft` when you are off the head, and `?`, which opens a short sheet of the five gestures.
+
+Under the eyebrow is the **whole-document slot**: a dashed `+ instruction on the whole document` row, and, when nothing is pending, the sentence `Select words to instruct that block, or add an instruction on the whole document.`
+
+**The footer** is the timeline and the primary button. The track carries one keyframe per round — `R1`, `R2`, `R3 · cannot` — and the handle is where you are on it. Beside the button, while you have unsent work, is the count that says what a press would send: `1 edit, 2 instructions →`.
+
+Below 992px the header's controls move to a bar across the bottom of the window, and the review's list opens as a full-screen sheet.
 
 ## Direct edits and instructions
 
@@ -44,7 +53,7 @@ The rule of thumb: fix it yourself if you can type the fix; leave an instruction
 
 ## Leaving an instruction on a span
 
-Select the words you mean. A small composer appears just below the selection with one button, **Add instruction**. Press it and the box opens, headed with what you selected:
+Select the words you mean. The instruction box opens just below the selection, headed with what you selected, and the rest of the document dims so you have one thing to read:
 
 ```
 INSTRUCTION · ON "the retry budget is generous"
@@ -52,7 +61,7 @@ INSTRUCTION · ON "the retry budget is generous"
 
 Type into the box — placeholder `what about it?` — and press Enter to file it. Shift-Enter breaks a line instead. `cancel` closes the composer, and so does Esc; the composer says `esc cancels` beside the button so you do not have to guess.
 
-Some places refuse an anchor. A selection touching a code fence, a table, front matter, or a display-math block replaces the **Add instruction** button with the reason, in the same voice the editor uses when it refuses a keystroke there:
+Some places refuse an anchor. A selection touching a code fence, a table, front matter, or a display-math block gets the reason instead of the box, in the same voice the editor uses when it refuses a keystroke there:
 
 > a code fence is literal text — galley never rewrites one, so it is read-only here
 > select and copy still work — edit fenced code in your own editor
@@ -61,26 +70,26 @@ Those blocks render and are selectable and copyable, and none of them is editabl
 
 ## Instructing a whole code block
 
-Hover a code block and a small `{}` grip appears in the left gutter, distinct from the other gutter affordances. Click it and the instruction box opens on the whole block — there is no selection, because a fence is one unit. Type the instruction and file it as you would any other. It anchors to the block, appears as a card in the rail beside it, and travels with the round; the agent rewrites the block's contents in reply. You still cannot type inside the fence or hang an instruction on a selection within it — the grip instructs the block as a whole, which is the one thing a fence can carry.
+Hover a code block and a small `{}` grip appears in the left gutter, distinct from the other gutter affordances. Click it and the instruction box opens on the whole block — there is no selection, because a fence is one unit. Type the instruction and file it as you would any other. It anchors to the block, pins as a row under it, and travels with the round; the agent rewrites the block's contents in reply. You still cannot type inside the fence or hang an instruction on a selection within it — the grip instructs the block as a whole, which is the one thing a fence can carry.
 
 ## Leaving an instruction on the whole document
 
-The first card at the top of the instruction rail is **+ instruction on the whole document**. Press it, type into the box (`add an instruction on the whole doc…`), and press Enter. Use it for anything without a place in the text: the tone, an argument that is missing, a structure you want changed.
+The dashed row above the paper is **+ instruction on the whole document**. Press it, type into the box (`add an instruction on the whole doc…`), and press Enter. Use it for anything without a place in the text: the tone, an argument that is missing, a structure you want changed. Filed whole-document instructions stay listed in that slot.
 
 ## Changing your mind before you send
 
-Every instruction becomes a card in the rail, headed `instruction · <what it is about> · <age>` — the anchor is quoted for a span, or reads `whole document`.
+An instruction with a place in the document is a **row pinned under its block** — `↳ <what you wrote>` with its state at the right and a `×` to remove it. That is its one surface: it is beside the words it is about, and there is no second copy of it anywhere.
 
-Each card carries two verbs:
+Whole-document instructions are rows in the slot above the paper, and each carries the same two verbs:
 
 - **edit** opens the words back up in a textarea with `save` and `cancel`. Saving is one mutation, not a delete and a re-file. An empty save is refused: `an instruction with no words is a delete`.
 - **delete** takes two clicks. The first arms it — the label becomes `delete?` and the card says `this removes the comment and its mark — click again`. The second click deletes. The arming lapses after four seconds on its own, so a card left armed is not a trap for the next click.
 
-If you delete the words an instruction was anchored to, the card does not disappear. It moves into an `unplaced · its words were removed` group and quotes the anchor it lost, struck through, so you can see which instruction is now floating.
+If you delete the words an instruction was anchored to, it does not disappear. It moves into an `unplaced · its words were removed` group under the slot and quotes the anchor it lost, struck through, so you can see which instruction is now floating.
 
 ## Sending
 
-The primary button on the right is the verdict.
+The primary button, at the right of the footer, is the verdict.
 
 With instructions pending it reads **`Revise · N ▾`** — the count is the number of instructions the server is holding, and the `▾` says the press opens a menu rather than sending. The menu has two exits:
 
@@ -89,46 +98,37 @@ With instructions pending it reads **`Revise · N ▾`** — the count is the nu
 
 **Revise & Approve** is a real conditional, not an optimistic approve. The review closes only when the agent returns with `answered`. If it returns `declined` or `failed`, or reports `cannot`, the review stays open and the document comes back to you.
 
-While a revision is out, the button counts: `revising · 12s`. It counts until the revision *lands*, not until the request returns, so a six-second revision shows six seconds. The document is read-only while the agent holds it and the readout says `with the agent`. A **`✕ cancel`** button appears beside the primary; it takes the document back, keeping the agent's partial work as that round if the file parses.
+While a revision is out, the button counts: `revising · 12s`. It counts until the revision *lands*, not until the request returns, so a six-second revision shows six seconds. The document is read-only while the agent holds it, the readout says `with the agent`, and the blocks the round is about keep their colour while the rest of the page stands back — each with a caret blinking at its end and its instruction's row reading `writing…`. A **`✕ cancel`** button appears beside the primary; it takes the document back, keeping the agent's partial work as that round if the file parses.
 
-With no instructions pending the button reads **`Approve`** and the press sends the approve directly — there is nothing to choose between. Once it lands, the label becomes `approved`, the bar shows the terminal line (`Approved 14:32 · review closed`), and the page stops taking input.
+With no instructions pending the button reads **`Approve`** and the press sends the approve directly — there is nothing to choose between. Once it lands, the label becomes `approved`, the button goes quiet and inert in place, the header shows the terminal line (`Approved 14:32 · review closed`), the head keyframe fills, and the page stops taking input.
 
 ## Reading what came back
 
-When a round lands, the readout says so and the `History` chip goes amber:
+When a round lands, the readout says so and a new keyframe appears on the timeline:
 
 ```
-v4 · agent revised · see History
+v4 · agent revised · on the timeline
 ```
 
-A strip announces it with the counts, taken from the server and not from anything the page drew:
+The round is read **where it happened**. The blocks the agent changed tint, and under each one a `WAS` strip carries what that passage said before, struck through, with the agent's own sentence about the change beneath it. The instruction that asked for it reads `applied` in its row; one the agent left alone reads `not applied`.
+
+If the agent could not do what you asked, the round is still cut — with the document unchanged — and a coral banner above the paper says so:
 
 ```
-round 3 answered · v4 · 3 changes
+round 3 · the agent could not · document unchanged
 ```
 
-If the agent could not do what you asked, the round is still cut — with the document unchanged — and it says so instead:
+The reason travels with it, and under it: *This is a report, not a conversation. Answer it with a different instruction in the next round.* The round's keyframe on the timeline is hollow and coral, labelled `· cannot`, so the refusal is in the record as well as on the page.
 
-```
-round 3 · the agent could not · v4
-```
+### Reading an earlier version
 
-The reason travels with it (`v4 · could not: the file it refers to does not exist in this repo`). A `cannot` is a report, not a conversation: you answer it with a different instruction in a new round.
+The timeline in the footer is the record. Drag its handle, press a keyframe, or step it with `←` and `→`: the paper crossfades to that version, the eyebrow reads `VIEWING V2 · 4M AGO`, and the primary becomes `← back to draft`. `Esc` returns to now, with the scroll position you left.
 
-Pressing `History` after an arrival lands you on that round's changes. Pressing it cold gives you the landing — every round, newest first, one card per exchange, each carrying `ROUND n · 4M AGO`, the instruction that produced it (`→ …`) and the agent's own sentence about the revision (`← …`), over `v4 · 3 changes`. `V1 · STARTING VERSION` sits at the foot: the file as galley opened it, which is not a round anybody had. With nothing there yet it says `No history yet — the first Revise creates a version.`
-
-Inside a round the sub-bar reads `ROUND 3 · V3 → V4` and offers two views:
-
-- **changes** — the round's document with the moved passages marked in place. This is the default; opening a round is already the question it answers.
-- **side by side** — `v3 · before` and `v4 · after`. It is unavailable on v1, which has nothing to sit beside.
-
-The rail beside the paper carries one card per change, `CHANGE 2 OF 3 · <nearest heading>`, with the instruction it answers and the agent's note on it. Clicking or pressing Enter on a card scrolls to that change on the paper and pins it; Esc releases the pin, and Esc again leaves History. A round that moved nothing says `identical — no changes in this round`.
-
-History is a reading mode and nothing in it changes the draft — the readout says `reading round 3 · draft is untouched` while you are there. The primary button becomes `← back to draft`, and the scroll position you left is restored.
+Nothing you do there changes the draft — the readout says `2 rounds · draft is untouched` while you are reading — and the whole-document slot goes away, because a version is a record and not somewhere to write.
 
 ### Restoring an older version
 
-At the right of the sub-bar, quietly, is **`restore v3 as draft`**. It copies that version over your current draft. It arms like the delete verb does: the first click changes it to `replace draft?`, the second sends, and the arming lapses after four seconds. It does not amend or delete any round — the next send records a normal new round from the restored draft — and the status line confirms `restored from v3 · not sent`.
+While you are reading a version, quietly at the right of the eyebrow, is **`restore v3 as draft`**. It copies that version over your current draft. It arms like the delete verb does: the first click changes it to `replace draft?`, the second sends, and the arming lapses after four seconds. It does not amend or delete any round — the next send records a normal new round from the restored draft — and the status line confirms `restored from v3 · not sent`.
 
 It refuses, with the reason, when:
 
@@ -144,20 +144,22 @@ The `live` switch decides whether the agent hears anything before you press Revi
 
 Off (the default), the agent hears nothing until you press Revise. On, the agent is woken whenever the document settles — you keep editing and it keeps working, without a press. The switch's tooltip says which state you are in and what a click does about it.
 
-In live mode a **`⏸ hold`** button appears beside it. Holding keeps new arrivals out of the rail; they still land in the document, they just wait for a card. The button then reads `▶ release · 2` with the number waiting, and releasing announces them in one batch. Hold is a queue over what the rail shows, never a gate on the document.
+In live mode a **`⏸ hold`** button appears beside it. Holding keeps new arrivals from being announced; they still land in the document, they just wait. The button then reads `▶ release · 2` with the number waiting, and releasing announces them in one batch. Hold is a queue over what the page shows, never a gate on the document.
 
 ## Keyboard
 
 | Key | What it does |
 |---|---|
-| `Esc` | Closes whatever is open, topmost first: a refusal note, the mark bubble, the composer, the verdict menu, the instruction sheet, History's pinned change, then History itself, then the whole-document panel. With nothing open, it takes focus out of the text and hands it back to the page. |
+| `Esc` | Closes whatever is open, topmost first: a refusal note, the mark bubble, the composer, the verdict menu, the instruction sheet, then the version you are reading. With nothing open, it takes focus out of the text and hands it back to the page. |
 | `Enter` | In any galley text box, files what you typed. |
 | `Shift-Enter` | Breaks a line inside a galley text box instead of filing. |
 | `Enter` / `Space` | On a focused card, reveals what that card is about. |
 | `Cmd-Z` / `Cmd-Shift-Z` | Undo and redo your own edits. |
-| `j` / `k` | **Currently step nothing** — see the note below. Inert while History is open. |
+| `j` / `k` | Step down and up through the pinned instruction rows, revealing each. Inert while you are reading an earlier version. |
+| `←` / `→` | Step the timeline one version back and forward. |
+| `Esc` | (again) returns to now from any version you are reading. |
 
-Two notes on that table. The document itself is an ordinary editable surface, so `j` and `k` are letters while the caret is in the text — press Esc first to hand focus back to the page. And `j`/`k` (and the narrow bar's `↓ next`) currently walk a list that is empty in the rounds workflow: they step nothing. Reach instructions by clicking their cards, by Tab, or through `Instructions · N`.
+One note on that table: the document itself is an ordinary editable surface, so every one of these letters is a letter while the caret is in the text — press Esc first to hand focus back to the page.
 
 ## What galley will not accept in the document
 

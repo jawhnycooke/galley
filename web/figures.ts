@@ -27,11 +27,17 @@ import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AppShell, Thread } from './appshell.ts';
 import type { BlockRef, Region } from './wire';
+import type { Composer } from './composer.ts';
 
 // How far into the left gutter the section grip sits, from the heading's own
 // left edge. The document column has 20px of padding around it (see editor.css),
 // so this places the button clear of the text without leaving the column.
 const GRIP_GUTTER_PX = 26;
+
+// The fence's `{}` sits FURTHER out than the section's §, because a fence is
+// drawn as a filled panel with its own padding where a heading is bare text:
+// the same 26px puts the button on the panel's own edge. 40 clears it.
+const CODE_GRIP_GUTTER_PX = 40;
 
 // A `.gly-figure` element, carrying the block it is currently armed for.
 // `__glyBlock` is read at CLICK time rather than bind time (see armFigure),
@@ -39,6 +45,25 @@ const GRIP_GUTTER_PX = 26;
 // built the button — and it is optional because the element exists before
 // the first paint has told it what block it is.
 type FigureElement = HTMLElement & { __glyBlock?: BlockRef | null };
+
+// openBlockBox puts the composer up as an EMPTY BOX over a block the caller has
+// already identified — the section §, the fence's {}, the figure's region. All
+// three arrive with the anchor decided, so none of them has a deny line to show
+// or a selection to quote; what they share is the reset, which is why it is one
+// function. (A SELECTION's opening is openComposerForm's, in composer.ts: it
+// has a refusal to consider and a caret to leave in the prose.)
+function openBlockBox(c: Composer): void {
+  c.root.hidden = false;
+  c.deny.hidden = true;
+  c.deny.textContent = '';
+  c.form.hidden = false;
+  c.input.value = '';
+  // Assigning `value` fires no `input` event, so the box would keep the height
+  // the last instruction grew it to. See growOnInput.
+  c.input.dispatchEvent(new Event('input'));
+  c.note.textContent = '';
+  c.note.classList.remove('gly-quiet');
+}
 
 export const figureMethods = {
   // --- figures, and the regions on them ---
@@ -181,15 +206,12 @@ export const figureMethods = {
   // A pin cannot "reveal" the way a mark does — there is no run and no span to
   // scroll to, and the figure is already on screen or the pin could not have
   // been clicked. What the reviewer wants is the other end of the pairing: WHICH
-  // card is this. So the card is scrolled into the rail's view and rung.
-  // WHICHEVER SURFACE IS ON SCREEN, not the rail. This looked the card up in
-  // `this.rail.root` alone and returned in silence when it was not there — so
-  // below the breakpoint, where the card is in the sheet, a figure's pin
-  // carried a tooltip promising a conversation and did nothing when tapped.
-  // The sheet is asked FIRST and only while it is open, for the same reason
-  // draftRoots puts it first: it renders the rail's threads too, so the two
-  // surfaces hold cards under the same key and the answer has to be the one
-  // the reviewer is looking at.
+  // card is this. So the card is scrolled into view and rung.
+  //
+  // THE SHEET IS THE ONLY SURFACE THAT HOLDS ONE. This asked the rail first and
+  // returned in silence when the card was not there, which is how a figure's
+  // pin below the breakpoint carried a tooltip promising a conversation and did
+  // nothing when tapped; the rail is deleted, so the sheet is the whole answer.
   //
   // And when the sheet is CLOSED below the breakpoint the pin opens it, because
   // "nothing happened" is the defect and a surface one tap away is not the same
@@ -204,8 +226,7 @@ export const figureMethods = {
     if (this.surfaces().bar && !this.sheetOpen) {
       this.openSheet();
     }
-    const el =
-      (this.surfaces().sheet && find(this.sheet.body)) || find(this.rail.root);
+    const el = this.surfaces().sheet ? find(this.sheet.body) : undefined;
     if (!el) {
       return;
     }
@@ -222,8 +243,6 @@ export const figureMethods = {
     const c = this.composer;
     this.hideComposer();
     c.root.hidden = false;
-    c.bar.hidden = true;
-    c.button.hidden = true;
     c.deny.hidden = true;
     c.form.hidden = false;
     c.input.value = '';
@@ -321,7 +340,7 @@ export const figureMethods = {
       grip.hidden = true;
       return;
     }
-    seatGrip(grip, preEl, pos);
+    seatGrip(grip, preEl, pos, CODE_GRIP_GUTTER_PX);
   },
 
   // openCodeBlockComposer selects the whole fence and opens the composer on it
@@ -358,18 +377,7 @@ export const figureMethods = {
     view.focus();
 
     const c = this.composer;
-    c.root.hidden = false;
-    c.bar.hidden = true;
-    c.button.hidden = true;
-    c.deny.hidden = true;
-    c.deny.textContent = '';
-    c.form.hidden = false;
-    c.input.value = '';
-    // Assigning `value` fires no `input` event, so the box would keep the
-    // height the last instruction grew it to. See openComposerForm.
-    c.input.dispatchEvent(new Event('input'));
-    c.note.textContent = '';
-    c.note.classList.remove('gly-quiet');
+    openBlockBox(c);
 
     // The block key comes from the SERVER's block list — it is a content hash,
     // and nothing in the browser can compute one. openSectionComposer's rule,
@@ -445,14 +453,11 @@ export const figureMethods = {
 
     const c = this.composer;
     const heading = doc.child(index);
-    c.root.hidden = false;
-    c.bar.hidden = false;
-    c.button.hidden = false;
-    c.deny.hidden = true;
-    c.deny.textContent = '';
-    c.form.hidden = true;
-    c.note.textContent = '';
-    c.note.classList.remove('gly-quiet');
+    // THE FORM, NOT A BAR WITH A BUTTON ON IT. The grip's gesture already says
+    // which section, so the box is what it should produce — the same one-step
+    // opening a selection now gets (composer.ts, placeComposerButton). The
+    // `Add instruction` bar it used to open is deleted.
+    openBlockBox(c);
 
     // The block key comes from the SERVER's block list — it is a content hash,
     // and nothing in the browser can compute one. A heading the last pending
@@ -464,12 +469,16 @@ export const figureMethods = {
     c.block = ref
       ? { key: ref.key, label: heading.textContent, region: null }
       : null;
+    // AND THE REFUSAL LANDS ON THE CONTROL THAT WOULD FILE IT. It used to
+    // disable the `Add instruction` button, which was the step BEFORE the box;
+    // there is no such step, so the box opens and its `file` is what is dead —
+    // the reviewer reads why beside the button they were about to press.
     if (!ref) {
-      c.button.disabled = true;
+      c.send.disabled = true;
       c.note.textContent =
         'not in the document yet — it lands on the next sync';
     } else {
-      c.button.disabled = false;
+      c.send.disabled = false;
     }
 
     // BELOW THE HEADING, for placeComposer's reason and one of its own: the
@@ -483,6 +492,7 @@ export const figureMethods = {
     this.placeComposer(start, end);
     this.headComposer(heading.textContent);
     this.grip.hidden = true;
+    c.input.focus();
   },
 };
 
@@ -569,11 +579,16 @@ function makeGripButton(
 // scrolling moves it with its block for free. That is not a micro-optimisation:
 // §2 forbids per-frame reflow, and a fixed-position grip would need re-measuring
 // on every scroll frame to stay beside the block it names.
-function seatGrip(grip: HTMLButtonElement, el: HTMLElement, pos: number) {
+function seatGrip(
+  grip: HTMLButtonElement,
+  el: HTMLElement,
+  pos: number,
+  gutter: number = GRIP_GUTTER_PX,
+) {
   const box = el.getBoundingClientRect();
   grip.dataset.pos = String(pos);
   grip.style.top = `${box.top + window.scrollY}px`;
-  grip.style.left = `${box.left + window.scrollX - GRIP_GUTTER_PX}px`;
+  grip.style.left = `${box.left + window.scrollX - gutter}px`;
   grip.hidden = false;
 }
 

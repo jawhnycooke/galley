@@ -22,7 +22,7 @@
 // (draftRoots/draftFields/captureDrafts/restoreDrafts), lit-run highlighting
 // (watchLit/litRuns/litRunAt/paintLit/runsNow/reveal), and the bar/census
 // wiring that watches the DOM for it (watchBar/chromeFrame/pulseCensus/
-// clearNewLater/readChanges) all stayed here because they are the shell's
+// clearNewLater) all stayed here because they are the shell's
 // own state, not because nobody got to them yet.
 //
 // Its READ surface is bigger than even that: immediately after the class
@@ -88,7 +88,7 @@
 //     THIS constructor, the same shape as `cardSizes` beside it. Moved to
 //     AppState; see appshell.ts's note at that field for the full argument.
 //   - AppMethods was missing every constructor-only builder this file calls
-//     by name (`makeCensus`, `makeSheet`, `makeRevise`, `onKey`, `refuse`,
+//     by name (`makeSheet`, `makeRevise`, `onKey`, `refuse`,
 //     `enterHistory`, and sixteen more) — real mixin methods from Tasks 5-7,
 //     each already carrying `this: AppShell`, that nothing before this task
 //     needed typed because nothing before this task's own constructor CALLED
@@ -140,12 +140,20 @@ import { historyMethods } from './history.ts';
 import { barMethods, MODE_ASK } from './bar.ts';
 import { verdictMethods } from './verdict.ts';
 import { sealMethods } from './seal.ts';
+import * as theme from './theme.ts';
+import { phase } from './phase.ts';
+import * as timeline from './timeline.ts';
+import type { TimelineUI } from './timeline.ts';
+import * as frame from './frame.ts';
+import type { FrameUI } from './frame.ts';
+import { rowMethods, rowsPlugin } from './rows.ts';
+import type { WasSpec } from './rows.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
 // header carries the whole argument: the two rails are one surface and were
 // built twice.
-import { revealMark, coalesce, growthWatch, anchorNote } from './card.ts';
+import { revealMark, growthWatch, anchorNote } from './card.ts';
 import { VersionsPanel } from './versions.ts';
 // getJSON/postJSON own talking to the server; see web/net.ts's header for why
 // they cannot live in a mixin.
@@ -174,12 +182,7 @@ import type {
   ThreadLike,
 } from './suggestions.ts';
 import { trailPlugin, trailPluginKey } from './trail.ts';
-import {
-  nextArrival,
-  ARRIVAL_AGENT,
-  ARRIVAL_FADE_MS,
-  ARRIVAL_SUFFIX,
-} from './arrivals.ts';
+import { ARRIVAL_AGENT, ARRIVAL_FADE_MS } from './arrivals.ts';
 import { settledNotes, readSettledOpen, carryDrafts } from './rail.ts';
 import { mountPreview } from './preview.ts';
 import { shellMarkerQuiet } from './marker.ts';
@@ -187,6 +190,7 @@ import { headingAlign } from './headingalign.ts';
 import type { Arrival } from './versions.ts';
 import type { Composer } from './composer.ts';
 import type { Mode, ModeUI } from './bar.ts';
+import type { ThemeChoice } from './theme.ts';
 import { makeMenu, openMenu, closeMenu, menuOpen } from './menu.ts';
 import type { DocMenu } from './menu.ts';
 import type { OverallCard, CaptureCard } from './cards.ts';
@@ -533,6 +537,19 @@ function trailMode(getBlocks: () => BlockRef[]) {
   });
 }
 
+// The rows: the plugin that pins each instruction under the block it is about,
+// and tints that block. onRemove is handed in for suggestionMode's reason —
+// the App whose × deletes the instruction does not exist until the Editor
+// this extension is part of has been constructed. See rows.ts.
+function rowsMode(onRemove: (key: string) => void) {
+  return Extension.create({
+    name: 'galleyRows',
+    addProseMirrorPlugins() {
+      return [rowsPlugin(onRemove)];
+    },
+  });
+}
+
 // --- the app ---
 
 // The shell's own global contract: `edit.html`'s load handler calls
@@ -650,6 +667,11 @@ function init(opts?: { room?: string; wsURL?: string }): void {
       }),
       trailMode(() => (app ? app.blocks : [])),
       litMode(),
+      rowsMode((key) => {
+        if (app) {
+          app.removeInstruction(key);
+        }
+      }),
       // PAGE MODE ONLY: quiet the `⟦ shell N ⟧` marker paragraphs. A node
       // decoration restyles them inert (hidden via CSS, contenteditable=false
       // so the caret skips them) while leaving the nodes — and content.md —
@@ -668,6 +690,8 @@ function init(opts?: { room?: string; wsURL?: string }): void {
   window.galleyEdit.editor = editor;
   window.galleyEdit.provider = provider;
   window.galleyEdit.app = app;
+  app.initTheme();
+  app.makeThemeButton();
 
   // PAGE MODE ONLY. The shell writes data-page-mode="1" and a data-preview URL
   // onto the mount when `galley edit page.html` runs (internal/serve/editmode.go);
@@ -741,14 +765,11 @@ class App implements AppState {
   prevSuggestions: SuggestionLike[] | null;
   comments: Thread[];
   changes: ReviewerChange[];
-  armedRevert: string | null;
-  armedRevertAt: number;
   blocks: BlockRef[];
   pendingCount: number;
   verdict: string;
 
-  // --- the rail, the sheet, and their shared card lists ---
-  rail: { root: HTMLElement; band: HTMLElement; notice: HTMLElement };
+  // --- the sheet, and the card lists it shares with the doc slot ---
   sheet: {
     root: HTMLElement;
     head: HTMLElement;
@@ -764,46 +785,30 @@ class App implements AppState {
   overall?: OverallCard;
   capture?: CaptureCard;
   cardSizes: ReturnType<typeof growthWatch>;
-  // See this file's own header for why this moved here from AppMethods.
-  scheduleAnchors: () => void;
   armedDelete: string | null;
   armedAt: number;
   editingThread: string | null;
   stepped: string | null;
 
-  // --- the bubble, and the census/bar chrome ---
+  // --- the bubble, and the bar chrome ---
   bubble: SuggestionUI;
-  census: { root: HTMLElement; count: HTMLButtonElement };
   bar: {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
-  strip: {
-    root: HTMLElement;
-    text: HTMLElement;
-    read: HTMLButtonElement;
-    show: HTMLButtonElement;
-    dismiss: HTMLButtonElement;
-    fade: HTMLElement;
-  };
-
-  // --- arrivals: the queue, the hold, the strip's batch ---
+  // --- arrivals: the queue and the hold ---
   arrivalQueue: ArrivalItem[];
-  stripBatch: ArrivalItem[];
   held: Set<string>;
   heldArrivals: ArrivalItem[];
   holding: boolean;
   newRuns: Set<string>;
-  // Two timer handles private to this file's own strip/badge painters — not
-  // shared with any mixin, so not in AppState. Both are direct, unconditional
-  // constructor assignments (`this.stripTimer = 0; this.newTimer = 0;`).
-  stripTimer: number;
+  // A timer handle private to this file's own badge painter — not shared with
+  // any mixin, so not in AppState. It is a direct, unconditional constructor
+  // assignment (`this.newTimer = 0;`).
   newTimer: number;
 
-  // --- History: the door, the round, the reading state ---
+  // --- History: the round and the reading state ---
   versionsPanel: VersionsPanel;
-  versionsButton: HTMLButtonElement;
   // The bar's capture door. Built once in the constructor and never rebuilt,
   // like its neighbour — the bar's controls outlive every paint.
   captureBtn: HTMLButtonElement;
@@ -825,10 +830,16 @@ class App implements AppState {
   reviseSecs?: HTMLElement;
   reviseApprove?: HTMLElement;
   reviseBack?: HTMLElement;
+  timelineLeft: HTMLElement | null;
+  reviseTrail: HTMLSpanElement | null;
+  scrubT: number;
+  timeline: TimelineUI | null;
+  frame: FrameUI | null;
   verdictMenu: HTMLElement | null;
   reviseRunning: boolean;
   approveNotBefore: number;
   reviseStartedAt: number;
+  reviseTimer: number | undefined;
 
   // --- the seal and the handoff (web/seal.ts) ---
   sealVerdict: string;
@@ -870,6 +881,12 @@ class App implements AppState {
   reviseWaiting: boolean;
   mode: Mode;
   modeUI: ModeUI;
+  theme: ThemeChoice;
+  themeButton: HTMLButtonElement | null;
+  readoutDot: HTMLSpanElement | null;
+  readoutText: HTMLElement | null;
+  arrivalWas: WasSpec[] | null;
+  revertFloat: HTMLButtonElement | null;
 
   // --- fields private to this file's own methods (lit-run highlighting,
   //     the caret-restoring rebuild, run memoisation) — no mixin reads any
@@ -919,8 +936,6 @@ class App implements AppState {
     this.suggestions = [];
     this.comments = [];
     this.changes = [];
-    this.armedRevert = null;
-    this.armedRevertAt = 0;
     // WHAT THE PRESS WILL SEND, as the server counted it. It is read off the
     // /_galley/pending payload beside the verdict itself (refreshPending) and
     // never off this page's own rail, for the reason the verdict is: a count
@@ -963,9 +978,13 @@ class App implements AppState {
     //
     // The answer is to stop assuming heights hold — `growthWatch` in card.ts,
     // which History's rail uses over its own cards for the same reason and
-    // carries the whole argument. It cannot feed itself because a placement
-    // pass writes only `top` on a card.
-    this.cardSizes = growthWatch(() => this.scheduleAnchors());
+    // carries the whole argument.
+    //
+    // THE PLACEMENT PASS IT USED TO SCHEDULE IS DELETED WITH THE RAIL, so what
+    // a grown card now needs is the slot repainted rather than re-measured:
+    // the anchorless group is in flow, and its section is rebuilt from the
+    // pending list. It cannot feed itself because `paintRail` writes no size.
+    this.cardSizes = growthWatch(() => this.paintRail());
 
     const mount = document.getElementById('editor');
     this.docName = (mount && mount.dataset.doc) || '';
@@ -1006,8 +1025,6 @@ class App implements AppState {
     this.blocks = [];
 
     this.status = this.makeStatus();
-    this.census = this.makeCensus();
-    this.rail = this.makeRail();
     this.composer = this.makeComposer();
     this.grip = this.makeGrip();
     // A second grip, in the same gutter and with its own glyph: a code fence
@@ -1030,7 +1047,6 @@ class App implements AppState {
       onClose: () => this.leaveHistory(),
       onCount: (count) => {
         this.historyCount = count;
-        this.paintVersionsButton();
         // The readout names the round, so a round landing has to repaint it.
         this.paintReadout();
       },
@@ -1043,11 +1059,17 @@ class App implements AppState {
       onStage: () => {
         this.paintReadout();
         this.paintRevise();
+        // The rounds are the keyframes: a refresh that changes the record
+        // changes the track. This is refresh()'s own hook, fired after
+        // `rounds` is set, so the panel needs no reference back to the App.
+        this.paintTimeline();
       },
     });
-    this.versionsButton = this.makeVersionsButton();
-    // AFTER History, so the bar reads Instructions · History · + Instruction:
-    // the two doors to what already exists, and then the verb that makes one.
+    // THE FRAME BEFORE THE VERB THAT LIVES IN IT. makeFrame builds the eyebrow
+    // row, the whole-doc slot and the `?` sheet around the paper; the capture
+    // door is appended INTO that slot, so the slot has to exist first.
+    this.frame = null;
+    this.makeFrame();
     this.captureBtn = this.makeCaptureButton();
     // Paint the peer control's count on first load without opening History.
     // Fire-and-forget: this is the constructor, nothing is awaiting a
@@ -1055,7 +1077,12 @@ class App implements AppState {
     // reviewer opens it — refresh()'s own bare `.catch(() => {})`
     // (versions.ts) already absorbs the error, so there is nothing left for
     // this call site to report either.
-    void this.versionsPanel.refresh();
+    // AND THE SCRUBBER IS BUILT ON THAT SAME FETCH. makeTimeline needs two
+    // things this line is between: `timelineLeft`, which makeRevise builds
+    // further down this constructor, and the rounds this refresh reads — so it
+    // is chained onto the promise rather than called beside it. The `.then`
+    // cannot run before the constructor returns, by which time makeRevise has.
+    void this.versionsPanel.refresh().then(() => this.makeTimeline());
     // THE ARRIVAL. Phase 2's agent writes its revision INTO the document, so the
     // change lands under the reviewer's cursor with nothing pending to announce
     // it — the rail counts proposals and there are none. `seenRound` is what
@@ -1071,6 +1098,16 @@ class App implements AppState {
     // back to ask on screen while the server kept notifying — the toggle and
     // the behaviour disagreeing is worse than either state.
     this.mode = MODE_ASK;
+    this.theme = 'system';
+    this.themeButton = null;
+    // Built lazily by makeReadoutDot on the first paintReadout — see
+    // web/bar.ts.
+    this.readoutDot = null;
+    this.readoutText = null;
+    // The arrival's news, absent until a round lands — see web/rows.ts. The
+    // revert pill is built lazily on the first hover over a ghost.
+    this.arrivalWas = null;
+    this.revertFloat = null;
     // Hold's state has to exist before makeMode paints the button.
     this.holding = false;
     this.held = new Set();
@@ -1088,14 +1125,8 @@ class App implements AppState {
     // through. Not the rail's card list: a card can be decided, scrolled past
     // or collapsed away without anyone having seen what landed.
     this.arrivalQueue = [];
-    // What the CURRENTLY VISIBLE strip is about. Coalescing is tied to the
-    // strip being on screen (handoff §4: "a second arrival WHILE THE STRIP IS
-    // VISIBLE rewrites it"), so this resets once it has faded.
-    this.stripBatch = [];
     this.newRuns = new Set();
-    this.stripTimer = 0;
     this.newTimer = 0;
-    this.strip = this.makeStrip();
 
     // Where the reviewer was, in coordinates a fragment rebuild cannot
     // destroy. See keepPlace.
@@ -1109,6 +1140,7 @@ class App implements AppState {
     this.reviseRunning = false;
     this.approveNotBefore = 0;
     this.reviseStartedAt = 0;
+    this.reviseTimer = undefined;
     // The verdict on offer, and whether an approve has already landed. Revise
     // until the first /_galley/pending answers: it is the today-behaviour, and
     // the safe default while the census is still unknown — an Approve shown
@@ -1120,6 +1152,10 @@ class App implements AppState {
     // shell without the Revise button has nothing to hang it off.
     this.verdictMenu = null;
     this.verdictOpen = false;
+    this.timelineLeft = null;
+    this.reviseTrail = null;
+    this.scrubT = 1;
+    this.timeline = null;
     this.revise = this.makeRevise();
 
     // THE HANDOFF. While the agent holds the file the document is read-only
@@ -1168,6 +1204,8 @@ class App implements AppState {
     this.litHover = '';
     this.litFocus = '';
     this.watchLit();
+    // The `× revert` pill over a deletion ghost — see web/pending.ts.
+    this.watchGhosts();
     this.refusalTimer = 0;
     this.refusalTick = 0;
     this.refusalPending = null;
@@ -1195,11 +1233,11 @@ class App implements AppState {
         }
         return this.bubbleThreadCard(thread);
       },
-      // railSurfaces itself, through the one accessor paintSurfaces also uses —
-      // not a second spelling of the width test, and not the width test at all.
-      // "Is the rail carrying conversations" is the question, and collapsed at
-      // 1600px it is not, though the window is as wide as they come.
-      railShown: () => this.surfaces().rail,
+      // THERE IS NO RAIL TO CARRY THE CONVERSATION ANY MORE, so the bubble is
+      // the answer at every width. This used to ask `surfaces().rail` — "is the
+      // rail carrying conversations", which was a state and not a width, and
+      // collapsed at 1600px the answer was no.
+      railShown: () => false,
       frame: () => this.chromeFrame(),
       // AND WHERE THE RAIL IS CARRYING IT, THE CLICK GOES TO THE CARD. A
       // comment highlight used to open a bubble with two verbs and no
@@ -1242,30 +1280,42 @@ class App implements AppState {
       // a popover that is about the reviewer's newest selection. The handle is
       // held so `placeComposerButton` can cancel it; nothing else in this file
       // may hide the composer from a timer without doing the same.
+      //
+      // AND AN OPEN BOX IS NEVER DISMISSED BY A BLUR AT ALL. This timer was
+      // written for the popover's RESTING face — a bar with one button on it,
+      // over a selection the reviewer had finished with — and dismissing that
+      // on a click elsewhere was free, because reopening it was one gesture.
+      // A selection opens the BOX now (spec §1), and the editor loses focus for
+      // reasons that are not the reviewer walking away: the textarea itself
+      // takes it, a remote rebuild moves it, the window loses it. Throwing a
+      // half-written instruction away on any of those is unrecoverable —
+      // nothing in galley un-deletes typing.
+      //
+      // WHAT CLOSES AN OPEN BOX IS THE SELECTION, WHICH IS THE HONEST OWNER:
+      // clicking into other words is a new placement, and `placeComposerButton`
+      // hides an EMPTY box on the way (see its `hide` branch, which keeps one
+      // the reviewer is in or has written in). Esc and `cancel` close it
+      // outright. The blur timer keeps only the case it was built for.
       window.clearTimeout(this.blurDismiss);
       this.blurDismiss = window.setTimeout(() => {
         this.blurDismiss = 0;
-        if (!this.composer.root.contains(document.activeElement)) {
-          this.hideComposer();
+        if (this.composer.root.contains(document.activeElement)) {
+          return;
         }
+        if (!this.composer.form.hidden) {
+          return;
+        }
+        this.hideComposer();
       }, 0);
     });
 
-    // A card's position is a fact about where its mark is in the viewport, so
-    // it has to be recomputed on everything that can move a mark relative to
-    // it: the page scrolling, the window resizing, and the document changing
-    // (which includes every suggestion arriving over the websocket).
-    //
-    // Coalesced into one animation frame rather than run per event: a scroll
-    // fires these faster than a layout read can answer, and coordsAtPos forces
-    // layout. `scroll` is captured so it catches a scrollable ancestor too.
-    // `coalesce` in card.ts, which History's rail uses too — four lines, which
-    // is exactly the size at which two copies drift without anyone noticing.
-    this.scheduleAnchors = coalesce(() => this.paintAnchors());
-    window.addEventListener('scroll', this.scheduleAnchors, {
-      passive: true,
-      capture: true,
-    });
+    // THE CAPTURED SCROLL LISTENER AND `scheduleAnchors` ARE DELETED WITH THE
+    // RAIL. They existed because a card's position was a fact about where its
+    // mark sat relative to it, so every scroll frame, resize and remote edit
+    // had to re-run `paintAnchors`. Nothing measures a mark to place a card any
+    // more: an instruction with a place in the document is a ProseMirror widget
+    // row pinned to its block, which the editor lays out, and an anchorless one
+    // is in flow in the sheet's slot.
     // Where the READER put the page, as opposed to where a rebuild threw it.
     // See keepPlace: `restoring` is what tells the two apart.
     this.placeScrollY = window.scrollY;
@@ -1279,11 +1329,9 @@ class App implements AppState {
       { passive: true },
     );
     editor.on('transaction', ({ transaction }) => this.keepPlace(transaction));
-    window.addEventListener('resize', this.scheduleAnchors);
     // Crossing the breakpoint is a resize like any other, and there is exactly
     // one place that decides what a width means.
     window.addEventListener('resize', () => this.paintSurfaces());
-    editor.on('update', () => this.scheduleAnchors());
     // A NodeView is rebuilt from scratch when its node changes, and takes the
     // ⊕ button and every pin on it with it. Re-fitting them is not layout, so
     // it does not belong in the rAF-throttled anchor pass — an update is
@@ -1357,8 +1405,6 @@ class App implements AppState {
     });
     window.addEventListener('resize', () => closeMenu(this.menu));
 
-    // After scheduleAnchors exists: paintSurfaces re-measures when the rail
-    // comes back, and a rail painted while hidden measured every card at zero.
     this.paintSurfaces();
     // Fire-and-forget: the first paint of the pending view on page load. A
     // failure here leaves the rail empty until the next `tick()` poll
@@ -1478,10 +1524,6 @@ class App implements AppState {
     if (!el) {
       return '';
     }
-    const card = el.closest<HTMLElement>('.gly-rail-band .gly-card[data-run]');
-    if (card) {
-      return card.dataset.run || '';
-    }
     const mark = el.closest('.ProseMirror [data-run]');
     const run = mark ? mark.getAttribute('data-run') || '' : '';
     if (!run) {
@@ -1497,23 +1539,15 @@ class App implements AppState {
   // half of it would be the third reading of one span this codebase has already
   // paid for once.
   //
-  // ONE REFUSAL, WHERE THERE WERE FOUR. `connectorGeometryFor` stated four —
-  // no rail on screen, no mark in the document, no card in the band, an adrift
-  // card — because a LINE has two ends and either can be missing. A light has
-  // one: the words say *the card over there is about these*, so the only thing
-  // that has to be true is that the card is there. The rail collapsed and the
-  // sheet open both take the band's cards off the page, an adrift card is
-  // adrift precisely because its mark is NOT in the document (so `markRuns`
-  // finds nothing to light and the old fourth clause is moot), and a thread
-  // with no card in the band was never in this query's answer.
+  // NO REFUSAL LEFT, BECAUSE THE CARD END IS GONE. `connectorGeometryFor`
+  // stated four — no rail on screen, no mark in the document, no card in the
+  // band, an adrift card — because a LINE has two ends and either can be
+  // missing; the light narrowed that to one, *is the card there*. The rail is
+  // deleted and there is no card to be there, so what is left is the PROSE
+  // half: the run under the cursor lights its own span, and its paired
+  // insertion with it, which is the whole of what `.gly-lit` still means.
   litRuns(run: string): string[] {
     if (!run) {
-      return [];
-    }
-    const card = this.rail.band.querySelector(
-      `.gly-card[data-run="${cssEscape(run)}"]`,
-    );
-    if (!card) {
       return [];
     }
     const s = this.suggestions.find((x) => x.run === run);
@@ -1522,24 +1556,14 @@ class App implements AppState {
 
   // paintLit writes both ends from the one state.
   //
-  // IT IS CALLED AT THE END OF EVERY REPAINT, and that is not belt and braces.
-  // The card's class is on an element `paintRail` has just destroyed and built
-  // again, so it lives on the App — the same rule this codebase already applies
-  // to the delete control's armed flag — and this is where it is put back. The
-  // prose's half needs no such help and that is the point of it being a
+  // IT IS STILL CALLED AT THE END OF EVERY REPAINT, and it no longer has to be.
+  // The card end lived on an element `paintRail` destroyed and rebuilt, so the
+  // run was held on the App and put back here; the card end is deleted with the
+  // rail. What is left needs no such help and that is the point of it being a
   // decoration: ProseMirror re-derives it on every redraw instead of wiping it.
   paintLit() {
     const run = this.litHover || this.litFocus;
     const runs = this.litRuns(run);
-    // The card end. Its own element, so a class here is ours to write.
-    for (const card of this.rail.band.querySelectorAll<HTMLElement>(
-      '.gly-card',
-    )) {
-      card.classList.toggle(
-        'gly-lit',
-        runs.length > 0 && card.dataset.run === run,
-      );
-    }
     // The prose end. NEVER a class on a mark — see lit.ts.
     const view = this.editor && this.editor.view;
     if (!view) {
@@ -1584,10 +1608,6 @@ class App implements AppState {
     }
     anchorNote(el).textContent = '';
     revealMark(mark);
-    // The scroll moves every anchor, so every card's position is now stale —
-    // and a smooth scroll is still running after this frame returns.
-    this.scheduleAnchors();
-    window.setTimeout(() => this.paintAnchors(), 450);
   }
 
   // --- keeping the reviewer's place across a remote rebuild ---
@@ -1678,7 +1698,7 @@ class App implements AppState {
       // this sentence is about whoever's server-side mutation replaced the
       // document, which this page cannot name and must not guess. See
       // arrivals.ts's ARRIVAL_AGENT.
-      this.showStrip(
+      this.say(
         `${ARRIVAL_AGENT} edited inside your selection — only your cursor was put back`,
       );
     }
@@ -1698,11 +1718,11 @@ class App implements AppState {
     //
     // Before the mitigation existed the page jumped and the reviewer knew
     // something had happened. So when the caret cannot be placed, the scroll
-    // is left where the rebuild put it and the strip says why. The reviewer
+    // is left where the rebuild put it and the readout says why. The reviewer
     // gets the signal back, and now also gets a sentence.
     const lost = focused && this.place !== null && span === null;
     if (lost) {
-      this.showStrip(
+      this.say(
         `${ARRIVAL_AGENT} edited the paragraph you were in — your cursor moved`,
       );
       this.restoring = false;
@@ -1761,150 +1781,6 @@ class App implements AppState {
     return section;
   }
 
-  makeStrip() {
-    const root = document.createElement('div');
-    root.className = 'gly-strip';
-    root.hidden = true;
-    // The strip is the only notice an off-screen arrival gets, so it has to
-    // reach a screen reader too. polite, never assertive: interrupting what is
-    // being read is the same discourtesy as moving the caret.
-    root.setAttribute('role', 'status');
-    root.setAttribute('aria-live', 'polite');
-
-    const text = document.createElement('span');
-    text.className = 'gly-strip-text';
-
-    // THE ONE FILLED VERB ON THE STRIP, and it is a DEEP LINK rather than a
-    // scroll. Board 1e: the question a reviewer has the instant a round lands
-    // is not "where is it" but "what did it do to my document", and the only
-    // surface that answers that is the round's own reading state. This lands
-    // there — `showRound(n, 'inplace')`, through toggleVersions' arrival branch
-    // so there is ONE spelling of the deep link — not on History's landing,
-    // which answers the other question.
-    const read = document.createElement('button');
-    read.type = 'button';
-    read.className = 'gly-strip-read';
-    read.textContent = 'read changes';
-    read.title = 'open this round in History, on what it changed';
-    read.addEventListener('click', () => this.readChanges());
-
-    const show = document.createElement('button');
-    show.type = 'button';
-    show.className = 'gly-strip-show';
-    show.textContent = 'show me';
-    show.title =
-      'scroll to what arrived — the only thing on this strip that moves the page';
-    show.addEventListener('click', () => this.showMe());
-
-    // THE QUIET WAY OUT, and it takes nothing with it. Dismissing is "not now",
-    // never "seen" — the History chip stays amber until the changes are
-    // actually READ, because a notice a reviewer waved away is not a round they
-    // looked at, and the amber is the only durable trace the arrival leaves.
-    const dismiss = document.createElement('button');
-    dismiss.type = 'button';
-    dismiss.className = 'gly-strip-dismiss';
-    dismiss.textContent = 'dismiss';
-    dismiss.title = 'put this away — History stays marked until you read it';
-    dismiss.addEventListener('click', () => this.hideStrip());
-
-    // Handoff §11, verbatim. It says both that this notice is about to go and
-    // that the fact survives it, which is what makes fading acceptable.
-    const fade = document.createElement('span');
-    fade.className = 'gly-strip-fade';
-    fade.textContent = ARRIVAL_SUFFIX;
-
-    root.append(text, read, show, dismiss, fade);
-    document.body.appendChild(root);
-    return { root, text, read, show, dismiss, fade };
-  }
-
-  // showStrip has TWO CALLERS SAYING TWO DIFFERENT THINGS, and the difference
-  // is which verb the strip offers and whether it fades.
-  //
-  // An ARRIVED ROUND (`round`, board 1e) is a durable fact with somewhere to
-  // go: `read changes` and `dismiss`, and NO TIMER. The 8-second fade was
-  // designed for a strip with no way out and a count that kept the fact for it;
-  // this one HAS a way out, and what it announces is not "three edits went past
-  // while you were reading" but "the round you sent came back", which is still
-  // worth acting on after the paragraph you are in the middle of.
-  //
-  // Anything else keeps the old shape — `show me` and the fading suffix.
-  //
-  // The verbs are switched with `hidden` and not with visibility: nothing here
-  // is reserving a box (the strip is absent entirely between arrivals, so there
-  // is no neighbour to slide), and `hidden` takes the unused verb out of the
-  // TAB ORDER as well as out of the paint. A button hidden in CSS is still a
-  // button to the keyboard — this codebase learned that from the fold clusters
-  // and pays for it every time it forgets.
-  showStrip(message: string, round: Arrival | null = null) {
-    if (!message) {
-      return;
-    }
-    this.strip.text.textContent = message;
-    this.strip.read.hidden = !round;
-    this.strip.dismiss.hidden = !round;
-    this.strip.show.hidden = !!round;
-    this.strip.fade.hidden = !!round;
-    this.strip.root.hidden = false;
-    if (this.stripTimer) {
-      window.clearTimeout(this.stripTimer);
-      this.stripTimer = 0;
-    }
-    if (!round) {
-      this.stripTimer = window.setTimeout(
-        () => this.hideStrip(),
-        ARRIVAL_FADE_MS,
-      );
-    }
-  }
-
-  // readChanges is the strip's filled verb. It hides the notice and hands the
-  // gesture to toggleVersions, which already owns the arrival deep link — the
-  // strip does not get a second copy of `showRound(n, 'inplace')`, because two
-  // spellings of one landing is how the two come to disagree about which round
-  // an arrival opens.
-  readChanges() {
-    this.hideStrip();
-    this.toggleVersions();
-  }
-
-  hideStrip() {
-    if (this.stripTimer) {
-      window.clearTimeout(this.stripTimer);
-      this.stripTimer = 0;
-    }
-    this.strip.root.hidden = true;
-    // The batch is what THIS strip was about. The queue is not cleared: the
-    // arrivals are still unseen, and `show me` is still how they are reached
-    // once the strip has gone — through the card, or j/k, or the sheet.
-    this.stripBatch = [];
-  }
-
-  // showMe is the ONE thing on this surface that moves the page, and it moves
-  // it because the reviewer asked. Repeat clicks step through the queue.
-  showMe() {
-    const step = nextArrival(this.arrivalQueue, this.suggestions);
-    this.arrivalQueue = step.queue;
-    if (!step.arrival) {
-      this.hideStrip();
-      return;
-    }
-    const arrival = step.arrival;
-    if (!arrival.run) {
-      // `nextArrival` only ever returns an entry it found in `live`
-      // (`arrivals.ts`'s own Set of defined run strings), so this is
-      // unreachable in practice — narrowed rather than trusted, since
-      // ArrivalItem's `run` is genuinely optional at the type.
-      this.hideStrip();
-      return;
-    }
-    const card = this.cards.find((c) => c.run === arrival.run);
-    this.reveal(arrival.run, card ? card.el : this.strip.root);
-    if (this.arrivalQueue.length === 0) {
-      this.hideStrip();
-    }
-  }
-
   // The count pulsing is how an arrival reaches someone whose eyes are in the
   // document: a number that changed is the smallest possible interruption, and
   // unlike the strip it is telling the truth for as long as it stands.
@@ -1917,7 +1793,7 @@ class App implements AppState {
   // it land in. The hidden one takes the class harmlessly; the visible one
   // shows it. Which is which is the stylesheet's business, not this method's.
   pulseCensus() {
-    for (const el of [this.census.count, this.bar && this.bar.count]) {
+    for (const el of [this.bar && this.bar.count]) {
       if (!el) {
         continue;
       }
@@ -1949,66 +1825,23 @@ class App implements AppState {
   // see makeSeal for the whole argument, and for the one asymmetry between the
   // two verbs that is worth knowing before either comes back.
 
-  // --- the notes rail ---
-
-  // makeRail builds the column: the map, and a notice under it.
+  // --- the rail is deleted ---
   //
-  // THE RAIL HOLDS LIVE WORK ONLY, and that is the whole of its job: *here is
-  // what needs you, beside the text it is about*. Nothing else lives here.
+  // `makeRail` built the margin column — `.gly-rail > .gly-rail-band +
+  // .gly-rail-notice`, the positioned card map and the flow beneath it — and
+  // appended it to `document.body` on every load. Task 9 replaced the surface it
+  // was: an instruction with a place in the document is a ProseMirror widget row
+  // pinned under its block (web/rows.ts), one about the whole document is a row
+  // in the sheet's dashed slot, and the anchorless group is a section of that
+  // slot. The column had no third thing to hold, and it kept drawing the one
+  // card it still built — the dashed `HOW THIS WORKS` teach card — at the right
+  // of a page whose design has no right-hand column.
   //
-  //   .gly-rail-band    anchored cards, at their marks
-  //   .gly-rail-notice  one sentence when the map is empty for a reason
-  //
-  // THREE SECTIONS ARE GONE AND EACH LEFT FOR ITS OWN REASON.
-  //
-  //   `.gly-rail-settled` — finished conversations. Not live work, and beside
-  //   nothing. They are the SHEET's now (paintSheetSettled), which already
-  //   scrolls and is already the surface that answers "show me everything in
-  //   this review". The cost is real and was accepted: reopening a settled
-  //   thread is two gestures where it was one click on a bar, and the bar cost
-  //   every review while reopening is rare.
-  //
-  //   `.gly-rail-changed` — the trail's log. Deleted outright rather than
-  //   moved, because the trail is an OUTGOING MESSAGE TO THE AGENT and not a
-  //   history: nobody browses it, so no surface anywhere holds one. The count
-  //   rides the button that sends it. See rail.ts's outgoingCounts, which
-  //   carries the argument in full, and answer the question it poses there
-  //   (WHEN would the reviewer open it) before proposing a drawer again.
-  //
-  //   `.gly-rail-anchorless` — the old loose container is gone, but its live
-  //   work is not. Threads whose original mark disappeared render as complete
-  //   cards in `.gly-rail-unplaced` inside the notice flow, preserving delete
-  //   without pretending they can be positioned beside prose.
-  //
-  // Court, on the four sections it used to have: *"why does the settled/changed
-  // float with? why is there a settled vs changed in the first place? what's
-  // the difference?"* — settled is finished conversations and changed was the
-  // reviewer's own edits, two unlike things in one grey costume, and if the
-  // reviewer cannot tell them apart the presentation has already failed.
-  //
-  // See docs/superpowers/specs/2026-08-16-the-rail-holds-live-work.md.
-  makeRail() {
-    const root = document.createElement('aside');
-    root.className = 'gly-rail';
-    root.id = 'gly-rail';
-    // The band is the positioned context every anchored card lives in, and it
-    // is as tall as the cards it holds (paintAnchors writes that height —
-    // absolutely positioned children contribute none of their own). Its
-    // coordinates are the DOCUMENT's, less the band's own top; nothing below
-    // reads window.scrollY, because paintAnchors has already added it.
-    const band = document.createElement('div');
-    band.className = 'gly-rail-band';
-    // The flow below the positioned map holds empty-state copy and, when an
-    // instruction has lost its mark, a small section of complete cards. Those
-    // cards receive the same 26px gutter as the positioned band; without it the
-    // old loose container measured 1280/304 against 1306/278 for every other
-    // card and made one rail speak two visual languages.
-    const notice = document.createElement('div');
-    notice.className = 'gly-rail-notice';
-    root.append(band, notice);
-    document.body.appendChild(root);
-    return { root, notice, band };
-  }
+  // Everything that only ever wrote into it went with it: `paintAnchors`,
+  // `setBandHeight`, `scheduleAnchors` and its scroll/resize listeners, the
+  // captured `.gly-rail-band` lookups in `litRuns`/`paintLit`, and `railShown`.
+  // The three sections it had already lost are recorded in the spec:
+  // docs/superpowers/specs/2026-08-16-the-rail-holds-live-work.md.
 
   // --- the trail: the changed region, and the save that persists it ---
 
@@ -2153,14 +1986,33 @@ class App implements AppState {
   // a consumer of a value that only exists to be written. The bottom bar is
   // absent above the breakpoint, and `hidden` is exactly what paintSurfaces
   // toggles, so its height is 0 there without a width test here.
+  // AND THE FOOT IS THE LOWEST OF THE FIXED SURFACES, NOT THE BOTTOM BAR ALONE.
+  // `.gly-timeline` is the second one: `position: fixed; bottom: 0`, on the
+  // body at every width, and taller than the bar (its own padding puts its top
+  // about 90px up, against the bar's 40). It sits at `z-index: 10` under the
+  // bar's 50, so the bar is not covered — but the strip of window ABOVE the bar
+  // and under the timeline is chrome the prose is not readable through, and
+  // this function did not know it existed. Measured in `web/layers.mjs` §7c: a
+  // mark scrolled to just above `.gly-bottombar` answered `elementFromPoint`
+  // with `.gly-timeline` and the click that would open its conversation never
+  // reached the prose; the bubble, which places against this band, could be
+  // clamped to a floor inside the timeline for the same reason. Reading the
+  // lower of the two tops is the same claim this function always made, over the
+  // surfaces the page actually has.
   chromeFrame() {
     const view =
       document.documentElement.clientHeight || window.innerHeight || 0;
     const head = document.querySelector('.gly-bar');
-    const foot = this.bar && this.bar.root;
     const top = head ? head.getBoundingClientRect().height : 0;
-    const bottom =
-      foot && !foot.hidden ? foot.getBoundingClientRect().height : 0;
+    const feet: (HTMLElement | null)[] = [
+      this.bar ? this.bar.root : null,
+      document.querySelector<HTMLElement>('.gly-timeline'),
+    ];
+    const bottom = feet.reduce(
+      (h: number, el) =>
+        el && !el.hidden ? Math.max(h, el.getBoundingClientRect().height) : h,
+      0,
+    );
     return { top, bottom: view - bottom };
   }
 
@@ -2226,7 +2078,6 @@ class App implements AppState {
     if (this.sheetOpen && this.sheet) {
       roots.push(this.sheet.root);
     }
-    roots.push(this.rail.root);
     if (this.overall) {
       roots.push(this.overall.root);
     }
@@ -2336,10 +2187,6 @@ class App implements AppState {
     // between now and the reviewer's next scroll re-stacks the ones below it
     // instead of being drawn over them.
     this.watchCards();
-    // Last, and after every card is in the DOM at its real height: a card's
-    // position is measured from its own height, and a card that is not laid
-    // out has none.
-    this.paintAnchors();
     // EVERY REBUILD MAKES NEW BUTTONS, so a sealed review has to disable them
     // again — the seal is a state, and this function destroys the elements
     // that were carrying it.
@@ -2407,13 +2254,50 @@ Object.assign(App.prototype, verdictMethods);
 // constants it owns — are their own module too — see web/seal.ts — mixed in
 // for the same reason.
 Object.assign(App.prototype, sealMethods);
+// The theme — reading the stored choice, painting data-theme and the header
+// button, and cycling auto → light → dark — is its own module too — see
+// web/theme.ts — mixed in for the same reason.
+Object.assign(App.prototype, {
+  initTheme: theme.initTheme,
+  applyTheme: theme.applyTheme,
+  cycleTheme: theme.cycleTheme,
+  makeThemeButton: theme.makeThemeButton,
+});
+// The footer scrubber — the keyframe track, the drag, and the crossfade
+// between two versions of the sheet — is its own module too — see
+// web/timeline.ts — mixed in for the same reason. Only the DOM half is mixed
+// in; the pure half above it in that file is imported by name where needed.
+Object.assign(App.prototype, {
+  makeTimeline: timeline.makeTimeline,
+  paintTimeline: timeline.paintTimeline,
+  atHead: timeline.atHead,
+  scrubMax: timeline.scrubMax,
+  scrubTo: timeline.scrubTo,
+  scrubStep: timeline.scrubStep,
+  scrubHome: timeline.scrubHome,
+});
+// The frame around the sheet — the eyebrow, the whole-doc slot, the could-not
+// banner and the `?` help — is its own module too — see web/frame.ts — mixed
+// in for the same reason. Only the DOM half; the pure `eyebrowLeft` above it
+// in that file is imported by name where needed.
+Object.assign(App.prototype, {
+  makeFrame: frame.makeFrame,
+  paintFrame: frame.paintFrame,
+});
+// The one derived phase — see web/phase.ts's own header for why it is never
+// stored.
+Object.assign(App.prototype, { phase });
+// The rows pinned inside the paper — see web/rows.ts — mixed in for the same
+// reason. Only the `this`-bound half; the plugin and its pure `blockEnd` are
+// imported by name above.
+Object.assign(App.prototype, rowMethods);
 
 // A DECLARATION, NOT A CHECK — see this file's own header and
 // web/appshell.ts's for the whole argument. Every member of AppMethods
 // arrives through one of the ten `Object.assign` calls immediately above,
 // so no class body declares them and `implements` cannot verify them; this
 // merges their names and signatures onto `App`'s type so the calls this
-// file itself makes to them (`this.makeCensus()` in the constructor,
+// file itself makes to them (`this.makeSheet()` in the constructor,
 // `this.onKey(event)` in the keydown listener, and so on) type-check
 // against a real claim rather than an implicit `any`.
 interface App extends AppMethods {}
@@ -2567,16 +2451,9 @@ export function spanIn(doc: PMNode, place: Place | null): Span | null {
 // sectionSpan and indexOfChild moved to web/figures.ts with placeGrip,
 // openSectionComposer and figurePairs, their only readers.
 
-// cssEscape wraps CSS.escape, which every browser this editor supports has —
-// but jsdom and some headless harnesses do not, and a delegated listener that
-// throws takes every later one down with it. The fallback is deliberately
-// narrow: a run is a hex token from the Go side, so quoting is enough.
-function cssEscape(value: string): string {
-  const s = String(value);
-  return typeof CSS !== 'undefined' && CSS.escape
-    ? CSS.escape(s)
-    : s.replace(/["\\]/g, '\\$&');
-}
+// `cssEscape` IS DELETED WITH ITS LAST CALLER. It quoted a run for the
+// `.gly-rail-band .gly-card[data-run=...]` lookup in litRuns; the rail's card
+// end of the light is gone and no selector here interpolates a value any more.
 
 // sameFlags compares two per-note settled lists. Cheap, and the reason
 // paintNoteState can run on every editor update without dispatching one.

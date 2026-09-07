@@ -963,6 +963,19 @@ func (s *EditServer) handleMode(w http.ResponseWriter, r *http.Request) {
 // load-bearing, why every read goes through an os.Root rather than through
 // string arithmetic on the URL, and why a figure that is a SYMLINK is refused
 // even when it points inside the directory.
+// fontFiles are the faces web/editor.css names. Each is its own route, like
+// editor.js and mermaid.js, because edit mode serves an allowlist and never a
+// directory — see editassets.go.
+var fontFiles = []string{
+	"instrument-sans-latin-400-normal.woff2",
+	"instrument-sans-latin-400-italic.woff2",
+	"instrument-sans-latin-500-normal.woff2",
+	"instrument-sans-latin-600-normal.woff2",
+	"jetbrains-mono-latin-400-normal.woff2",
+	"jetbrains-mono-latin-500-normal.woff2",
+	"jetbrains-mono-latin-600-normal.woff2",
+}
+
 func (s *EditServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/yjs/{room}", s.onlyThisRoom(s.yjs))
@@ -976,6 +989,17 @@ func (s *EditServer) Handler() http.Handler {
 	// justfile's assets target.
 	mux.HandleFunc("/_galley/mermaid.js", serveAssetHint("assets/mermaid.js",
 		"application/javascript; charset=utf-8", "`just assets`, which builds the editor bundle"))
+	for _, f := range fontFiles {
+		mux.HandleFunc("/_galley/fonts/"+f, serveAssetHint("assets/fonts/"+f,
+			"font/woff2", "a checkout that includes internal/serve/assets/fonts"))
+	}
+	// AND THE LICENCE THE FACES ARE SERVED UNDER. Both families are OFL, which
+	// requires the licence to travel with the fonts; it is embedded in the
+	// binary and had no route, so the one file the licence obliges galley to
+	// make available was the one file it would not serve.
+	mux.HandleFunc("/_galley/fonts/LICENSE-OFL.txt", serveAssetHint(
+		"assets/fonts/LICENSE-OFL.txt", "text/plain; charset=utf-8",
+		"a checkout that includes internal/serve/assets/fonts"))
 	// The caret, committed rather than built — unlike the three routes above,
 	// this one never 404s on a fresh checkout.
 	mux.HandleFunc("/_galley/favicon.svg", serveAsset("assets/favicon.svg", "image/svg+xml"))
@@ -1026,6 +1050,34 @@ func (s *EditServer) onlyThisRoom(next http.Handler) http.Handler {
 	})
 }
 
+// displayDir is the document's directory as the header prints it: the real
+// path, with the reviewer's home abbreviated to `~`.
+//
+// IT USED TO BE `filepath.Rel` AGAINST THE WORKING DIRECTORY, and on the
+// ordinary case — galley started in the directory the document is in — that
+// answers `.`, which the header rendered as the literal `..` beside the
+// filename. A relative path is the right answer for a terminal, where the
+// reader already knows where they are standing; the header is read in a
+// browser, often hours later, and what it has to say is WHICH document this
+// is. `~` is the one abbreviation that shortens the common case without
+// hiding anything: it is unambiguous, and it is what the reviewer's own shell
+// prints.
+func displayDir(mdPath string) string {
+	dir := filepath.Dir(mdPath)
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return dir
+	}
+	if dir == home {
+		return "~"
+	}
+	// The separator matters: `/home/bo` must not abbreviate `/home/bob/docs`.
+	if strings.HasPrefix(dir, home+string(filepath.Separator)) {
+		return "~" + dir[len(home):]
+	}
+	return dir
+}
+
 func (s *EditServer) handleEditRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		s.serveSibling(w, r)
@@ -1036,13 +1088,16 @@ func (s *EditServer) handleEditRoot(w http.ResponseWriter, r *http.Request) {
 	if s.pageMode {
 		previewURL = "/_galley/preview/" + s.previewRel
 	}
+	docPath := displayDir(s.MdPath)
 	if err := editShell.Execute(&buf, struct {
 		Title      string
+		Path       string
 		Room       string
 		PageMode   bool
 		PreviewURL string
 	}{
 		Title:      filepath.Base(s.MdPath),
+		Path:       docPath,
 		Room:       s.Room,
 		PageMode:   s.pageMode,
 		PreviewURL: previewURL,

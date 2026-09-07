@@ -16,9 +16,7 @@
 // interface does not list is a type error naming the overreach on sight.
 // REJECTED, because the mixins do not, in fact, keep to disjoint surfaces —
 // web/history.ts's own header says so in words ("mixins all land on one
-// shared prototype... ordinary, not a boundary violation") and its own
-// `paintVersionsButton`, writing `this.bar.versions` — a field web/sheet.ts
-// owns — is that header's worked example. Four mixins converted TODAY
+// shared prototype... ordinary, not a boundary violation"). Four mixins converted TODAY
 // already share `this.cards`, `this.rail`, `this.editor`, `this.sheetCards`,
 // `this.sheetOpen`, `this.versionsPanel`, `this.closeSheet`,
 // `this.paintSurfaces` and `this.step`. Twenty-one further mixin files
@@ -129,6 +127,11 @@ import type { OverallCard, CaptureCard } from './cards.ts';
 import type { DocMenu, MenuItem } from './menu.ts';
 import type { ReviseWatchView } from './verdict.ts';
 import type { growthWatch } from './card.ts';
+import type { ThemeChoice } from './theme.ts';
+import type { Phase } from './phase.ts';
+import type { TimelineUI } from './timeline.ts';
+import type { FrameUI } from './frame.ts';
+import type { WasSpec, RowSpec } from './rows.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -259,11 +262,14 @@ export interface AppState {
   pendingCount: number;
   verdict: string;
 
-  // --- the rail, the sheet, and their shared card lists ---
-  // `band` and `notice` join `root` now that cards.ts is converted (Task 7)
-  // and reads both directly (`this.rail.band`, `this.rail.notice`) —
-  // makeRail (entry.ts) always builds and returns all three together.
-  rail: { root: HTMLElement; band: HTMLElement; notice: HTMLElement };
+  // --- the sheet, and the card lists it shares with the doc slot ---
+  // `rail` IS GONE. It was `{ root, band, notice }` — the margin column, the
+  // positioned card map inside it and the flow beneath — and Task 9 deleted the
+  // surface: an instruction with a place in the document is a row under its
+  // block, an anchorless one is a row in the sheet's dashed slot, and there is
+  // no third place for either to also be. Everything that only ever wrote into
+  // the band went with it (paintAnchors, setBandHeight, scheduleAnchors, and
+  // the card half of the lit pairing).
   sheet: {
     root: HTMLElement;
     head: HTMLElement;
@@ -286,61 +292,37 @@ export interface AppState {
   // two have different lifetimes: the panel above is repainted on every poll,
   // this exists only while somebody is typing. See cards.ts.
   capture?: CaptureCard;
-  // The growth watch over the rail's own cards — CLAUDE.md's "a card's
-  // height is not a constant" guard. `this.cardSizes = growthWatch(...)` is
-  // a direct, unconditional constructor assignment.
+  // The growth watch over the review's cards — CLAUDE.md's "a card's height
+  // is not a constant" guard. `this.cardSizes = growthWatch(...)` is a direct,
+  // unconditional constructor assignment.
   cardSizes: ReturnType<typeof growthWatch>;
-  // TASK 8 CORRECTION: this was declared as a METHOD in AppMethods
-  // (`scheduleAnchors(): void;`) on the assumption every member arriving
-  // through Object.assign belongs there. It does not arrive that way —
-  // `this.scheduleAnchors = coalesce(() => this.paintAnchors());` in
-  // entry.ts's own constructor is a direct, unconditional FIELD assignment,
-  // the identical shape as `cardSizes` immediately above it. Moved here
-  // rather than left as a method: a class field of function type and an
-  // interface method signature are structurally compatible at every call
-  // site (`this.scheduleAnchors()` reads the same either way, and bar.ts,
-  // cards.ts and keys.ts all call it that way), so the error was invisible
-  // until `class App implements AppState` had a real constructor line to
-  // check it against.
-  scheduleAnchors: () => void;
   // Which thread's delete control is armed, and since when — on the App
   // rather than in the button, because paintRail destroys and rebuilds
   // every card. Both are direct, unconditional constructor assignments
   // (`this.armedDelete = null; this.armedAt = 0;`).
   armedDelete: string | null;
   armedAt: number;
-  // armedRevert is the same two-step arming for the change cards' one verb,
-  // kept SEPARATE from armedDelete so arming a delete cannot disarm a revert
-  // (or the other way round) — two verbs sharing one timer is a control
-  // disarmed by a press somewhere else on the screen.
-  armedRevert: string | null;
-  armedRevertAt: number;
   // Which instruction is open for editing, keyed by the thread's stable
   // key — same rule and same constructor line as armedDelete.
   editingThread: string | null;
   stepped: string | null;
 
-  // --- the bubble, and the census/bar chrome ---
+  // --- the bubble, and the bar chrome ---
   bubble: SuggestionUI;
-  census: { root: HTMLElement; count: HTMLButtonElement };
   bar: {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
-  strip: { root: HTMLElement };
 
-  // --- arrivals: the queue, the hold, the strip's batch ---
+  // --- arrivals: the queue and the hold ---
   arrivalQueue: ArrivalItem[];
-  stripBatch: ArrivalItem[];
   held: Set<string>;
   heldArrivals: ArrivalItem[];
   holding: boolean;
   newRuns: Set<string>;
 
-  // --- History: the door, the round, the reading state ---
+  // --- History: the round and the reading state ---
   versionsPanel: VersionsPanel;
-  versionsButton: HTMLButtonElement;
   // The bar's capture door. Built once in the constructor and never rebuilt,
   // like its neighbour — the bar's controls outlive every paint.
   captureBtn: HTMLButtonElement;
@@ -373,6 +355,27 @@ export interface AppState {
   reviseSecs?: HTMLElement;
   reviseApprove?: HTMLElement;
   reviseBack?: HTMLElement;
+  // The footer's left column and its trail label (`edits, instructions →`),
+  // both built alongside the button in makeRevise — null until the first
+  // build, the same nullability as `revise` itself.
+  timelineLeft: HTMLElement | null;
+  reviseTrail: HTMLSpanElement | null;
+
+  // --- the scrubber (web/timeline.ts) ---
+  // `scrubT` is continuous in [1, scrubMax()]; at the max the page is the live
+  // editor and nothing is faded. `timeline` is null until makeTimeline runs —
+  // it needs `timelineLeft`, which makeRevise builds, and the first rounds
+  // fetch, which resolves after the constructor.
+  // Constructor: `this.scrubT = 1; this.timeline = null;`.
+  scrubT: number;
+  timeline: TimelineUI | null;
+
+  // --- the frame around the sheet (web/frame.ts) ---
+  // The eyebrow row, the whole-doc slot, the could-not banner and the `?`
+  // sheet. Null until makeFrame runs — it needs `.ProseMirror`, which the
+  // editor builds — and null forever on a shell that has no document.
+  // Constructor: `this.frame = null;`.
+  frame: FrameUI | null;
   // The verdict menu — built on the first press that needs it
   // (`this.verdictMenu = null;` is the constructor's own direct,
   // unconditional line; `openVerdictMenu` fills it in later).
@@ -383,6 +386,10 @@ export interface AppState {
   reviseRunning: boolean;
   approveNotBefore: number;
   reviseStartedAt: number;
+  // tick's own 500ms self-chain while a revision is running (web/pending.ts)
+  // — set only while a chain is alive, so the outer setInterval beat never
+  // starts a second concurrent chain.
+  reviseTimer: number | undefined;
 
   // --- the seal and the handoff (web/seal.ts) ---
   // Every one of these is a direct, unconditional constructor line:
@@ -449,6 +456,30 @@ export interface AppState {
   reviseWaiting: boolean;
   mode: Mode;
   modeUI: ModeUI;
+
+  // --- theme (web/theme.ts) ---
+  theme: ThemeChoice;
+  themeButton: HTMLButtonElement | null;
+
+  // --- the readout dot (web/bar.ts / web/phase.ts) ---
+  // Built lazily, on the first paintReadout, by makeReadoutDot — genuinely
+  // absent until then, so `null` rather than a definite-assignment lie.
+  readoutDot: HTMLSpanElement | null;
+  // The span inside `#gly-status` the sentence is written into — see
+  // makeReadoutDot for why the words are not written into the readout itself.
+  readoutText: HTMLElement | null;
+
+  // --- the pinned rows inside the paper (web/rows.ts) ---
+  // What each revised block used to say. The ARRIVAL's news rather than the
+  // pending view's, so it starts genuinely absent — `null`, not an empty list,
+  // which would claim "the round changed nothing" before a round has landed.
+  // (Which instructions the round APPLIED used to be cached beside this as
+  // `appliedKeys`; it is read straight off `round.asks[].answered` in
+  // rows.ts's sentRows now, one source rather than a copy of one.)
+  arrivalWas: WasSpec[] | null;
+  // The `× revert` pill that follows the pointer over a deletion ghost. Built
+  // lazily on the first hover, like readoutDot above.
+  revertFloat: HTMLButtonElement | null;
 }
 
 // THE METHODS ARRIVE AT RUNTIME, WHICH IS WHY THEY ARE A SEPARATE INTERFACE.
@@ -461,17 +492,16 @@ export interface AppMethods {
   closeSheet(): void;
   closeVerdictMenu(): void;
   hideComposer(): void;
-  openComposerForm(): void;
+  openComposerForm(focus?: boolean): void;
+  dimForComposing(): void;
   menuItems(): MenuItem[];
   hideRefusal(): void;
-  hideStrip(): void;
-  paintVersionsButton(): void;
   runsNow(): SuggestionRun[];
   step(direction: 1 | -1): void;
   stepOrder(): string[];
   clearNewLater(): void;
   noticeArrivals(arrived: ArrivalItem[]): void;
-  paintCensus(): void;
+  paintBarCount(): void;
   paintHold(): void;
   paintRail(): void;
   paintReadout(): void;
@@ -479,12 +509,12 @@ export interface AppMethods {
   pulseCensus(): void;
   readRevise(): void;
   refreshPending(): Promise<void>;
+  watchGhosts(): void;
   reconcileRunSets(
     arrived: ArrivalItem[],
     resolved: (string | undefined)[],
   ): void;
   sectionFor(run: SuggestionRun | null): string;
-  showStrip(text: string, arrival?: Arrival | null): void;
   // SUPERSEDES an earlier generic stub (`<T extends { run?: string }>`)
   // written before this method's body existed. verdict.ts's withhold reads
   // `kind`/`author` off every arrival to reconstruct a `SuggestionLike` for
@@ -495,13 +525,11 @@ export interface AppMethods {
   withhold(arrived: ArrivalItem[]): ArrivalItem[];
   say(text: string): void;
   surfaces(): {
-    rail: boolean;
     bar: boolean;
     sheet: boolean;
     collapsed: boolean;
   };
-  toggleVersions(): void;
-  showArrival(): void;
+  readArrivalInline(n: number): void;
   openInstructions(): void;
   paintSheet(): void;
   paintSheetSettled(): void;
@@ -509,8 +537,6 @@ export interface AppMethods {
   setSettledOpen(open: boolean): void;
   applySettledOpen(): void;
   threadCard(thread: Thread, place: Placement): HTMLElement;
-  changeCard(change: ReviewerChange): HTMLElement;
-  revertButton(change: ReviewerChange, note: HTMLElement): HTMLButtonElement;
 
   // --- Revise, the verdict menu, and hold/release (web/verdict.ts) ---
   askRevise(): void;
@@ -540,7 +566,6 @@ export interface AppMethods {
   // --- the rail's cards, and the whole-document instruction
   //     (web/cards.ts) ---
   unwatchCards(): void;
-  setBandHeight(px: number): void;
   paintOverall(): void;
   makeOverallCard(): OverallCard;
   openCapture(): void;
@@ -618,16 +643,28 @@ export interface AppMethods {
   // constructor called — never another mixin — so nothing before this task
   // ever needed it typed. Converting entry.ts means typing its constructor,
   // and its constructor calls every one of these by name
-  // (`this.makeCensus()`, `this.onKey(event)`, and so on), so they join the
+  // (`this.makeSheet()`, `this.onKey(event)`, and so on), so they join the
   // shared surface now for the same reason every earlier member did: a
   // member silently missing from AppShell that a real caller still needs is
   // exactly the wrong assumption this file exists to make loud. ---
 
   // --- History's own door and reading-mode entry/exit (web/history.ts) ---
-  makeVersionsButton(): HTMLButtonElement;
   enterHistory(): void;
   leaveHistory(): void;
   didRestore(version: number, error: string): void;
+
+  // --- the footer scrubber (web/timeline.ts) ---
+  makeTimeline(): void;
+  paintTimeline(): void;
+  // See timeline.ts: THE one predicate for "am I off the head".
+  atHead(): boolean;
+  scrubMax(): number;
+  scrubTo(t: number): void;
+  scrubStep(delta: -1 | 1): void;
+  scrubHome(): void;
+  // --- the frame around the sheet (web/frame.ts) ---
+  makeFrame(): void;
+  paintFrame(): void;
 
   // --- the keyboard (web/keys.ts) ---
   onKey(event: KeyboardEvent): void;
@@ -646,21 +683,18 @@ export interface AppMethods {
   // --- the rail's cards: the placement pass itself and its two builders
   //     (web/cards.ts) ---
   watchCards(): void;
-  paintAnchors(): void;
   paintRailCards(): void;
-  paintRailThreads(band: HTMLElement): HTMLElement[];
+  paintRailThreads(): HTMLElement[];
   bubbleThreadCard(thread: Thread): HTMLElement;
 
   // --- the bar's own builders (web/bar.ts) ---
   makeStatus(): HTMLElement;
-  makeCensus(): { root: HTMLElement; count: HTMLButtonElement };
   makeMode(): ModeUI;
 
   // --- the bottom bar and the sheet (web/sheet.ts) ---
   makeBottomBar(): {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
   makeSheet(): {
     root: HTMLElement;
@@ -681,6 +715,20 @@ export interface AppMethods {
 
   // --- Revise's own builder (web/verdict.ts) ---
   makeRevise(): HTMLButtonElement | null;
+
+  // --- theme (web/theme.ts) ---
+  initTheme(): void;
+  applyTheme(): void;
+  cycleTheme(): void;
+  makeThemeButton(): void;
+
+  // --- the one derived phase (web/phase.ts) ---
+  phase(): Phase;
+
+  // --- the pinned rows inside the paper (web/rows.ts) ---
+  sentRows(phase: 'revising' | 'review' | 'cannot'): RowSpec[];
+  paintRows(): void;
+  removeInstruction(key: string): void;
 }
 
 // What a mixin method's `this` is: both halves together.

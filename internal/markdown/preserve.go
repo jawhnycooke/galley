@@ -104,7 +104,7 @@ func SerializeOnto(d docmodel.Doc, prev []byte) []byte {
 // re-render and never a wrong write.
 func candidates(prev []byte) map[string][]string {
 	out := map[string][]string{}
-	_, rest := splitFrontMatter(prev)
+	_, rest := SplitFrontMatter(prev)
 	for _, chunk := range chunkStarts(rest) {
 		doc, comments, err := Parse([]byte(chunk))
 		if err != nil || len(comments) > 0 {

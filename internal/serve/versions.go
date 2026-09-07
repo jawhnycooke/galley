@@ -531,6 +531,70 @@ type roundView struct {
 	// A count, not a diff: it is recomputed on every request from the two
 	// documents, and nothing about it is stored.
 	Changed int `json:"changed"`
+	// Asks is the round's instructions with their keys, and whether the
+	// agent's own changes claimed them — the client's "not applied" row is
+	// this bit.
+	Asks []askView `json:"asks,omitempty"`
+}
+
+// askView is one instruction the round carried and whether the agent's
+// changes claimed it — the client's "not applied" row is this bit.
+type askView struct {
+	Key      string `json:"key"`
+	Text     string `json:"text"`
+	Quote    string `json:"quote,omitempty"`
+	Answered bool   `json:"answered"`
+}
+
+// roundViewOf builds the browser's view of one round — At, Authors, Reason,
+// Instruction, Answers, Asks. `claimed` is the set of ask keys the agent's
+// changes named, and the caller supplies it because THE ASKS AND THE CHANGES
+// LIVE ON DIFFERENT ROUNDS: a `revise` round carries what the reviewer sent
+// and the `landed` round whose Answers points back at it carries what the
+// agent did. Read off one round alone, no ask was ever answered — which is
+// exactly what the first cut of this did, and every row read `not applied`
+// under a change that had plainly been made. The caller also fills in Asked
+// and Changed, which need the rest of the list.
+func roundViewOf(r versions.Round, claimed map[string]bool) roundView {
+	v := roundView{
+		N: r.N, At: r.At.UTC().Format(time.RFC3339), Authors: versions.Authors(r.Authors),
+		Reason: r.Reason, Instruction: r.Instruction, Answers: r.Answers,
+	}
+	for _, a := range r.Asks {
+		v.Asks = append(v.Asks, askView{Key: a.Key, Text: a.Text, Quote: a.Quote, Answered: claimed["*"] || claimed[a.Key]})
+	}
+	return v
+}
+
+// claimedAsks is every ask key the changes of the rounds answering round n
+// named — the landed round (or rounds) whose Answers is n. The revise round
+// itself carries no changes, so read there the set is always empty.
+//
+// A LANDED ROUND WITHOUT A MANIFEST ANSWERS EVERY ASK. `galley ack` refuses a
+// round in which nothing changed, so a landed round IS a changed document
+// and the agent's word that it answered; the manifest (`--changes`) only
+// says WHICH ask each change was for. Read strictly, an agent that did the
+// work and sent no manifest left every row `not applied` under an edit that
+// was plainly made — the worst reading of an honest answer. So: a manifest
+// decides per ask; no manifest at all means all of them (decision recorded
+// 2026-09-07). The special key "*" carries that answer to roundViewOf.
+func claimedAsks(rounds []versions.Round, n int) map[string]bool {
+	claimed := map[string]bool{}
+	for _, r := range rounds {
+		if r.Answers != n || r.Reason != versions.ReasonLanded {
+			continue
+		}
+		if len(r.Changes) == 0 {
+			claimed["*"] = true
+			continue
+		}
+		for _, c := range r.Changes {
+			for _, k := range c.Answers {
+				claimed[k] = true
+			}
+		}
+	}
+	return claimed
 }
 
 type versionsView struct {
@@ -565,11 +629,8 @@ func (s *EditServer) handleVersions(w http.ResponseWriter, r *http.Request) {
 	}
 	view := versionsView{Doc: s.docName(), Rounds: []roundView{}}
 	for i, x := range rounds {
-		rv := roundView{
-			N: x.N, At: x.At.UTC().Format(time.RFC3339), Authors: versions.Authors(x.Authors),
-			Reason: x.Reason, Instruction: x.Instruction, Answers: x.Answers,
-			Asked: asked[x.Answers],
-		}
+		rv := roundViewOf(x, claimedAsks(rounds, x.N))
+		rv.Asked = asked[x.Answers]
 		if i > 0 {
 			rv.Changed = s.changedRegions(rounds[i-1].N, x.N)
 		}

@@ -97,15 +97,29 @@ async function selectPhrase(page, phrase) {
     editor.commands.setTextSelection({ from: at, to: at + want.length });
     editor.view.focus();
   }, phrase);
+  // THE FORM IS WHAT A SELECTION OPENS NOW (spec §1) — there is no
+  // `Add instruction` press between the two — so the box the reviewer types
+  // into is what says the composer is ready.
+  //
+  // AND THE ANCHOR IS READ OFF THE EDITOR, NOT OFF `window.getSelection()`.
+  // Opening the box focuses the textarea, which takes the DOM selection with
+  // it — so that clause went permanently false the moment the box appeared,
+  // which is the harness measuring a side effect of its own success. The
+  // editor's own selection is the anchor the composer was placed from and the
+  // one `sendComment` posts.
   await page.waitForFunction((want) => {
     const root = document.querySelector('.gly-composer');
-    const button = document.querySelector('.gly-comment-button');
+    const form = document.querySelector('.gly-composer-form');
+    const st = window.galleyEdit?.editor?.state;
+    const sel = st
+      ? st.doc.textBetween(st.selection.from, st.selection.to, ' ')
+      : '';
     return (
       !!root &&
       !root.hidden &&
-      !!button &&
-      button.offsetParent !== null &&
-      window.getSelection().toString() === want
+      !!form &&
+      form.offsetParent !== null &&
+      sel === want
     );
   }, phrase);
 }
@@ -156,11 +170,31 @@ function proseRects(page) {
   );
 }
 
+// THE GESTURE IS MADE AGAIN IF THE BOX GOES, and that is a fact about the
+// product rather than about this harness. A selection opens the box directly
+// now (spec §1), and a selection is something the page can lose without the
+// reviewer doing anything: the document is rebuilt whenever a projection or a
+// remote edit lands, and a rebuilt document has no selection in it. galley
+// keeps a box the reviewer is IN or has WRITTEN in (composer.ts's hide branch,
+// and the editor's blur timer) — an empty one it has just opened is not worth
+// defending, and reopening it is the same one gesture. So this loop is what a
+// reviewer does: select the words again. Each attempt is bounded so a box that
+// never opens fails as a timeout rather than hanging the run.
 async function addRangeInstruction(page, text) {
-  await selectRetryBudget(page);
-  await page.click('.gly-comment-button');
-  await page.fill('.gly-composer-text', text);
-  await page.click('.gly-composer-send');
+  let filed = false;
+  for (let attempt = 0; attempt < 6 && !filed; attempt += 1) {
+    await selectRetryBudget(page);
+    try {
+      await page.fill('.gly-composer-text', text, { timeout: 3000 });
+      await page.click('.gly-composer-send', { timeout: 3000 });
+      filed = true;
+    } catch {
+      // The box closed under us between the wait and the write. Select again.
+    }
+  }
+  if (!filed) {
+    throw new Error('the composer never stayed open long enough to file');
+  }
   await page.waitForFunction(
     async () =>
       (await (await fetch('/_galley/pending')).json()).instructions.length ===
@@ -168,18 +202,18 @@ async function addRangeInstruction(page, text) {
   );
 }
 
-// THE HANDLE IS THE BAR'S NOW, AND IT DOES NOT TOGGLE. It used to be the rail's
-// own `+ instruction on the whole document`, and it toggled — so a second
-// unconditional click on an already-open form shut it and the fill that
-// followed landed on a hidden textarea, which is why every site that files one
-// goes through here. The control moved to the bar (`.gly-capture-open`, read
-// off the app's own CAPTURE_LABEL rather than a copy of the string) and it only
-// ever OPENS: the way out is `cancel` or Esc, so pressing it twice is idempotent
-// rather than destructive. The visibility guard is kept as a guard against
-// pressing a control that is already doing its job, not against undoing it.
+// THE HANDLE IS THE SHEET'S OWN SLOT NOW, AND IT DOES NOT TOGGLE. It was the
+// rail's first card and it toggled — so a second unconditional click on an
+// already-open form shut it and the fill that followed landed on a hidden
+// textarea, which is why every site that files one goes through here. It went
+// to the bar, and then (Task 7) to `.gly-docslot-add`, the dashed row at the
+// head of the sheet; through all three placements it only ever OPENS, so
+// pressing it twice is idempotent rather than destructive. The visibility guard
+// is kept as a guard against pressing a control that is already doing its job,
+// not against undoing it.
 async function addOverallInstruction(page, text, want) {
   if (!(await page.locator('.gly-capture').isVisible())) {
-    await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+    await page.click('.gly-docslot-add');
   }
   await page.fill('.gly-overall-input', text);
   await page.locator('.gly-overall-input').press('Enter');
@@ -269,110 +303,131 @@ try {
     ),
   );
 
-  // THE COUNT LEFT THE CHIP AND THE CHIP STAYED. `Instructions · N` is gone at
-  // wide widths — the count now sits on the verb it is a count of — and
-  // History keeps its door and loses its number. Two checks were deleted with
-  // the chip and are named rather than dropped silently: `Instructions remains
-  // usable at zero` and `zero instructions stays on the document instead of
-  // opening the old sheet` both pressed a control that no longer exists above
-  // 992px. The narrow bottom bar still carries it, and phase 6 is where that
-  // door is asserted.
-  const viewControls = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-census > button')]
+  // THE CHIP FOLLOWED THE COUNT OUT OF THE BAR, AND THE STRIP WENT WITH IT.
+  // `Instructions · N` left first — the count now sits on the verb it is a
+  // count of — and `History` has followed: the record is reached by scrubbing
+  // the timeline, at every width, so the bar's group of view doors has nothing
+  // left in it and `.gly-census` is deleted. Three checks are retired with it
+  // and named rather than dropped silently: `History is the bar's one view
+  // chip`, `the Instructions chip is gone at wide widths`, and, earlier,
+  // `Instructions remains usable at zero`. What replaces them is the claim
+  // underneath all three — the bar carries readouts and verbs and no doors —
+  // asserted directly, plus the scrubber's own reachability in §5 below.
+  const barControls = await page.evaluate(() =>
+    [...document.querySelectorAll('.gly-bar button')]
       .filter((b) => getComputedStyle(b).display !== 'none')
-      .map((b) => b.innerText.trim()),
+      .map((b) => b.className),
   );
   check(
-    'History is the bar\u2019s one view chip, and it carries no count',
-    JSON.stringify(viewControls) === JSON.stringify(['History']),
-    JSON.stringify(viewControls),
+    'the bar carries no view door at all — the census strip is gone',
+    !(await page.$('.gly-census')) &&
+      barControls.every((c) => !/census|versions/.test(c)),
+    JSON.stringify(barControls),
   );
-  check(
-    'the Instructions chip is gone at wide widths',
-    !(await page.isVisible('.gly-census-count')),
-  );
+
+  // At load nothing is pending, so the verdict on offer is Approve, and the
+  // footer's `.gly-approve-zero` face is fg-on-bg with no glow — see
+  // paintRevise's face-class toggle and editor.css's `/* --- the footer
+  // --- */` section. The filled-with-the-signal-colour face belongs to the
+  // Revise state (a pending instruction), asserted where the count first
+  // appears below.
   const primaryPaint = await page.evaluate(() => {
     const el = document.getElementById('gly-revise');
     const s = getComputedStyle(el);
-    const signal = getComputedStyle(document.documentElement)
-      .getPropertyValue('--gly-signal')
+    const fg = getComputedStyle(document.documentElement)
+      .getPropertyValue('--gly-fg')
       .trim();
     const probe = document.createElement('span');
-    probe.style.color = signal;
+    probe.style.color = fg;
     document.body.appendChild(probe);
     const want = getComputedStyle(probe).color;
     probe.remove();
     return { bg: s.backgroundColor, radius: s.borderTopLeftRadius, want };
   });
   check(
-    'the primary is filled with the signal colour at 6px',
-    primaryPaint.bg === primaryPaint.want && primaryPaint.radius === '6px',
+    'the primary is filled with fg-on-bg at zero pending, 8px',
+    primaryPaint.bg === primaryPaint.want && primaryPaint.radius === '8px',
     JSON.stringify(primaryPaint),
   );
-  // --- WHERE CAPTURE LIVES, AND IT IS THE BAR ---
+  // --- WHERE CAPTURE LIVES, AND IT IS THE SHEET'S OWN HEAD ---
   //
-  // THIS CHECK IS INVERTED RATHER THAN DELETED, AND THE INVERSION IS THE
-  // RULING. It read `the whole-document affordance is in the instruction rail`
-  // and it was green over both of the defects Court reported from live use: the
-  // affordance scrolled out of reach, and opening it slid every anchored card
-  // 39.29px off its mark. The rail holds live work only — *here is what needs
-  // you, beside the text it is about* — and a `+ add` button needs nothing and
-  // is beside nothing, so the old claim was asserting the placement that caused
-  // both. It says the opposite now, in the same shape and in the same place, so
-  // a future re-rail is a red check rather than a discovery.
-  check(
-    'capture is CHROME — the door is in the bar, beside History',
-    await page.isVisible(`.gly-bar button:text-is("${CAPTURE_LABEL}")`),
-  );
-  check(
-    'and the rail carries no capture control at all',
-    (await page.locator('.gly-rail .gly-overall-toggle').count()) === 0 &&
-      (await page.locator('.gly-rail .gly-capture-open').count()) === 0,
-  );
-  // AND IT IS REACHABLE AT ANY SCROLL POSITION, which is note §13 stated as a
-  // check. The bar is sticky, so this is a claim about the bar the control was
-  // moved INTO rather than about the control — which is exactly why the move
-  // fixes it and no arithmetic here does.
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(200);
-  check(
-    'the capture door is on screen at the foot of the document',
-    await page.isVisible(`.gly-bar button:text-is("${CAPTURE_LABEL}")`),
-  );
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(200);
-
-  // THE EMPTY RAIL TEACHES, AND THE NOTICE IT REPLACED SAID SOMETHING THE BAR
-  // WAS ALREADY SAYING. `nothing pending — the document is settled` was a
-  // second, quieter voice for what an Approve-faced primary states outright;
-  // what a first-time reviewer actually does not know is how to ask for
-  // anything at all, and nothing on a cold-open page told them. Board 1a.
-  const teach = await page.evaluate(() => {
-    const card = document.querySelector('.gly-rail-notice .gly-rail-teach');
-    if (!card) return null;
-    const s = getComputedStyle(card);
+  // THIS CHECK HAS BEEN INVERTED TWICE AND EACH INVERSION IS A RULING. It read
+  // `the whole-document affordance is in the instruction rail` and was green
+  // over both of the defects Court reported: the affordance scrolled out of
+  // reach, and opening it slid every anchored card 39.29px off its mark. It
+  // then read `the door is in the bar, beside History`, which fixed both by
+  // making capture chrome. Task 7's frame gives the third and last answer: a
+  // dashed full-width row in `.gly-docslot`, ABOVE THE PAPER, where the
+  // instructions it makes are also filed — document-level and beside the thing
+  // it is about at the same time, which neither of the first two placements
+  // was. It says that now, in the same shape and in the same place, so a
+  // regression to either earlier placement is a red check rather than a
+  // discovery.
+  const slotDoor = await page.evaluate(() => {
+    const b = document.querySelector('.gly-docslot-add');
+    if (!b) return null;
+    const paper = document.querySelector('.ProseMirror');
     return {
-      head: (card.querySelector('.gly-card-head') || {}).innerText || '',
-      body: (card.querySelector('.gly-card-body') || {}).innerText || '',
-      border: s.borderTopStyle,
-      settled: document.querySelectorAll('.gly-rail-notice .gly-settled')
-        .length,
-      teaching: document.querySelectorAll('.gly-rail-teach').length,
+      label: b.textContent,
+      inSlot: !!b.closest('.gly-frame .gly-docslot'),
+      inBar: !!b.closest('.gly-bar'),
+      abovePaper:
+        b.getBoundingClientRect().bottom <= paper.getBoundingClientRect().top,
     };
   });
   check(
-    'the empty rail teaches instead of repeating what the primary already says',
-    teach !== null &&
-      /HOW THIS WORKS/i.test(teach.head) &&
-      /^Select any words in the document to ask for a change\./.test(
-        teach.body,
-      ) &&
-      /one round\.$/.test(teach.body) &&
-      teach.border === 'dashed' &&
-      teach.settled === 0 &&
-      teach.teaching === 1,
-    JSON.stringify(teach),
+    'capture is the sheet’s own head — a dashed row in the whole-doc slot, above the paper',
+    !!slotDoor &&
+      slotDoor.label === CAPTURE_LABEL &&
+      slotDoor.inSlot &&
+      !slotDoor.inBar &&
+      slotDoor.abovePaper,
+    JSON.stringify(slotDoor),
   );
+  // The two `.gly-rail …` clauses that stood here were counts of zero inside a
+  // container the branch deleted, so they could not fail. What survives is the
+  // claim that can: there is exactly ONE capture door on the page, and the bar
+  // is not where it is.
+  check(
+    'and there is exactly one capture control, and the bar does not carry it',
+    (await page.locator('.gly-capture-open').count()) === 1 &&
+      (await page.locator('.gly-bar .gly-capture-open').count()) === 0 &&
+      (await page.locator('.gly-overall-toggle').count()) === 0,
+  );
+  // AND AT THE FOOT OF THE DOCUMENT IT IS THE RIGHT-CLICK THAT ANSWERS. §13's
+  // "reachable at any scroll position" was a claim about the BAR, which is
+  // sticky; the slot is not, and asserting it visible from the bottom of a long
+  // document would be asserting something false. The gesture that is available
+  // everywhere is the context menu (web/menu.ts), so that is what is checked
+  // from down there — and the slot itself is checked to come back with the
+  // document rather than to follow the viewport.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(200);
+  await page.click('.ProseMirror p', { button: 'right' });
+  await page.waitForSelector('.gly-menu:not([hidden])');
+  check(
+    'at the foot of the document the right-click still offers the whole-file instruction',
+    await page.isVisible(
+      '.gly-menu-item:has-text("Instruction on the whole document")',
+    ),
+  );
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(200);
+  check(
+    'and the slot comes back with the document',
+    await page.isVisible('.gly-docslot-add'),
+  );
+
+  // `the empty rail teaches instead of repeating what the primary already says`
+  // — RETIRED WITH THE TEACH CARD. It read `HOW THIS WORKS — select any words
+  // in the document to ask for a change` off a dashed card in the rail's
+  // margin, and the rail is deleted: the card was the last thing it drew, at
+  // the right of a page whose design has no right-hand column. What it said is
+  // on screen without it, and both halves are asserted where they now live —
+  // the slot's own empty line (`the whole-doc slot says where an instruction
+  // goes`, layers.mjs §14) and the `?` sheet's five gestures (probe.mjs,
+  // `help has the five gestures`).
 
   // --- ONE NOUN, ONE VERB, NO SYSTEM RING ---
   //
@@ -385,17 +440,27 @@ try {
   await selectRetryBudget(page);
   const selBox = await selectionBox(page);
   const proseBefore = await proseRects(page);
-  const opener = await textOf(page, '.gly-comment-button');
+  // `the affordance that opens the composer says what it makes` — RETIRED WITH
+  // THE AFFORDANCE. It read `Add instruction` off `.gly-comment-button`, the
+  // press that stood between selecting words and getting a box. Spec §1 gives
+  // the selection itself that job, so there is no label to read: what the
+  // gesture makes is said by the composer's HEAD (`INSTRUCTION · ON "…"`,
+  // checked a few lines down) and by the verb that files it, below.
+  const openedOnSelection = await page.evaluate(() => {
+    const form = document.querySelector('.gly-composer-form');
+    return !!form && !form.hidden && form.offsetParent !== null;
+  });
   check(
-    'the affordance that opens the composer says what it makes',
-    opener === 'Add instruction',
-    JSON.stringify(opener),
+    'selecting words opens the box itself — no press in between',
+    openedOnSelection === true,
   );
-  await page.click('.gly-comment-button');
   const send = await textOf(page, '.gly-composer-send');
   check(
+    // Task 8 restyles the send verb to a keyboard-shaped whisper — Enter
+    // already pins the instruction (submitOnEnter), and the button now says
+    // so rather than repeating the popover's own affordance label.
     'the button names what it makes',
-    send === 'Add instruction',
+    send === '↵ pin',
     JSON.stringify(send),
   );
   check(
@@ -432,22 +497,26 @@ try {
     );
     const probe = document.createElement('span');
     probe.style.color = getComputedStyle(document.documentElement)
-      .getPropertyValue('--gly-hl')
+      .getPropertyValue('--gly-accent')
       .trim();
     document.body.appendChild(probe);
-    const hl = getComputedStyle(probe).color;
+    const accent = getComputedStyle(probe).color;
     probe.remove();
     return {
       sendBg: send.backgroundColor,
       sendWeight: send.fontWeight,
       cancelBg: cancel.backgroundColor,
       cancelBorder: cancel.borderTopColor,
-      hl,
+      accent,
     };
   });
   check(
-    'the verb that makes the instruction is filled with the instruction colour',
-    verbs.sendBg === verbs.hl && Number(verbs.sendWeight) >= 600,
+    // Task 8 moves the send verb off the instruction colour (coral, `--gly-hl`)
+    // and onto the acid accent — the bar's own `↳` and the eyebrow already
+    // read as instruction chrome, so the loud fill is free to be the product's
+    // one action colour instead.
+    'the verb that makes the instruction is filled with the accent colour',
+    verbs.sendBg === verbs.accent && Number(verbs.sendWeight) >= 600,
     JSON.stringify(verbs),
   );
   check(
@@ -483,11 +552,15 @@ try {
     }),
   );
   check(
-    'it floats on the body and animates nothing',
+    // Task 8 gives the composer a one-shot rise-in (`gly-rise`, 0.25s) on
+    // open — the earlier claim was that opening it moves nothing ELSE
+    // (no transition, no reflow of the prose it floats over), which the two
+    // checks either side of this one still cover.
+    'it floats on the body and rises in without moving anything else',
     placement.parent === 'BODY' &&
       placement.position === 'absolute' &&
       placement.transition === '0s' &&
-      placement.animation === 'none',
+      placement.animation === 'gly-rise',
     JSON.stringify(placement),
   );
   const proseAfter = await proseRects(page);
@@ -548,7 +621,6 @@ try {
   // longer than the bound on purpose: with a short one this check is
   // arithmetic, not evidence.
   await selectPhrase(page, 'budget should stay explicit and readable');
-  await page.click('.gly-comment-button');
   const longHead = await page.evaluate(() => {
     const el = document.querySelector('.gly-composer-head');
     return {
@@ -646,7 +718,10 @@ try {
     JSON.stringify(ghost),
   );
   await addRangeInstruction(page, 'Make the retry policy concrete.');
-  await page.waitForSelector('.gly-rail-band .gly-thread');
+  // THE INSTRUCTION'S ONE SURFACE IS ITS ROW under the block it is about. The
+  // rail card a mark-anchored instruction also had is deleted, so waiting on
+  // `.gly-rail-band .gly-thread` would be waiting for a surface nothing builds.
+  await page.waitForSelector('.ProseMirror .gly-row');
   await page.waitForFunction(() =>
     /Revise/.test(document.getElementById('gly-revise').innerText),
   );
@@ -662,19 +737,29 @@ try {
   // that asks the app what it intends to walk; only the class the step actually
   // writes can tell the two apart.
   //
-  // RUN WHERE THE BAND ACTUALLY HOLDS AN INSTRUCTION. The first placing of
+  // RUN WHERE THE PAGE ACTUALLY HOLDS AN INSTRUCTION. The first placing of
   // this check sat after the narrow section and reported the stepper dead over
   // a rail whose only two cards were the whole-document composer and the
-  // capture card — chrome, not work. `.gly-rail .gly-card` counted both and
-  // made the precondition look satisfied; `.gly-rail-band .gly-card` is the
-  // instructions, and it was 0. A check whose precondition is measured on the
-  // wrong selector fails for a reason that has nothing to do with its claim.
+  // capture card — chrome, not work. A check whose precondition is measured on
+  // the wrong selector fails for a reason that has nothing to do with its
+  // claim. The precondition is the ROW now: rail cards for anchored
+  // instructions are deleted, and `stepOrder` walks the pinned rows.
   const stepped = await page.evaluate(() => {
     // HISTORY MUST BE SHUT, and that is the switch's own rule rather than a
     // harness convenience: History is a READING mode, so `j`/`k` are inert
     // there deliberately. A check run with the panel up would report the
     // stepper dead and be reading the guard, not the stepper.
     const panel = document.querySelector('.gly-versions');
+    // AND FOCUS MUST BE OUT OF EVERY BOX, for the same class of reason: `j` is
+    // a LETTER inside a textarea, and onKey returns early when focus is in one
+    // (keyTargetIsEditable). The composer opens its box on a selection now
+    // (spec §1), so a box holding focus is the ordinary state after any
+    // instruction is filed rather than a rare one — and a check that dispatches
+    // `j` into it reads the guard, not the stepper. This is the reviewer
+    // pressing Esc, which is the gesture the guard is there to respect.
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     const before = document.querySelectorAll('.gly-stepped').length;
     document.body.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'j', bubbles: true }),
@@ -683,7 +768,7 @@ try {
       historyShut: panel ? panel.hidden === true : true,
       before,
       after: document.querySelectorAll('.gly-stepped').length,
-      cards: document.querySelectorAll('.gly-rail-band .gly-card').length,
+      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
       classes: [...document.querySelectorAll('.gly-rail .gly-card')].map(
         (c) => c.className,
       ),
@@ -692,7 +777,7 @@ try {
   check(
     'j steps to a real instruction instead of walking an empty list',
     stepped.historyShut &&
-      stepped.cards > 0 &&
+      stepped.rows > 0 &&
       stepped.before === 0 &&
       stepped.after === 1,
     JSON.stringify(stepped),
@@ -729,46 +814,79 @@ try {
       await waitForDisk(/Open with the decision, not the background\./)
     ).includes('Open with the decision, not the background.'),
   );
-  const anatomy = await page.evaluate(() => {
-    const cards = [
-      ...document.querySelectorAll('.gly-rail .gly-card.gly-thread'),
-    ];
-    return cards.map((c) => {
-      const s = getComputedStyle(c);
-      const r = c.getBoundingClientRect();
-      return {
-        heads: c.querySelectorAll('.gly-card-head').length,
-        head: (c.querySelector('.gly-card-head') || {}).innerText || '',
-        bordered:
-          s.borderTopWidth !== '0px' &&
-          s.borderLeftWidth !== '0px' &&
-          s.borderTopStyle !== 'none',
-        edge: s.borderLeftWidth,
-        verbs: [...c.querySelectorAll('.gly-card-actions button')].map(
-          (b) => (b.innerText || '').trim().split('\n')[0],
-        ),
-        box: [Math.round(r.left), Math.round(r.width)],
-      };
-    });
-  });
+  // TWO SURFACES, ONE ANATOMY (Task 7). The whole-document instructions are
+  // filed in the frame's `.gly-docslot` now — above the paper, beside the verb
+  // that makes them — and the rail holds the instructions that are ANCHORED to
+  // a passage. So the cards are read from both and the anatomy is required of
+  // both; the per-surface box checks stay per-surface, because the slot is the
+  // sheet's measure and the rail is the rail's, and requiring one width across
+  // both would be asserting a layout neither surface has.
+  const readAnatomy = (root) =>
+    page.evaluate((sel) => {
+      const cards = [...document.querySelectorAll(sel)];
+      return cards.map((c) => {
+        const s = getComputedStyle(c);
+        const r = c.getBoundingClientRect();
+        return {
+          heads: c.querySelectorAll('.gly-card-head').length,
+          head: (c.querySelector('.gly-card-head') || {}).innerText || '',
+          bordered:
+            s.borderTopWidth !== '0px' &&
+            s.borderLeftWidth !== '0px' &&
+            s.borderTopStyle !== 'none',
+          edge: s.borderLeftWidth,
+          // Rendered verbs only: the pill paints `edit` away (display: none),
+          // and innerText of an unrendered node falls back to its textContent.
+          verbs: [...c.querySelectorAll('.gly-card-actions button')]
+            .filter((b) => getComputedStyle(b).display !== 'none')
+            .map((b) => (b.innerText || '').trim().split('\n')[0]),
+          box: [Math.round(r.left), Math.round(r.width)],
+        };
+      });
+    }, root);
+  // ONE SURFACE, NOT TWO. The rail half of this check is RETIRED with the rail
+  // card for an anchored instruction: that instruction is a row under its own
+  // block now (`.gly-row`), and a row is not a card and owns none of a card's
+  // anatomy. What is left holding the anatomy is the whole-document
+  // instruction, which is still a card and still in the slot.
+  const slotAnatomy = await readAnatomy('.gly-docslot .gly-card.gly-thread');
+  const anatomy = slotAnatomy;
+  // THE SLOT'S ROW IS A PILL, NOT A CARD (spec §1, 2026-09-07): panel ground,
+  // no kind edge, no head line on screen, one verb — the rail's anatomy
+  // (3px edge, `edit`) is hidden by paint; the head stays in the DOM for the
+  // anchor's name, read below through textContent.
+  const wellFormed = (a) =>
+    a.heads === 1 &&
+    !a.bordered &&
+    a.edge === '0px' &&
+    a.verbs.filter(Boolean).length === 1 &&
+    a.verbs.filter(Boolean)[0] === 'delete';
   check(
-    'every instruction card owns exactly one head, its own border and its own verbs',
-    anatomy.length === 2 &&
-      anatomy.every(
-        (a) =>
-          a.heads === 1 &&
-          a.bordered &&
-          a.edge === '3px' &&
-          a.verbs.length === 2 &&
-          a.verbs[0] === 'edit' &&
-          a.verbs[1] === 'delete',
-      ),
+    'the whole-document instruction card owns one head, its own border and its own verbs',
+    slotAnatomy.length === 1 && anatomy.every(wellFormed),
     JSON.stringify(anatomy),
   );
+  // AND THE ANCHORED INSTRUCTION SPEAKS THE ROW'S LANGUAGE. `one rail, one
+  // left edge, one width` measured the anchored cards against each other and
+  // its population is deleted; the row's equivalent claim is that the
+  // instruction is drawn under the block it is about, in the paper, with the
+  // one verb the spec gives it.
+  const anchoredRow = await page.evaluate(() => {
+    const el = document.querySelector('.ProseMirror .gly-row');
+    if (!el) return null;
+    return {
+      inProse: !!el.closest('.ProseMirror'),
+      verbs: [...el.querySelectorAll('button')].map((b) =>
+        (b.textContent || '').trim(),
+      ),
+    };
+  });
   check(
-    'and one rail speaks one language — every card at one left edge and one width',
-    new Set(anatomy.map((a) => JSON.stringify(a.box))).size === 1,
-    JSON.stringify(anatomy.map((a) => a.box)),
+    'and an anchored instruction is a row under its block, offering × and nothing else',
+    !!anchoredRow &&
+      anchoredRow.inProse &&
+      JSON.stringify(anchoredRow.verbs) === JSON.stringify(['×']),
+    JSON.stringify(anchoredRow),
   );
 
   // §2.2 — IT APPEARS IN THE RAIL AND NOWHERE ELSE. It used to render three
@@ -797,22 +915,33 @@ try {
     inProse.present === 1 && inProse.painted === 0 && inProse.area === 0,
     JSON.stringify(inProse),
   );
+  // AND IT IS THE SLOT'S FIRST ROW (Task 7), not the rail's first card. A note
+  // about the whole file has no coordinates, so it never belonged in a map of
+  // the passages; the whole-doc slot at the head of the sheet is where it is
+  // written and where it is filed, and `.gly-row-doc` is the class `paintFrame`
+  // counts to know the slot has something in it.
+  // textContent, not innerText: the head line is painted away in the pill
+  // and innerText is defined over what is rendered.
   const firstCard = await page
-    .locator('.gly-rail .gly-card.gly-thread')
+    .locator('.gly-docslot .gly-card.gly-thread .gly-card-head')
     .first()
-    .innerText();
+    .evaluate((el) => el.textContent || '');
   check(
-    'it is the rail\u2019s first card, and its head names the anchor',
+    'and the row wears the slot\u2019s own pill class',
+    (await page.locator('.gly-docslot .gly-row-doc').count()) === 1,
+  );
+  check(
+    'it is the whole-doc slot\u2019s first row, and its head names the anchor',
     /INSTRUCTION · WHOLE DOCUMENT ·/i.test(firstCard),
     firstCard,
   );
-  // THE FILED WORK IS STILL IN THE RAIL'S OWN FLOW, and this is the half of the
-  // old check that survived the ruling unchanged. `.gly-overall` is the list of
-  // whole-document instructions already written; it is live work, it belongs in
-  // the rail, and `position: static` is what says it is IN the map rather than
-  // floating over it. What left is the button and the box, not the cards.
+  // THE FILED WORK IS IN ITS SURFACE'S OWN FLOW, and this is the half of the
+  // old check that survived both rulings unchanged. `.gly-overall` is the list
+  // of whole-document instructions already written, and `position: static` is
+  // what says it is IN the surface rather than floating over it. What moved is
+  // WHICH surface: the rail's map, and now the sheet's own head.
   check(
-    'the filed whole-document instructions are in the rail, not floating over it',
+    'the filed whole-document instructions are in the slot’s flow, not floating over it',
     (await page.evaluate(
       () => getComputedStyle(document.querySelector('.gly-overall')).position,
     )) === 'static',
@@ -844,12 +973,7 @@ try {
   //     defect turned inside out: a stale in-flow card is placed against a band
   //     that moved, so a forced repaint would SNAP it, and this comparison is
   //     the only form that catches it.
-  const beforeOpen = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-rail-band .gly-card')].map((c) =>
-      Math.round(c.getBoundingClientRect().top),
-    ),
-  );
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(400);
   const openState = await page.evaluate(() => {
@@ -869,31 +993,13 @@ try {
     openState.position === 'static' && openState.inPanel,
     JSON.stringify(openState),
   );
-  check(
-    'opening capture re-floors the anchored cards clear of it — it displaces, it does not cover',
-    beforeOpen.length > 0 &&
-      openState.cards.length === beforeOpen.length &&
-      openState.cards.every((top) => top >= openState.captureBottom),
-    JSON.stringify({ beforeOpen, ...openState }),
-  );
-  // Force a fresh paintAnchors with a net-zero scroll, then re-measure: if
-  // openCapture's own scheduleAnchors re-floored correctly, nothing moves.
-  await page.evaluate(() => {
-    window.scrollBy(0, 1);
-    window.scrollBy(0, -1);
-  });
-  await page.waitForTimeout(400);
-  const afterRepaint = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-rail-band .gly-card')].map((c) =>
-      Math.round(c.getBoundingClientRect().top),
-    ),
-  );
-  check(
-    'and the re-floor is not stale — a forced repaint moves nothing',
-    openState.cards.length === afterRepaint.length &&
-      openState.cards.every((top, i) => Math.abs(top - afterRepaint[i]) <= 1),
-    JSON.stringify({ afterOpen: openState.cards, afterRepaint }),
-  );
+  // THE RE-FLOOR CHECKS ARE RETIRED WITH THE CARDS THEY MEASURED. `opening
+  // capture re-floors the anchored cards clear of it` and `the re-floor is not
+  // stale` both read `.gly-rail-band .gly-card` — the anchored instruction
+  // cards, which are deleted. There is nothing left in the band for the capture
+  // card to displace or to cover, so the claim has no population; what survives
+  // of it is the check above, that the capture card is in the flow rather than
+  // floating over the surface it sits in.
   // REACHABLE AT ANY SCROLL POSITION — §13 for the card as well as the door.
   // The composer is in the rail's flow at the top of the whole-document panel,
   // so scrolled far enough down it would be off-screen above; `openCapture`
@@ -902,7 +1008,7 @@ try {
   await page.keyboard.press('Escape');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(200);
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(300);
   const deepBox = await page.evaluate(() => {
@@ -929,7 +1035,19 @@ try {
   // suggestion to 81 and the `.md` gained the card's text as paragraphs). The
   // menu is on `body` and nothing in the editable subtree, and that is read off
   // the DOM rather than trusted.
-  await page.evaluate(() => window.getSelection().removeAllRanges());
+  // NOTHING SELECTED MEANS THE EDITOR'S OWN SELECTION, NOT THE DOM'S. This
+  // block asserts what the menu offers with no passage under the cursor, and
+  // `menuItems` reads `editor.state.selection` — `removeAllRanges` clears the
+  // browser's selection and leaves ProseMirror's exactly where the last
+  // instruction left it. It went unnoticed while the composer opened on a
+  // press: the selection was stale then too, and a right-click happened to
+  // collapse the caret before the menu read it. The state is set here rather
+  // than relied on.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    window.galleyEdit.editor.commands.setTextSelection({ from: 1, to: 1 });
+    window.getSelection().removeAllRanges();
+  });
   await page.locator('.ProseMirror p').first().click({ button: 'right' });
   await page.waitForSelector('.gly-menu:not([hidden])');
   const menuHome = await page.evaluate(() => {
@@ -1040,59 +1158,40 @@ try {
     JSON.stringify(projected),
   );
 
-  // §2.3 — AN INSTRUCTION CAN BE REVISED, NOT ONLY DESTROYED.
-  check(
-    'an instruction can be revised, not only destroyed',
-    await page.isVisible('.gly-rail-band .gly-thread .gly-thread-edit'),
-  );
-  const weights = await page.evaluate(() => {
-    const card = document.querySelector('.gly-rail-band .gly-thread');
-    const edit = card.querySelector('.gly-thread-edit');
-    const del = card.querySelector('.gly-thread-delete');
-    const es = getComputedStyle(edit);
-    const ds = getComputedStyle(del);
+  // §2.3 — AN INSTRUCTION'S ONE VERB IS `×`, AND IT IS AT DESTROY WEIGHT.
+  //
+  // THIS SECTION USED TO ASSERT `edit`. A mark-anchored instruction had a rail
+  // card carrying edit at settle weight and delete at destroy weight; the card
+  // is deleted (one instruction may not live on two surfaces) and the row that
+  // replaced it offers `×` alone — so the edit-verb assertions, and the flow
+  // that drove edit-save through the card, are RETIRED rather than weakened.
+  // Revising your own words is removing the row and writing it again.
+  //
+  // WHAT SURVIVES IS THE WEIGHT. `×` removes an instruction the agent would
+  // otherwise be handed, so it may never be a pill at rest: borderless, muted,
+  // and coloured only on hover. That is the same §4 handoff rule the card's
+  // `delete` was held to, asked of the surface that inherited the verb.
+  const removeWeight = await page.evaluate(() => {
+    const x = document.querySelector('.ProseMirror .gly-row .gly-row-remove');
+    if (!x) return null;
+    const s = getComputedStyle(x);
     return {
-      editBorder: es.borderTopStyle,
-      editRadius: es.borderTopLeftRadius,
-      delBorder: ds.borderTopColor,
-      delRadius: ds.borderTopLeftRadius,
-      gap: Math.round(
-        del.getBoundingClientRect().left - edit.getBoundingClientRect().right,
-      ),
-      order: [...card.querySelectorAll('.gly-card-actions button')].map((b) =>
-        b.className.replace('gly-thread-', ''),
-      ),
+      border: s.borderTopStyle,
+      background: s.backgroundColor,
+      color: s.color,
+      muted: getComputedStyle(document.documentElement)
+        .getPropertyValue('--gly-muted')
+        .trim(),
+      label: (x.textContent || '').trim(),
     };
   });
-  // `delete` KEEPS ITS DESTROY WEIGHT. §4 of the 2026-08-08 handoff: never a
-  // pill at rest, borderless, muted, a fixed 2rem clear of the verb beside it.
-  // The failure this guards is the one that stylesheet already shipped once —
-  // a per-element rule losing to its own container and rendering the one
-  // irreversible verb as an ordinary pill.
   check(
-    'edit is a settle-weight pill and delete keeps its destroy weight, 2rem clear',
-    weights.editBorder === 'solid' &&
-      weights.editRadius === '999px' &&
-      weights.delBorder === 'rgba(0, 0, 0, 0)' &&
-      weights.gap >= 28 &&
-      JSON.stringify(weights.order) === JSON.stringify(['edit', 'delete']),
-    JSON.stringify(weights),
-  );
-
-  await page.click('.gly-rail-band .gly-thread .gly-thread-edit');
-  await page.fill(
-    '.gly-rail-band .gly-thread .gly-thread-edit-text',
-    'Make the retry policy concrete, with numbers.',
-  );
-  await page.click('.gly-rail-band .gly-thread .gly-thread-edit-save');
-  await page.waitForFunction(async () =>
-    (await (await fetch('/_galley/pending')).json()).instructions.some(
-      (i) => i.text === 'Make the retry policy concrete, with numbers.',
-    ),
-  );
-  check(
-    'and the edit reaches the instruction the agent will actually be handed',
-    true,
+    'the row’s one verb is × at destroy weight — never a pill at rest',
+    !!removeWeight &&
+      removeWeight.label === '×' &&
+      removeWeight.border === 'none' &&
+      removeWeight.background === 'rgba(0, 0, 0, 0)',
+    JSON.stringify(removeWeight),
   );
 
   // Back to one, so the count checks below read the state they were written
@@ -1307,7 +1406,7 @@ try {
   // nowhere to go once the round is sent — only FILED instructions travel. Open
   // it with a draft now; the check after the send below is that Revise closed
   // and discarded it. See verdict.ts postVerdict and cards.ts closeCapture.
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.fill('.gly-overall-input', 'an unsent draft');
   check(
@@ -1319,11 +1418,52 @@ try {
     (await page.locator('#gly-revise').innerText()).includes('Revise'),
   );
   await page.click('#gly-revise');
-  const exits = await page.locator('.gly-verdict-menu button').allInnerTexts();
+  // The title alone, with the tag's own text peeled back off — not the
+  // button's full innerText: each item now carries an explanatory line below
+  // its title (MENU_REVISE_EXPLAIN / MENU_TRUST_EXPLAIN) and the trust item
+  // carries a tag (MENU_TRUST_TAG) inside the title itself, so this check is
+  // about the verb, not the sentence or the tag under/inside it.
+  const exits = await page.evaluate(() =>
+    [...document.querySelectorAll('.gly-verdict-menu .gly-verdict-title')].map(
+      (t) => {
+        const tag = t.querySelector('.gly-verdict-tag');
+        return (
+          tag ? t.textContent.slice(0, -tag.textContent.length) : t.textContent
+        ).trim();
+      },
+    ),
+  );
   check(
     'the menu offers Revise and Revise & Approve',
     JSON.stringify(exits) === JSON.stringify(['Revise', 'Revise & Approve']),
     JSON.stringify(exits),
+  );
+  // AND EACH EXIT SAYS WHAT IT DOES, UNDER ITS OWN TITLE. `Revise` and
+  // `Revise & Approve` are four words apart and one of them ends the review;
+  // `.gly-verdict-explain` is the line that tells them apart, and nothing in a
+  // browser had ever read it. probe.mjs pins the two strings in the bundle,
+  // which is green over a line that never renders.
+  const explains = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll('.gly-verdict-menu .gly-verdict-explain'),
+    ].map((e) => ({
+      said: e.textContent.trim(),
+      shown: e.offsetParent !== null,
+      under: (() => {
+        const title = e.parentElement.querySelector('.gly-verdict-title');
+        return (
+          !!title &&
+          e.getBoundingClientRect().top >=
+            title.getBoundingClientRect().bottom - 1
+        );
+      })(),
+    })),
+  );
+  check(
+    'and each exit carries its explanation, rendered, under its own title',
+    explains.length === 2 &&
+      explains.every((e) => e.shown && e.under && e.said.length > 20),
+    JSON.stringify(explains),
   );
   await page.click('.gly-verdict-revise');
   await page.waitForFunction(
@@ -1350,48 +1490,35 @@ try {
     (await ack(page, 'failed', 'test continues')) === 204,
   );
 
-  // §5.1 — HISTORY OPENS ON THE ROUND YOU JUST GOT BACK.
+  // §5.1 — THE SCRUBBER'S HEAD IS THE DRAFT, AND ITS KEYFRAMES ARE THE RECORD.
   //
-  // It opened on `v1 · Starting version` showing "No earlier version to
-  // compare" — the emptiest state the surface has — over rounds of real work,
-  // and it did so because the App refreshes the panel ONCE AT PAGE LOAD to
-  // paint the door's count. At that moment v1 was the only round, the panel
-  // pinned its selection to it, and every later refresh found v1 still in the
-  // list and kept it. The only thing that ever moved the selection again was an
-  // arrival calling showRound, which is why the defect looked intermittent:
-  // press the door with news behind it and it works, open History any other
-  // way and it is still on v1 from page load.
-  //
-  // SO THIS OPENS IT COLD, WITH NO ARRIVAL OUTSTANDING, which is the state the
-  // bug lives in — the round above was cut by the reviewer's own press and the
-  // agent reported it could not answer, so nothing has landed and the door is
-  // not marked. Read off the paper's own `data-to`, which is the SERVER's
-  // answer to which version is being shown, never off the cards, which is a
-  // count of what this page managed to draw.
+  // WHAT THIS REPLACED. `History opens on the newest round, not on the starting
+  // version` pressed a chip and read the panel's paper: the panel had pinned its
+  // selection to v1 at page load and never moved it again, so the record opened
+  // on `v1 · Starting version` over rounds of real work. Both the chip and the
+  // landing are deleted, and the defect cannot recur in the shape it had —
+  // there is no stored selection to go stale. The claim that survives is the
+  // one the reviewer sees: the track carries one keyframe per version, and the
+  // handle rests on the newest with the DRAFT on screen, not an old version.
   const early = await page.evaluate(
     async () => (await (await fetch('/_galley/versions')).json()).rounds,
   );
-  await page.click('.gly-versions-open');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  await page.waitForFunction(
-    () => document.querySelector('.gly-versions-paper')?.dataset.to,
-  );
-  const landedOn = await page.evaluate(() => ({
-    to: document.querySelector('.gly-versions-paper').dataset.to,
-    empty: document
-      .querySelector('.gly-versions-paper')
-      .innerText.includes('No earlier version'),
+  const atHead = await page.evaluate(() => ({
+    keys: document.querySelectorAll('.gly-scrub-key').length,
+    near: document
+      .querySelector('.gly-scrub-key:last-child')
+      ?.classList.contains('is-near'),
+    scrubbing: document.body.classList.contains('gly-scrubbing'),
+    label: document.querySelector('.gly-scrub-now')?.textContent ?? '',
   }));
   check(
-    'History opens on the newest round, not on the starting version',
+    'the timeline carries one keyframe per version and rests on the newest',
     early.length > 1 &&
-      landedOn.to === String(early[early.length - 1].n) &&
-      !landedOn.empty,
-    JSON.stringify({ ...landedOn, rounds: early.map((r) => r.n) }),
-  );
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(
-    () => document.querySelector('.gly-versions')?.hidden === true,
+      atHead.keys === early.length &&
+      atHead.near === true &&
+      atHead.scrubbing === false &&
+      atHead.label.includes(`v${early.length}`),
+    JSON.stringify({ ...atHead, rounds: early.map((r) => r.n) }),
   );
 
   // --- History is a reading mode ---
@@ -1473,10 +1600,10 @@ try {
     return asked;
   }
 
-  // The DRAFT's own metrics, read before History exists, because "the same type
-  // and the same measure as the draft" is a comparison and not a number
-  // somebody wrote down. A number here would go green the day the draft's type
-  // changed and History's did not, which is the whole bug.
+  // The DRAFT's own metrics, read before any earlier version is on screen,
+  // because "the same type and the same measure as the draft" is a comparison
+  // and not a number somebody wrote down. A number here would go green the day
+  // the draft's type changed and the version's did not, which is the whole bug.
   const draftType = await page.evaluate(() => {
     const pm = document.querySelector('.ProseMirror');
     const s = getComputedStyle(pm);
@@ -1531,751 +1658,139 @@ try {
     ],
   );
 
-  const record = await page.evaluate(
-    async () => (await (await fetch('/_galley/versions')).json()).rounds,
-  );
-  const newest = record[record.length - 1].n;
-
-  // AND IT STILL FOLLOWS THE NEWEST once two more rounds have landed on top of
-  // the one it opened on a moment ago — the selection tracks the record until
-  // the reviewer PICKS a round, and neither opening the door nor closing it is
-  // picking one.
+  // --- §5.2 · READING AN EARLIER VERSION IS THE SCRUBBER, AND NOTHING ELSE ---
   //
-  // The door is pressed TWICE on purpose. A round has landed since the last
-  // press, so the first one is the arrival deep-link — it lands on THAT round's
-  // reading state, which is `showRound`'s whole job and is asserted where the
-  // arrival strip is built. The second press is the cold path, which is the one
-  // this section is about and the one the landing is behind.
-  // THE RAIL DOES NOT MOVE WHEN THE MODE DOES, and this is the only evidence
-  // anyone will have of it: `web/motion.mjs` is deleted, so nothing else in the
-  // tree compares two rects across a click.
+  // EVERY CHECK BETWEEN HERE AND PHASE 6 USED TO BE ABOUT HISTORY, and History
+  // is deleted (Task 14): the landing rail of round cards, the seed card, the
+  // `changes`/`side by side` picker, the change rail beside the paper, region
+  // pinning and its dimming, the `‹ all rounds` handle, the amber chip that
+  // opened all of it. The scrubber replaced the whole surface — one sheet, no
+  // panes, no drawer — so the assertions are retired rather than weakened, and
+  // what is asserted here is the surface that took the work over:
   //
-  // Court, watching the build: switching to History moved everything in the
-  // rail. Two contributors, both of them the one-rail defect seen from the
-  // surface — the two columns were the same surface built twice, so nothing
-  // held them to a shared geometry.
+  //   · a keyframe press puts an earlier version ON THE SHEET (`body
+  //     .gly-scrubbing`, `.gly-scrub-paper[data-v]`) — replacing "History opens
+  //     on the newest round", the landing rail's head and cards, the reading
+  //     state's sub-bar and change cards, and side by side;
+  //   · in the draft's own type, which is what "the reading state is the
+  //     draft's paper wearing marks" was protecting;
+  //   · the readout says where you are and that the draft is safe;
+  //   · `restore vN as draft` is still at destroy weight and still arms —
+  //     in the eyebrow now, where it is no longer a peer of any view control;
+  //   · Esc returns to the head with the scroll intact, which was `‹ all
+  //     rounds`, `← back to draft` and the round-trip scroll check together.
   //
-  //   THE TOP OFFSET WAS A GUESS. The draft rail hangs off `--gly-bar-h`, which
-  //   is MEASURED and republished by an observer precisely because a guessed
-  //   chrome height is the failure mode this file already records. History's
-  //   hung off `--gly-sub-h`, WHICH WAS DEFINED NOWHERE — every use was the
-  //   literal fallback — and the sub-bar it named is `hidden` on the landing,
-  //   so the landing rail sat 40px below the paper it is a map of, permanently.
-  //
-  //   THE HEAD WAS A DIFFERENT SHAPE IN EACH MODE. `+ instruction on the whole
-  //   document`, `‹ all rounds` and `ROUNDS — NEWEST FIRST` are three unlike
-  //   controls in the one region that has to be stable, each taking its own
-  //   height.
-  //
-  // So the numbers are read at ONE WIDTH in all three states and required to
-  // agree. Shown red first by reverting the offset to its `calc(var(--gly-sub-h,
-  // 40px) + 24px)` form: `draft 52.2 / landing 116.2 / reading 116.2` against a
-  // draft head at 52.2 — the landing and the reading agreeing with each other
-  // and both 64px below the draft.
-  const railTops = {};
-  railTops.draft = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-rail');
-    const head = rail.querySelector('.gly-rail-head');
-    return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
-      headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
-    };
-  });
-
-  // THE ARRIVAL IS CONSUMED BEFORE THE DOOR IS PRESSED, and without this the
-  // check below races the page NOTICING the round that just landed.
-  //
-  // An unread arrival makes the FIRST open of History deep-link to that round's
-  // reading state (`VersionsPanel.showRound`, the one override of DEFAULT_VIEW
-  // there is); once read, later opens show the landing. The sequence here opens,
-  // escapes, opens again and asserts the LANDING — which holds only if the first
-  // press consumed the arrival. On a slower machine the page had not yet noticed
-  // it when the first press landed, so the first open showed the landing, the
-  // arrival was noticed afterwards, and the SECOND open deep-linked. That is
-  // exactly the diagnostic CI reported: `paperTo` correct at "6", `subHidden`
-  // false — the sub-bar open, which is the reading state.
-  //
-  // `is-new` on the door is the page saying it has seen the arrival, so waiting
-  // for it makes both presses deterministic. This is the same root cause as
-  // §6.3's, one section down: a check that reads an arrival must wait for the
-  // arrival, not for the clock.
-  //
-  // AND IT MUST BE THE ARRIVAL OF THE ROUND THIS CHECK IS ABOUT. `is-new` alone
-  // was not enough: it reproduced on CI twice more with the same diagnostic
-  // (`paperTo` right, `subHidden` false, seed unpainted). The bare class is
-  // raised by ANY unconsumed arrival, so an earlier round's could satisfy the
-  // wait, the first press consumed THAT one, then `newest` landed between the
-  // presses and the second press deep-linked to it — the reading state, exactly
-  // as reported. The door's title names the round it is holding
-  // (`v<n> just arrived`, paintVersionsButton in history.ts), so the wait keys
-  // on the number this check later asserts against. No page change: the gate
-  // now waits for the fact it reads.
-  await page.waitForFunction((n) => {
-    const door = document.querySelector('.gly-versions-open');
-    return (
-      !!door &&
-      door.classList.contains('is-new') &&
-      door.title.includes(`v${n} just arrived`)
-    );
-  }, newest);
-  await page.click('.gly-versions-open');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(
-    () => document.querySelector('.gly-versions')?.hidden === true,
-  );
-  await page.click('.gly-versions-open');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  // THE WAIT IS UNCHANGED; ONLY ITS FAILURE IS. This check timed out once on
-  // CI and passed on rerun, and a bare TimeoutError reported the line number
-  // and nothing else — not which of its two conditions failed, not what the
-  // values were. It has two independent ways to hang: the round number, and
-  // `.gly-versions-sub` being hidden, which is what tells the landing state
-  // from the reading state and would stay open if a late arrival deep-linked
-  // the second door press.
-  //
-  // A SEMANTIC FIX WAS TRIED FIRST AND REVERTED, which is worth recording so
-  // it is not tried again blind. Re-reading the record inside the wait —
-  // rather than comparing against a `newest` captured well above this line —
-  // is a better-sounding assertion and made CI fail DIFFERENTLY: the wait
-  // settled a moment earlier, before the landing rail had finished painting,
-  // and the block below died on a null `.gly-versions-seed`. Adding the seed
-  // to the wait then broke it locally too. Two attempts, both worse than the
-  // flake, on a failure seen once.
-  //
-  // So the semantics stay exactly as they were and the failure becomes
-  // legible instead. The next occurrence will say which condition held and
-  // what the record actually was, which is the evidence the first two
-  // attempts were missing.
-  const followed = await page
-    .waitForFunction(
-      (n) =>
-        document.querySelector('.gly-versions-paper')?.dataset.to ===
-          String(n) &&
-        document.querySelector('.gly-versions-sub')?.hidden === true,
-      newest,
-    )
-    .then(
-      () => null,
-      async () =>
-        page.evaluate(async (n) => {
-          const rounds = (await (await fetch('/_galley/versions')).json())
-            .rounds;
-          return {
-            waitedFor: n,
-            newestNow: rounds[rounds.length - 1].n,
-            paperTo: document.querySelector('.gly-versions-paper')?.dataset.to,
-            subHidden: document.querySelector('.gly-versions-sub')?.hidden,
-            seedPainted: !!document.querySelector('.gly-versions-seed'),
-          };
-        }, newest),
-    );
-  check(
-    'History follows the record while the door is opened and shut',
-    followed === null,
-    JSON.stringify(followed),
-  );
-
-  check(
-    'and it follows the record as rounds land, until a round is chosen',
-    true,
-  );
-
-  // The three states of History, captured on demand. `docs/design/` is
-  // re-shot against the built binary at the end of a phase, and driving the
-  // gate is the only place all three states exist with real rounds behind
-  // them — a hand-built fixture would be a fourth thing to keep true.
+  // THE RAIL-TOP CHECK GOES WITH THEM. `the rail does not move when the mode
+  // does` compared the draft rail's top against History's in two states; there
+  // is one rail now, so there is no second top to disagree with it.
+  const enteredHistoryAt = await page.evaluate(() => window.scrollY);
+  // The FIRST keyframe, which is v1 — the one version that is never the head,
+  // so the press is unambiguous however many rounds the fixture has landed.
+  await page.click('.gly-scrub-key');
+  await page.waitForSelector('body.gly-scrubbing .gly-scrub-paper[data-v]');
   if (process.env.GALLEY_SHOTS)
-    await page.screenshot({ path: `${process.env.GALLEY_SHOTS}/landing.png` });
-  // §5.2 — THE LANDING.
-  const landing = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-versions-rail');
-    if (!rail) {
-      return null;
-    }
+    await page.screenshot({ path: `${process.env.GALLEY_SHOTS}/scrub.png` });
+  const scrubbed = await page.evaluate(() => {
+    const paper = document.querySelector('.gly-scrub-paper[data-v]');
     return {
-      title: rail.querySelector('.gly-versions-rail-title')?.textContent,
-      sub: document.querySelector('.gly-versions-sub')?.hidden,
-      cards: [...rail.querySelectorAll('.gly-versions-round')].map((b) => ({
-        round: b.dataset.round,
-        head: b.querySelector('.gly-card-head').textContent,
-        ask: b.querySelector('.gly-versions-ask').textContent,
-        answer:
-          (b.querySelector('.gly-versions-answer') || {}).textContent || '',
-        foot: b.querySelector('.gly-versions-foot').textContent,
-      })),
-      seed: document.querySelector('.gly-versions-seed')?.innerText,
-      // NULL-GUARDED BECAUSE A MISSING SURFACE MUST FAIL A CHECK, NOT THROW THE
-      // RUN AWAY. This file states that rule and this line broke it: on CI the
-      // seed card had not painted, `getComputedStyle(null)` threw
-      // "parameter 1 is not of type 'Element'", and the TypeError took every
-      // check below it with it — so one late-painting card was reported as a
-      // dead run rather than as one red claim. A guard here is not tolerance
-      // for the absence; the check that reads `seedDashed` still fails on null.
-      seedDashed: (() => {
-        const seed = document.querySelector('.gly-versions-seed');
-        return seed ? getComputedStyle(seed).borderTopStyle : null;
+      scroll: window.scrollY,
+      docH: document.body.scrollHeight,
+      v: paper.dataset.v,
+      text: paper.innerText.trim().length,
+      size: getComputedStyle(paper).fontSize,
+      panes: document.querySelectorAll('.gly-versions-rail, .gly-versions-sub')
+        .length,
+      primary: document.getElementById('gly-revise').innerText.trim(),
+      readout: document.getElementById('gly-status').innerText.trim(),
+      restore: (() => {
+        const b = document.querySelector('.gly-eyebrow .gly-versions-restore');
+        if (!b || b.hidden) return null;
+        const s = getComputedStyle(b);
+        return { text: b.innerText, border: s.borderTopWidth };
       })(),
-      marks: document.querySelectorAll(
-        '.gly-versions-paper .gly-ins, .gly-versions-paper .gly-del',
-      ).length,
-      chip: document
-        .querySelector('.gly-versions-open')
-        ?.classList.contains('is-open'),
-      primary: document.querySelector('#gly-revise').innerText.trim(),
-      readout: document.querySelector('#gly-status').innerText.trim(),
-    };
-  });
-  railTops.landing = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-versions-rail');
-    const head = rail.querySelector('.gly-rail-head');
-    return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
-      headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
     };
   });
   check(
-    'the landing rail is headed for rounds, newest first',
-    landing?.title === 'ROUNDS — NEWEST FIRST' && landing?.sub === true,
-    JSON.stringify(landing?.title),
-  );
-  // ONE CARD PER EXCHANGE. The store holds two versions per round — the cut
-  // taken on the press and the cut taken on the return — and both carry the
-  // same instruction, so a card per version drew every ask twice.
-  const exchanges = record
-    .filter((r) => !(r.n === 1 && r.reason === 'opened'))
-    .filter((r) => !record.some((o) => o.answers === r.n)).length;
-  check(
-    'one card per round, newest first, each naming its round, its asks and what it moved',
-    landing?.cards.length === exchanges &&
-      landing?.cards.length < record.length - 1 &&
-      Number(landing?.cards[0].round) > Number(landing?.cards[1].round) &&
-      /^ROUND \d+ · /.test(landing?.cards[0].head) &&
-      landing?.cards.some((c) =>
-        c.ask.includes('Say what the default budget is'),
-      ) &&
-      // NO ARROW ON THE FOOT. ← belongs to the ANSWER — the sentence the agent
-      // wrote when it acked — and while the foot held it, the card's only ←
-      // pointed at a version number while the agent's own words were rendered
-      // after a → as though the reviewer had said them.
-      landing?.cards.every((c) => /^v\d+ · /.test(c.foot)),
-    JSON.stringify(landing?.cards),
-  );
-  // THE TWO ARROWS MEAN WHAT THEY SAY. `Round.Instruction` is the ask on the
-  // reviewer's cut and the agent's sentence on the landing, and roundCards
-  // folds the two into one card — so reading the card's own field put the
-  // ANSWER after the ask's arrow and left the ask off the surface entirely.
-  check(
-    '→ is what the reviewer asked and ← is what the agent said back',
-    landing?.cards.every((c) => c.ask.startsWith('→')) &&
-      landing?.cards.some((c) => (c.answer || '').startsWith('←')) &&
-      !landing?.cards.some((c) => c.ask.includes('answering v')),
-    JSON.stringify(
-      landing?.cards.map((c) => ({ ask: c.ask, answer: c.answer })),
-    ),
+    'a keyframe press puts that version on the sheet, in the draft’s own type',
+    scrubbed.v === '1' && scrubbed.text > 0 && scrubbed.size === draftType.size,
+    JSON.stringify(scrubbed),
   );
   check(
-    'the changes count on a card is the server’s, never a count of drawn marks',
-    landing?.cards.some((c) => /· \d+ change/.test(c.foot)) &&
-      record.filter((r) => r.changed > 0).length > 0,
-    JSON.stringify({
-      feet: landing?.cards.map((c) => c.foot),
-      changed: record.map((r) => r.changed),
-    }),
+    'and it is ONE SHEET — no rail beside it and no sub-bar over it',
+    scrubbed.panes === 0,
+    JSON.stringify(scrubbed.panes),
   );
   check(
-    'an ask and the answer that discharged it are one card, not two saying the same thing',
-    new Set(landing?.cards.map((c) => c.ask)).size === landing?.cards.length,
-    JSON.stringify(landing?.cards.map((c) => c.ask)),
+    'the primary’s slot is the way back, and the readout says the draft is safe',
+    scrubbed.primary === '← back to draft' &&
+      /rounds? · draft is untouched$/.test(scrubbed.readout),
+    JSON.stringify(scrubbed),
   );
-  // ONE CARD LANGUAGE DOWN THE WHOLE COLUMN. The landing's entries were
-  // `<button>`s that carried `.gly-card-head` and a `.gly-versions-ask` without
-  // ever being `.gly-card` — the card vocabulary worn by something that was not
-  // a card, with its own background, border, radius, padding, cursor, type and
-  // colour re-declared to undo a button's user-agent appearance. Shown red
-  // against the tracked build: `cards 0 of 3, seed false`.
-  const landingLanguage = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-versions-rail');
-    const rounds = [...rail.querySelectorAll('.gly-versions-round')];
-    const seed = rail.querySelector('.gly-versions-seed');
-    return {
-      rounds: rounds.length,
-      cards: rounds.filter((el) => el.classList.contains('gly-card')).length,
-      heads: rounds.filter((el) => el.querySelector(':scope > .gly-card-head'))
-        .length,
-      bodies: rounds.filter((el) => el.querySelector(':scope > .gly-card-body'))
-        .length,
-      seedCard: !!(seed && seed.classList.contains('gly-card')),
-      // The whole column on one left edge, which is what a reader reads.
-      edges: [
-        ...new Set(
-          [...rounds, seed]
-            .filter(Boolean)
-            .map((el) => Math.round(el.getBoundingClientRect().left)),
-        ),
-      ],
-    };
-  });
+  // RESTORE IS THE ONE ACT HERE WITH NO UNDO OUTSIDE GIT, so it may never be a
+  // pill at rest and it arms before it fires. It shipped as a bordered pill
+  // beside `Changes` and `Side by side`; those toggles are deleted and the
+  // button lives in the eyebrow, where the weight still has to hold.
   check(
-    'every entry in the landing rail is a card, in the card’s own anatomy — not a button wearing it',
-    landingLanguage.rounds > 1 &&
-      landingLanguage.cards === landingLanguage.rounds &&
-      landingLanguage.heads === landingLanguage.rounds &&
-      landingLanguage.bodies === landingLanguage.rounds &&
-      landingLanguage.seedCard &&
-      landingLanguage.edges.length === 1,
-    JSON.stringify(landingLanguage),
+    'restore is at destroy weight — borderless, and it names the version it would write',
+    !!scrubbed.restore &&
+      scrubbed.restore.border === '0px' &&
+      // innerText comes back through `text-transform: uppercase`, which is the
+      // eyebrow's own type and not the label's, so the compare is on the words.
+      /^restore v\d+ as draft$/i.test(scrubbed.restore.text),
+    JSON.stringify(scrubbed.restore),
   );
-  check(
-    'the file as galley opened it is the dashed foot card, not an entry in the list',
-    landing?.seed?.includes('V1 · STARTING VERSION') &&
-      landing?.seed?.includes('The file as galley opened it.') &&
-      landing?.seedDashed === 'dashed',
-    JSON.stringify(landing),
-  );
-  check(
-    'the landing paper is the current document, plain — no marks on it',
-    landing?.marks === 0,
-    String(landing?.marks),
-  );
-  check(
-    'the bar hands the primary’s slot to the way out, and lights the History chip',
-    landing?.chip === true && landing?.primary === '← back to draft',
-    JSON.stringify(landing),
-  );
-  check(
-    'and the readout says where you are and that the draft is safe',
-    landing?.readout === `${exchanges} rounds · draft is untouched`,
-    landing?.readout,
-  );
-  const outlined = await page.evaluate(() => {
-    const s = getComputedStyle(document.getElementById('gly-revise'));
-    return { bg: s.backgroundColor, border: s.borderTopColor, color: s.color };
-  });
-  check(
-    'the way out is OUTLINED signal, not the filled primary — it commits nothing',
-    outlined.border === outlined.color &&
-      !outlined.bg.startsWith('rgb(20, 110, 133)'),
-    JSON.stringify(outlined),
-  );
-
-  // §5.3 — THE READING STATE.
-  await page.click(`.gly-versions-round[data-round="${newest}"]`);
-  await page.waitForFunction(
-    (n) =>
-      document.querySelector('.gly-versions-paper')?.dataset.to === String(n) &&
-      !document.querySelector('.gly-versions-sub').hidden,
-    newest,
-  );
-  await page.waitForSelector('.gly-versions-change');
-  railTops.reading = await page.evaluate(() => {
-    const rail = document.querySelector('.gly-versions-rail');
-    const head = rail.querySelector('.gly-rail-head');
-    return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
-      headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
-    };
-  });
-  check(
-    'the rail does not move when the mode does — one top and one head height, draft and History alike',
-    railTops.draft.rail === railTops.landing.rail &&
-      railTops.draft.rail === railTops.reading.rail &&
-      railTops.draft.head === railTops.landing.head &&
-      railTops.draft.head === railTops.reading.head &&
-      railTops.draft.headH === railTops.landing.headH &&
-      railTops.draft.headH === railTops.reading.headH,
-    JSON.stringify(railTops),
-  );
-  const view = await page.evaluate(
-    async (n) =>
-      await (await fetch(`/_galley/versions/view?to=${n}&view=inplace`)).json(),
-    newest,
-  );
-  const reading = await page.evaluate(() => {
-    const paper = document.querySelector('.gly-versions-paper');
-    const s = getComputedStyle(paper);
-    return {
-      where: document.querySelector('.gly-versions-where').textContent,
-      handle: document.querySelector('.gly-versions-all')?.textContent,
-      cards: [...document.querySelectorAll('.gly-versions-change')].map(
-        (c) => ({
-          region: c.dataset.region,
-          head: c.querySelector('.gly-card-head').textContent,
-          asks: [...c.querySelectorAll('.gly-versions-ask')].map(
-            (p) => p.textContent,
-          ),
-          note: c.querySelector('.gly-versions-note')?.textContent || '',
-          edge: getComputedStyle(c).borderLeftColor,
-        }),
-      ),
-      size: s.fontSize,
-      line: s.lineHeight,
-      width: Math.round(paper.getBoundingClientRect().width),
-      // The old two-rail layout, by name. Deleting a surface means its
-      // selectors are gone, not that nothing renders in them.
-      oldRails: document.querySelectorAll(
-        '.gly-versions-list, .gly-versions-requests',
-      ).length,
-      oldTitles:
-        document.body.innerText.includes('CHANGES REQUESTED') ||
-        document.body.innerText.includes('VERSION HISTORY'),
-    };
-  });
-  if (process.env.GALLEY_SHOTS)
-    await page.screenshot({ path: `${process.env.GALLEY_SHOTS}/reading.png` });
-  check(
-    'the reading state is the draft’s paper wearing marks — same type, same measure',
-    reading.size === draftType.size &&
-      reading.line === draftType.line &&
-      Math.abs(reading.width - draftType.width) <= 2,
-    JSON.stringify({ history: reading, draft: draftType }),
-  );
-  check(
-    'the sub-bar says which round is being read and between which versions',
-    /^ROUND \d+ · V\d+ → V\d+$/.test(reading.where),
-    reading.where,
-  );
-  check(
-    'the rail leads with the quiet way back up a level',
-    reading.handle === '‹ all rounds',
-    reading.handle,
-  );
-  // ONE CARD PER PLACED CHANGE. The join also returns the round's UNCLAIMED
-  // asks, at region -1, and those are the round card's now rather than cards of
-  // their own stranded beside whichever change happened to be last.
-  check(
-    'one card per placed change, in the instruction card’s anatomy',
-    reading.cards.length ===
-      (view.changes || []).filter((c) => c.region >= 0).length &&
-      reading.cards.length >= 2 &&
-      /^CHANGE 1 OF 2 · /.test(reading.cards[0].head) &&
-      /^CHANGE 2 OF 2 · /.test(reading.cards[1].head) &&
-      reading.cards[0].asks.length > 0 &&
-      reading.cards[0].note.startsWith('←'),
-    JSON.stringify({
-      drawn: reading.cards.length,
-      joined: (view.changes || []).length,
-      cards: reading.cards,
-    }),
-  );
-  // NOTHING THE REVIEWER SENT EVER DISAPPEARS. An ask the agent never claimed
-  // is the single most important thing this surface can show — dropping it
-  // would make silence look like agreement.
-  //
-  // BUT AN UNCLAIMED ASK IS NOT A REFUSED ONE, AND THIS CHECK USED TO SAY IT
-  // WAS. Whether an ask was ANSWERED is the round's outcome; which change
-  // carried it is the manifest's, and it is a refinement. Reading the second's
-  // silence as a negative on the first put NOT ANSWERED, dashed and italic,
-  // over two instructions a revision had plainly carried out — measured in a
-  // real browser on a real document. The refusal voice is asserted at the end
-  // of this file, on a round that actually refused, which is the only thing
-  // that earns it.
-  const refused = await page.evaluate(() => {
-    const c = document.querySelector('.gly-versions-unanswered');
-    return c
-      ? {
-          head: c.querySelector('.gly-card-head').textContent,
-          ask: c.querySelector('.gly-versions-ask').textContent,
-          dashed: getComputedStyle(c).borderTopStyle,
-          voice: getComputedStyle(c.querySelector('.gly-versions-ask'))
-            .fontStyle,
-          note: !!c.querySelector('.gly-versions-note'),
-          ordinal: c.dataset.region,
-        }
-      : null;
-  });
-  const unclaimed = await page.evaluate(() => {
-    const c = document.querySelector('.gly-versions-round-card');
-    return c
-      ? {
-          head: c.querySelector('.gly-card-head').textContent.trim(),
-          asks: [...c.querySelectorAll('.gly-versions-ask')].map(
-            (p) => p.textContent,
-          ),
-          answer:
-            (c.querySelector('.gly-versions-answer') || {}).textContent || '',
-          stranded: document.querySelectorAll(
-            '.gly-versions-change:not([data-region])',
-          ).length,
-          refusalVoice: c.classList.contains('gly-versions-unanswered'),
-        }
-      : null;
-  });
-  // THE ROUND CARD CARRIES WHAT THE LANDING CARD ALREADY DID — the ask and the
-  // agent's sentence back, together, at the head of the rail. They used to be
-  // at opposite ends of it with an empty CHANGE card between them, which is the
-  // same two facts taken apart.
-  check(
-    'the round card pairs the ask with the answer, as the landing does',
-    unclaimed &&
-      /^ROUND \d+ · /.test(unclaimed.head) &&
-      unclaimed.asks.some((a) =>
-        a.includes('Cite the incident review verbatim'),
-      ) &&
-      unclaimed.answer.startsWith('←') &&
-      unclaimed.refusalVoice === false,
-    JSON.stringify(unclaimed),
-  );
-  check(
-    'and no ask is left stranded as a card of its own',
-    unclaimed && unclaimed.stranded === 0,
-    JSON.stringify(unclaimed),
-  );
-  check(
-    'and the refusal voice is NOT spent on it — the round answered',
-    refused === null,
-    JSON.stringify(refused),
-  );
-  check(
-    'the note beside a change is the agent’s own, off the manifest',
-    reading.cards.some((c) => c.note.includes('Added the 12-attempt budget')),
-    JSON.stringify(reading.cards.map((c) => c.note)),
-  );
-  check(
-    'the old two-rail layout is gone, by selector and by heading',
-    reading.oldRails === 0 && !reading.oldTitles,
-    JSON.stringify(reading),
-  );
-
-  // EACH CARD IS BESIDE ITS MARK. The join has an ordinal on both ends —
-  // `data-gly-region` on the paper, `data-region` on the card — and they are
-  // two renderings of one region, so a card that has drifted off its mark is a
-  // map that has stopped being a map.
-  const beside = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-versions-change[data-region]')].map(
-      (c) => {
-        const mark = document.querySelector(
-          `.gly-versions-paper [data-gly-region="${c.dataset.region}"]`,
-        );
-        return mark
-          ? Math.round(
-              c.getBoundingClientRect().top - mark.getBoundingClientRect().top,
-            )
-          : null;
-      },
-    ),
-  );
-  check(
-    'every change card is placed beside the mark it is about',
-    beside.length > 0 && beside.every((d) => d !== null && Math.abs(d) < 240),
-    JSON.stringify(beside),
-  );
-
-  // SELECTION IS DIMMING AND IT REACHES BOTH COLUMNS — and it may not move a
-  // single box. A hover that resized a card would restack every card below it,
-  // under the cursor that caused it, which is this codebase's oldest complaint.
-  const boxesBefore = await page.evaluate(() =>
-    [...document.querySelectorAll('.gly-versions-change')].map((c) => {
-      const r = c.getBoundingClientRect();
-      return [Math.round(r.width), Math.round(r.height)];
-    }),
-  );
-  await page.hover('.gly-versions-change[data-region]');
-  const hovered = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('.gly-versions-change')];
-    return {
-      picked: cards.filter((c) => c.classList.contains('is-picked')).length,
-      opacities: cards.map((c) => getComputedStyle(c).opacity),
-    };
-  });
-  check(
-    'hovering a card lifts it and drops the others to 70%',
-    hovered.picked === 1 &&
-      hovered.opacities.includes('0.7') &&
-      hovered.opacities.includes('1'),
-    JSON.stringify(hovered),
-  );
-  await page.click('.gly-versions-change[data-region]');
-  const picked = await page.evaluate(() => ({
-    boxes: [...document.querySelectorAll('.gly-versions-change')].map((c) => {
-      const r = c.getBoundingClientRect();
-      return [Math.round(r.width), Math.round(r.height)];
-    }),
-    marks: [
-      ...document.querySelectorAll('.gly-versions-paper [data-gly-region]'),
-    ].map((m) => getComputedStyle(m).opacity),
-  }));
-  check(
-    'the paper dims with the rail — the selection reaches both columns',
-    picked.marks.includes('0.6') || picked.marks.length === 1,
-    JSON.stringify(picked.marks),
-  );
-  check(
-    'and nothing moved: a pick toggles classes and no layout property',
-    JSON.stringify(picked.boxes) === JSON.stringify(boxesBefore),
-    JSON.stringify({ before: boxesBefore, after: picked.boxes }),
-  );
-  // THE CARDS ARE THE NAVIGATION — AND THEY WERE POINTER-ONLY. A change card
-  // carried a bare `click` listener on a `<div>`: no `tabIndex`, no Enter, no
-  // Space, so every change in a round was unreachable without a mouse on the one
-  // surface whose entire navigation is its cards. And the press that did land
-  // scrolled without verifying and RANG NOTHING — half a reveal, in a codebase
-  // whose recorded failure for exactly this is *"clicking a card rang the right
-  // mark four screens down and never moved the page"*.
-  //
-  // Shown red against the tracked build: `{"focused":false,"picked":0,
-  // "flashed":false}` — the card would not take focus, so Enter never reached
-  // it, and no mark was ever rung by any press.
-  await page.keyboard.press('Escape');
-  const reachable = await page.evaluate(() => {
-    const card = document.querySelector('.gly-versions-change[data-region]');
-    card.focus();
-    return {
-      focused: document.activeElement === card,
-      tabIndex: card.tabIndex,
-    };
-  });
-  await page.keyboard.press('Enter');
-  // POLLED, NOT READ ONCE: `flash` puts the class on for FLASH_MS and takes it
-  // off again, and a single read a frame later reads a race.
-  const rung = await page
-    .waitForFunction(
-      () => {
-        const card = document.querySelector(
-          '.gly-versions-change.is-picked[data-region]',
-        );
-        if (!card) return false;
-        const mark = document.querySelector(
-          `.gly-versions-paper [data-gly-region="${card.dataset.region}"]`,
-        );
-        return mark && mark.classList.contains('gly-flash')
-          ? { picked: 1, flashed: true }
-          : false;
-      },
-      null,
-      { timeout: 4000 },
-    )
-    .then((h) => h.jsonValue())
-    .catch(() => ({ picked: 0, flashed: false }));
-  check(
-    'a change card is reachable by keyboard, and Enter reveals AND rings the words it is about',
-    reachable.focused && reachable.tabIndex === 0 && rung.flashed,
-    JSON.stringify({ ...reachable, ...rung }),
-  );
-  // NOT unpinned here: the Esc below is the check for unpinning, and Esc's other
-  // meaning on this surface is "leave History" — pressing it twice would close
-  // the panel and take that check's own state away with it.
-  check(
-    'there are no rings and no prev/next steppers — the cards are the navigation',
-    (await page
-      .locator('.gly-versions-step, .gly-versions-next, .gly-versions-prev')
-      .count()) === 0,
-  );
-  await page.keyboard.press('Escape');
-  const afterEsc = await page.evaluate(() => ({
-    open: !document.querySelector('.gly-versions').hidden,
-    picked: document.querySelectorAll('.gly-versions-change.is-picked').length,
-  }));
-  check(
-    'Esc unpins the change without leaving the reading mode',
-    afterEsc.open === true && afterEsc.picked === 0,
-    JSON.stringify(afterEsc),
-  );
-
-  // §5.4 — SIDE BY SIDE, AND THE WAY OUT.
-  await page.click('.gly-versions-view-pick[data-view="sbs"]');
-  await page.waitForSelector('.gly-versions-paper .gly-sbs');
-  if (process.env.GALLEY_SHOTS)
-    await page.screenshot({ path: `${process.env.GALLEY_SHOTS}/sbs.png` });
-  const sbs = await page.evaluate(() => {
-    const heads = [...document.querySelectorAll('.gly-sbs-head')].map(
-      (h) => h.textContent,
-    );
-    const cols = document.querySelectorAll('.gly-sbs-col').length;
-    const paper = getComputedStyle(
-      document.querySelector('.gly-versions-paper'),
-    );
-    const toggle = getComputedStyle(
-      document.querySelector('.gly-versions-view-pick[data-view="sbs"]'),
-    );
-    const restore = getComputedStyle(
-      document.querySelector('.gly-versions-restore'),
-    );
-    return {
-      heads,
-      cols,
-      size: paper.fontSize,
-      toggleBorder: toggle.borderTopWidth,
-      restoreBorder: restore.borderTopWidth,
-      restoreColor: restore.color,
-      toggleColor: toggle.color,
-      // innerText, NOT textContent: the button carries BOTH labels so its cell
-      // cannot resize on its own click, and the one not showing is
-      // `.gly-reserved` — laid out, never drawn. textContent reads through
-      // visibility and returned the two concatenated.
-      restoreText: document.querySelector('.gly-versions-restore').innerText,
-    };
-  });
-  check(
-    'side by side is two halves of one column, each corner named with its version',
-    sbs.cols === 2 &&
-      /^v\d+ · before$/.test(sbs.heads[0]) &&
-      /^v\d+ · after$/.test(sbs.heads[1]),
-    JSON.stringify(sbs.heads),
-  );
-  check(
-    'and both halves keep the draft’s type',
-    sbs.size === draftType.size,
-    JSON.stringify({ sbs: sbs.size, draft: draftType.size }),
-  );
-  // RESTORE MAY NEVER AGAIN SHARE A ROW-STYLE WITH THE VIEW TOGGLES. It is the
-  // one act on this surface with no undo outside git, and it shipped as a
-  // bordered pill in the same row as `Changes` and `Side by side` — the
-  // loudest-consequence control on the page looking exactly like a way of
-  // LOOKING at something.
-  check(
-    'restore is at destroy weight — borderless and muted, never a peer of the view toggles',
-    sbs.restoreBorder === '0px' &&
-      sbs.toggleBorder !== '0px' &&
-      sbs.restoreColor !== sbs.toggleColor &&
-      /^restore v\d+ as draft$/.test(sbs.restoreText),
-    JSON.stringify(sbs),
-  );
-  await page.click('.gly-versions-restore');
+  await page.click('.gly-eyebrow .gly-versions-restore');
   const armed = await page.evaluate(() => ({
-    text: document.querySelector('.gly-versions-restore').innerText,
-    color: getComputedStyle(document.querySelector('.gly-versions-restore'))
-      .color,
+    text: document.querySelector('.gly-eyebrow .gly-versions-restore')
+      .innerText,
+    armed: document
+      .querySelector('.gly-eyebrow .gly-versions-restore')
+      .classList.contains('is-armed'),
   }));
   check(
-    'and it arms red before it overwrites the draft, firing on the second press',
-    armed.text === 'replace draft?' && armed.color !== sbs.restoreColor,
+    'and it arms before it overwrites the draft, firing on the second press',
+    /^replace draft\?$/i.test(armed.text) && armed.armed === true,
     JSON.stringify(armed),
   );
 
-  // THE WAY OUT, AND THE SCROLL. History is a MODE and not a page: the sentence
-  // the reviewer was reading has to be under the cursor when they come back.
-  await page.click('#gly-revise');
+  // THE WAY OUT, AND THE SCROLL. Reading a version is a MODE and not a page:
+  // the sentence the reviewer was reading has to be under the cursor when they
+  // come back. Esc is the exit the spec gives the scrubber; the primary says
+  // the same thing for the mouse and is asserted above.
+  await page.keyboard.press('Escape');
   await page.waitForFunction(
-    () => document.querySelector('.gly-versions')?.hidden === true,
+    () => !document.body.classList.contains('gly-scrubbing'),
   );
   const back = await page.evaluate(() => ({
     prose: !!document.querySelector('.ProseMirror'),
-    mode: document.body.classList.contains('gly-history-mode'),
+    // `gly-scrubbing`, NOT `gly-history-mode`. Nothing has set the latter since
+    // the reading mode became the scrubber's stage, so `!back.mode` was
+    // vacuously true and this check could not fail on the half it names.
+    mode: document.body.classList.contains('gly-scrubbing'),
     primary: document.getElementById('gly-revise').innerText.trim(),
     scroll: window.scrollY,
   }));
   check(
-    'the primary’s slot is the way back to the draft, and it returns the draft’s own face',
+    'Esc returns to the head, and the primary returns the draft’s own face',
     back.prose && !back.mode && back.primary !== '← back to draft',
     JSON.stringify(back),
   );
   check(
     'and the draft’s scroll position survived the round trip',
-    back.scroll === 0,
-    String(back.scroll),
+    back.scroll === enteredHistoryAt,
+    JSON.stringify({
+      scroll: back.scroll,
+      enteredHistoryAt,
+      scrubbed: scrubbed.scroll,
+      docH: scrubbed.docH,
+    }),
   );
   const rounds = await page.evaluate(
     async () => (await (await fetch('/_galley/versions')).json()).rounds.length,
   );
   check(
-    'leaving History leaves the record intact',
-    rounds >= 4 &&
-      (await page.locator('.gly-versions-open').innerText()).trim() ===
-        'History',
+    'reading a version leaves the record intact',
+    rounds >= 4,
     String(rounds),
   );
 
@@ -2322,18 +1837,21 @@ try {
           return !!at && b.contains(at);
         })(),
       })),
-      rail: !document.querySelector('.gly-rail').hidden,
-      wideChip: !!document.querySelector('.gly-census .gly-versions-open')
-        ?.offsetParent,
+      // The rail is deleted; `!document.querySelector('.gly-rail').hidden` read
+      // a column that is not in the DOM. Its absence is the claim.
+      railGone: document.querySelector('.gly-rail') === null,
     };
   });
+  // THE HISTORY DOOR IS DELETED, so `Instructions and History are adjacent` is
+  // an assertion about a control that does not exist. What the bar carries at
+  // 620px is the door to the instructions and the stepper; the record is
+  // reached by the timeline, which is in the footer at every width.
   check(
-    'Instructions and History are adjacent in the bottom bar, in the wide bar’s own order',
-    foot.buttons.length === 3 &&
+    'the Instructions door leads the bottom bar, with the stepper beside it',
+    foot.buttons.length === 2 &&
       /^Instructions · \d+$/.test(foot.buttons[0].text) &&
-      foot.buttons[1].text === 'History' &&
-      foot.order[0].includes('gly-bar-count') &&
-      foot.order[1].includes('gly-bar-versions'),
+      foot.buttons[1].text === '↓ next' &&
+      foot.order[0].includes('gly-bar-count'),
     JSON.stringify(foot),
   );
   // THE CLAIM IS THE PLACE, NOT THE WORD. The primary's label is a live thing —
@@ -2341,26 +1859,58 @@ try {
   // which is what a countdown started a few checks earlier is still saying when
   // this runs. Asserting the word made this check a race it lost the first time
   // the timing shifted; what phase 6 actually promises is that the control
-  // stays IN THE TOP BAR and stays pressable when the rail is gone.
+  // stays selectable by `#gly-revise`, outside `.gly-bottombar`, and stays
+  // pressable when the rail is gone — not that it stays in the top bar,
+  // which Task 4 moved it out of into the fixed footer (`.gly-timeline`).
+  //
+  // AND THE WIDTH IS MEASURED, WHICH IS THE HALF THAT WENT MISSING. This block
+  // shipped with `inTopBar: true` HARDCODED into the evaluate — a field the
+  // page never answered — under a title that said the opposite of the comment
+  // above it, and `width` was collected and only tested `> 0`. That is the one
+  // measurement that would have caught the primary rendering ~425px wide with
+  // its four faces laid out side by side: `#gly-revise.gly-revise` shipped
+  // `display: inline-flex` and beat the one-cell grid the reserve is built on.
+  // So the reserve itself is what is asserted — the four `.gly-revise-label`
+  // rects share ONE ORIGIN, which is what "one grid cell" means in pixels, and
+  // the button is under 200px, which is what it means in width.
   const primaryHere = await page.evaluate(() => {
     const b = document.getElementById('gly-revise');
-    const bar = document.querySelector('.gly-bar');
-    if (!b || !bar || !bar.contains(b)) return null;
+    if (!b) return null;
     const r = b.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    const labels = [...b.querySelectorAll('.gly-revise-label')].map((el) => {
+      const lr = el.getBoundingClientRect();
+      return {
+        x: Math.round(lr.x),
+        mid: Math.round(lr.x + lr.width / 2),
+        y: Math.round(lr.y),
+        text: el.textContent,
+      };
+    });
     return {
-      inTopBar: true,
+      inTimeline: !!document.querySelector('.gly-timeline-right #gly-revise'),
       width: Math.round(r.width),
       top: Math.round(r.top),
       reachable: !!at && b.contains(at),
       inFoot: !!document.querySelector('.gly-bottombar #gly-revise'),
+      labels,
+      // ONE CELL IS ONE CENTRE, NOT ONE LEFT EDGE. `place-items: center`
+      // centres each face in the shared cell, so four faces of four widths
+      // have four different `x` and the SAME midpoint and the same `y`. Laid
+      // out side by side — the `inline-flex` this check was written to catch —
+      // the midpoints march rightwards and no two of them agree.
+      oneCell:
+        labels.length === 4 &&
+        labels.every((l) => l.mid === labels[0].mid && l.y === labels[0].y),
     };
   });
   check(
-    'and Revise never leaves the top bar, where it is at every width',
+    'Revise is in the timeline footer, one grid cell wide, and pressable there',
     primaryHere !== null &&
+      primaryHere.inTimeline === true &&
+      primaryHere.oneCell === true &&
       primaryHere.width > 0 &&
-      primaryHere.top < 60 &&
+      primaryHere.width < 200 &&
       primaryHere.reachable === true &&
       primaryHere.inFoot === false,
     JSON.stringify(primaryHere),
@@ -2397,7 +1947,9 @@ try {
   await page.click('.gly-bar-count');
   const narrowDoor = await page.evaluate(() => ({
     sheet: !document.querySelector('.gly-sheet').hidden,
-    rail: !document.querySelector('.gly-rail').hidden,
+    // The rail is deleted; this read `.hidden` on a column that is not in the
+    // DOM. `railGone` is the claim that survives — one surface, one state.
+    railGone: document.querySelector('.gly-rail') === null,
     cards: document.querySelectorAll('.gly-sheet .gly-thread').length,
     text: document.querySelector('.gly-sheet')?.innerText || '',
     barOverSheet: (() => {
@@ -2412,8 +1964,8 @@ try {
   }));
   check(
     'the Instructions door at 620px opens the review’s list instead of nothing',
-    narrowDoor.sheet === true && narrowDoor.rail === false,
-    JSON.stringify({ sheet: narrowDoor.sheet, rail: narrowDoor.rail }),
+    narrowDoor.sheet === true && narrowDoor.railGone === true,
+    JSON.stringify({ sheet: narrowDoor.sheet, railGone: narrowDoor.railGone }),
   );
 
   // THE SHEET'S OWN ✕ HAS A NAME. The bottom bar's rule two checks up — every
@@ -2451,26 +2003,17 @@ try {
     narrowDoor.barOverSheet === true,
   );
 
-  // AND THE SECOND DOOR OPENS THE RECORD FROM THE SAME BAR — the pairing is
-  // only a pairing if both halves work down here.
-  await page.click('.gly-bar-versions');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  const narrowHistory = await page.evaluate(() => ({
-    open: !document.querySelector('.gly-versions').hidden,
-    sheet: !document.querySelector('.gly-sheet').hidden,
-    bar: !document.querySelector('.gly-bottombar').hidden,
-    to: document.querySelector('.gly-versions-paper')?.dataset.to,
-  }));
-  check(
-    'the History door beside it opens the record, and takes the other surfaces away',
-    narrowHistory.open === true &&
-      narrowHistory.sheet === false &&
-      narrowHistory.bar === false,
-    JSON.stringify(narrowHistory),
-  );
-  await page.click('#gly-revise');
+  // THE SECOND DOOR IS DELETED. `the History door beside it opens the record`
+  // read `.gly-bar-versions`, the narrow bar's half of the History pairing;
+  // the record is reached by the timeline now, which is in the footer at every
+  // width and needs no door of its own. Retired rather than weakened.
+  //
+  // The sheet the Instructions door opened is put away by hand here: pressing
+  // History used to be what closed it, and the sections below need the primary
+  // pressable.
+  await page.keyboard.press('Escape');
   await page.waitForFunction(
-    () => document.querySelector('.gly-versions')?.hidden === true,
+    () => document.querySelector('.gly-sheet')?.hidden === true,
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.waitForFunction(
@@ -2493,204 +2036,68 @@ try {
       },
     ],
   );
-  // A MISSING SURFACE FAILS A CHECK, IT DOES NOT THROW THE RUN AWAY. A gate
-  // that dies on the first absence reports one red where there are several, and
-  // the several are what say whether the diagnosis is right — run against a
-  // build whose arrival raises no strip, an unguarded wait here took every
-  // check below it with it and reported a TimeoutError instead of a claim.
-  // AND IT MUST BE THE STRIP FOR *THIS* ARRIVAL. `:not([hidden])` waits for A
-  // strip, and by this point in the file an EARLIER arrival has already raised
-  // one — so the wait returned instantly and every check below read the
-  // previous round's sentence. It reported `round 3 answered · v6 · 2 changes`
-  // against a record whose last round was v8, which reads as the server cutting
-  // phantom rounds and is nothing of the kind: the strip was two arrivals
-  // stale. Measured at #181 with a true baseline worktree — the SAME eight-round
-  // record, 129 ok, 0 failed — so the record was never what moved. What moved
-  // was how long the sections above take, which is not something a check about
-  // an arrival should depend on.
+  // AN ARRIVAL RAISES NOTHING OVER THE PAPER ANY MORE. Task 11 moved that
+  // sentence INTO the paper — the changed block tints, the WAS strip under it
+  // carries what it said before — and Task 14 deleted the strip surface and the
+  // History chip it named. The checks that read them are retired below.
   //
-  // The round is committed by the time `agentReturns` returns, so the record is
-  // authoritative here and the strip is what has to catch up to it.
-  const landedN = await page.evaluate(async () => {
-    const rounds = (await (await fetch('/_galley/versions')).json()).rounds;
-    return rounds[rounds.length - 1].n;
-  });
-  let stripUp = true;
-  try {
-    await page.waitForSelector('.gly-strip:not([hidden])', { timeout: 15000 });
-    await page.waitForFunction(
-      (n) =>
-        (document.querySelector('.gly-strip-text')?.innerText || '').includes(
-          `v${n}`,
-        ),
-      landedN,
+  // THE STRIP'S SENTENCE WAS ALSO THIS SECTION'S CLOCK — the wait for `v{n}` on
+  // it was what said the browser had finished landing the round. With it gone
+  // the wait re-points to the frame the arrival repaints: the primary leaves
+  // `revising`. That is the arrival landing in the UI, not a claim about it.
+  // BOUNDED, AND THE TIMEOUT IS A RED CHECK RATHER THAN A SWALLOW. It was
+  // `.catch(() => {})`, which turns "the round never landed" into a silent
+  // fifteen-second pause followed by whatever the reds below happen to say —
+  // and a wait that cannot fail is not a wait, it is a sleep. The failure has a
+  // name now, so a build where the arrival never reaches the UI reports THAT
+  // and not a scatter of downstream confusion.
+  const landedInUI = await page
+    .waitForFunction(
+      () =>
+        !(
+          document.getElementById('gly-revise')?.innerText || 'revising'
+        ).includes('revising'),
+      undefined,
       { timeout: 15000 },
-    );
-  } catch {
-    stripUp = false;
-  }
-  check('a round coming back raises the arrival strip at all', stripUp);
-  if (!stripUp)
-    await page.evaluate(() => {
-      document.querySelector('.gly-strip').hidden = false;
-    });
-  const arrived = await page.evaluate(() => {
-    const el = document.querySelector('.gly-strip');
-    const r = el.getBoundingClientRect();
-    const s = getComputedStyle(el);
-    const read = document.querySelector('.gly-strip-read');
-    const dismiss = document.querySelector('.gly-strip-dismiss');
-    const rs = read ? getComputedStyle(read) : null;
-    const ds = dismiss ? getComputedStyle(dismiss) : null;
-    const tone = (name) => {
-      const probe = document.createElement('span');
-      probe.style.color = getComputedStyle(document.documentElement)
-        .getPropertyValue(name)
-        .trim();
-      document.body.appendChild(probe);
-      const want = getComputedStyle(probe).color;
-      probe.remove();
-      return want;
-    };
-    const chip = document.querySelector('.gly-census .gly-versions-open');
-    return {
-      text: document.querySelector('.gly-strip-text').innerText.trim(),
-      left: Math.round(r.left),
-      fromBottom: Math.round(window.innerHeight - r.bottom),
-      mono:
-        s.fontFamily ===
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--gly-mono')
-          .trim(),
-      border: s.borderTopColor,
-      borderWidth: s.borderTopWidth,
-      accent: tone('--gly-accent'),
-      signal: tone('--gly-signal'),
-      muted: tone('--gly-muted'),
-      readText: read ? read.innerText.trim() : null,
-      readBg: rs && rs.backgroundColor,
-      readWeight: rs && rs.fontWeight,
-      dismissText: dismiss ? dismiss.innerText.trim() : null,
-      dismissBorder: ds && ds.borderTopWidth,
-      dismissColor: ds && ds.color,
-      showMe: !!document.querySelector('.gly-strip-show')?.offsetParent,
-      fade: !!document.querySelector('.gly-strip-fade')?.offsetParent,
-      chipNew: chip.classList.contains('is-new'),
-      chipColor: getComputedStyle(chip).color,
-      primary: document.getElementById('gly-revise').innerText.trim(),
-    };
-  });
+    )
+    .then(() => true)
+    .catch(() => false);
+  check('the arrival reached the UI — the primary left `revising`', landedInUI);
   const record6 = await page.evaluate(
     async () => (await (await fetch('/_galley/versions')).json()).rounds,
   );
   const arrivedRound = record6[record6.length - 1];
-  check(
-    'the strip says which round came back, which version it made, and how much moved',
-    arrived.text ===
-      `round ${
-        record6
-          .filter((r) => !(r.n === 1 && r.reason === 'opened'))
-          .filter((r) => !record6.some((o) => o.answers === r.n)).length
-      } answered · v${arrivedRound.n} · ${
-        arrivedRound.changed === 1
-          ? '1 change'
-          : `${arrivedRound.changed} changes`
-      }`,
-    JSON.stringify({
-      said: arrived.text,
-      n: arrivedRound.n,
-      changed: arrivedRound.changed,
-    }),
-  );
-  // THE COUNT IS THE SERVER'S. `changed` comes off `/_galley/versions`, computed
-  // by diff.Regions per request, and the strip is the FIRST surface to say how
-  // much moved — before anything has been rendered that a count could be
-  // derived from. A strip that agreed with a render would be a count that lies
-  // the day the render is wrong.
+  // THE COUNT IS THE SERVER'S. `changed` comes off `/_galley/versions`,
+  // computed by diff.Regions per request. A count agreed with a render would be
+  // a count that lies the day the render is wrong.
   check(
     'and that count is the record’s, not a count of anything drawn',
     arrivedRound.changed > 0,
     JSON.stringify({ changed: arrivedRound.changed }),
   );
+  // THE STRIP IS DELETED AND SO IS THE CHIP IT NAMED. Six checks stood here —
+  // the strip's corner, its border, its `read changes` verb, its quiet dismiss,
+  // the History chip going amber, and `read changes` deep-linking to a round's
+  // reading state — and every one of them measured a surface this task removes.
+  // Task 11 put the arrival INSIDE the paper — the changed block tints and the
+  // WAS strip under it carries what the sentence said before — and that surface
+  // has its own checks where it is built. What is asserted here is the half
+  // this task is responsible for: the two surfaces an arrival used to raise are
+  // not on the page at all, and the primary is the verb the round left behind.
+  const inline = await page.evaluate(() => ({
+    strip: document.querySelectorAll('.gly-strip').length,
+    chip: document.querySelectorAll('.gly-versions-open').length,
+    primary: document.getElementById('gly-revise').innerText.trim(),
+  }));
   check(
-    'it sits bottom-left, mono, inside a 1px amber border — the arrived grammar',
-    arrived.left <= 24 &&
-      arrived.fromBottom <= 24 &&
-      arrived.mono === true &&
-      arrived.border === arrived.accent &&
-      arrived.borderWidth === '1px',
-    JSON.stringify(arrived),
-  );
-  check(
-    'one filled-signal verb on it, and it names what it opens',
-    arrived.readText === 'read changes' &&
-      arrived.readBg === arrived.signal &&
-      Number(arrived.readWeight) >= 600,
-    JSON.stringify(arrived),
-  );
-  check(
-    'beside a quiet dismiss that is not a second verb',
-    arrived.dismissText === 'dismiss' &&
-      arrived.dismissBorder === '0px' &&
-      arrived.dismissColor === arrived.muted,
-    JSON.stringify(arrived),
-  );
-  check(
-    'the old proposal strip’s verb and its fade suffix are not on an arrival',
-    arrived.showMe === false && arrived.fade === false,
-    JSON.stringify(arrived),
-  );
-  check(
-    'the History chip is amber until the round is read',
-    arrived.chipNew === true && arrived.chipColor === arrived.accent,
-    JSON.stringify(arrived),
+    'and neither the arrival strip nor the History chip is on the page at all',
+    inline.strip === 0 && inline.chip === 0,
+    JSON.stringify(inline),
   );
   check(
     'and the primary shows Approve, because nothing is pending',
-    arrived.primary.includes('Approve'),
-    arrived.primary,
-  );
-
-  // `read changes` LANDS ON THAT ROUND'S READING STATE, NOT ON THE LANDING.
-  // Two stages answer two different questions — "what has happened to this
-  // document" and "what did round N do" — and the strip was pressed with the
-  // second one in mind. Read off the paper's own `data-to` (the SERVER's answer
-  // to which version is on screen) and the sub-bar's presence, which is what
-  // makes a reading state a reading state.
-  await page.click('.gly-strip-read');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  await page.waitForFunction(
-    () => !document.querySelector('.gly-versions-sub').hidden,
-  );
-  const landedRead = await page.evaluate(() => ({
-    to: document.querySelector('.gly-versions-paper').dataset.to,
-    reading: !document.querySelector('.gly-versions-sub').hidden,
-    where: document.querySelector('.gly-versions-where').textContent,
-    strip: !document.querySelector('.gly-strip').hidden,
-  }));
-  check(
-    'read changes deep-links straight to that round’s reading state, not the landing',
-    landedRead.to === String(arrivedRound.n) &&
-      landedRead.reading === true &&
-      /^ROUND \d+ · V\d+ → V\d+$/.test(landedRead.where),
-    JSON.stringify(landedRead),
-  );
-  check(
-    'and the notice comes down once the reading it announced has begun',
-    landedRead.strip === false,
-    JSON.stringify(landedRead),
-  );
-  await page.click('#gly-revise');
-  await page.waitForFunction(
-    () => document.querySelector('.gly-versions')?.hidden === true,
-  );
-  check(
-    'and the door stops being amber once the round has been read',
-    !(await page.evaluate(() =>
-      document
-        .querySelector('.gly-census .gly-versions-open')
-        .classList.contains('is-new'),
-    )),
+    inline.primary.includes('Approve'),
+    inline.primary,
   );
 
   await addOverallInstruction(page, 'Final trusted pass.', 1);
@@ -2736,17 +2143,30 @@ try {
     String(cannotCode),
   );
   await page.waitForTimeout(1800);
-  await page.click('.gly-versions-open');
-  await page.waitForSelector('.gly-versions:not([hidden])');
-  await page.waitForTimeout(1000);
+  // THE REFUSAL'S CARD IS DELETED, AND THE KEYFRAME CARRIES THE VOICE NOW.
+  // `a refused round wears NOT ANSWERED, dashed and in the refusal voice` read
+  // `.gly-versions-unanswered` on the History landing. The record is the
+  // timeline: an exception is a HOLLOW CORAL keyframe labelled `· cannot`, and
+  // apart by shape as well as by word is the same discipline said on the
+  // surface that inherited it.
   const refusedRound = await page.evaluate(() => {
-    const c = document.querySelector('.gly-versions-unanswered');
-    if (!c) return null;
-    const ask = c.querySelector('.gly-versions-ask');
+    const k = document.querySelector('.gly-scrub-key[data-tone="coral"]');
+    if (!k) return null;
     return {
-      head: c.querySelector('.gly-card-head').textContent.trim(),
-      dashed: getComputedStyle(c).borderTopStyle,
-      voice: ask ? getComputedStyle(ask).fontStyle : null,
+      label: k.innerText.trim(),
+      title: k.title,
+      fill: k.dataset.fill,
+      color: getComputedStyle(k).color,
+      coral: (() => {
+        const probe = document.createElement('span');
+        probe.style.color = getComputedStyle(document.documentElement)
+          .getPropertyValue('--gly-coral')
+          .trim();
+        document.body.appendChild(probe);
+        const want = getComputedStyle(probe).color;
+        probe.remove();
+        return want;
+      })(),
     };
   });
   // AND THE ONE THAT OVERWRITES THE DRAFT HOLDS STILL BETWEEN ITS TWO PRESSES.
@@ -2760,8 +2180,8 @@ try {
   // than of that one button.
   const restoreBox = async () =>
     page.evaluate(() => {
-      const b = document.querySelector('.gly-versions-restore');
-      if (!b) return null;
+      const b = document.querySelector('.gly-eyebrow .gly-versions-restore');
+      if (!b || b.hidden) return null;
       const r = b.getBoundingClientRect();
       return {
         x: Math.round(r.x * 10) / 10,
@@ -2769,9 +2189,26 @@ try {
         said: b.innerText.trim(),
       };
     });
+  // OFF THE HEAD FIRST — the verb is offered only while an earlier version is
+  // on the sheet, because there is nothing at the head to restore the draft
+  // FROM. THE VERSION BEFORE THE HEAD, not the first keyframe: restoring is a
+  // real write and this section presses it twice, so a restore from v1 would
+  // replace the whole fixture with the file as galley opened it and every count
+  // below would be reading a different document.
+  //
+  // PRESSED THROUGH THE ELEMENT, not through the pointer: by this point the
+  // fixture has eleven rounds and their labels overlap on a 1440px track, so
+  // the neighbour's label sits over this one's centre and a real click lands on
+  // the wrong keyframe. That crowding is real at eleven rounds and it is not
+  // this check's claim; whether a keyframe is reachable by pointer is asserted
+  // at §7, on a track the reviewer's own review actually produced.
+  await page.evaluate(() =>
+    document.querySelector('.gly-scrub-key:nth-last-child(2)').click(),
+  );
+  await page.waitForSelector('body.gly-scrubbing .gly-scrub-paper[data-v]');
   const restIdle = await restoreBox();
   if (restIdle) {
-    await page.click('.gly-versions-restore');
+    await page.click('.gly-eyebrow .gly-versions-restore');
     await page.waitForTimeout(300);
     const restArmed = await restoreBox();
     check(
@@ -2787,7 +2224,7 @@ try {
     // `restoreButton.textContent = 'restoring…'`, which REPLACES the button's
     // children — destroying both label spans. Every later paintRestore then
     // wrote labels and toggled classes on DETACHED nodes, so the button was
-    // left reading "restoring…" for the life of the panel, with the reserve
+    // left reading "restoring…" for as long as the page lived, with the reserve
     // that stops it moving on its own click gone with the spans. It is not a
     // failure path: the SUCCESS path did it too.
     //
@@ -2795,10 +2232,10 @@ try {
     // the next repaint of a rebuilt panel and would go green over a button
     // whose reserve had been destroyed — the same proxy-reading shape this file
     // records four of.
-    await page.click('.gly-versions-restore');
+    await page.click('.gly-eyebrow .gly-versions-restore');
     await page.waitForTimeout(600);
     const restAfter = await page.evaluate(() => {
-      const b = document.querySelector('.gly-versions-restore');
+      const b = document.querySelector('.gly-eyebrow .gly-versions-restore');
       if (!b) {
         return null;
       }
@@ -2816,35 +2253,103 @@ try {
     await page.waitForTimeout(250);
   }
 
+  // AND THE ROW THE REFUSAL IS ABOUT SURVIVES THE PRESS THAT SENT IT. Rows were
+  // built from the PENDING list, which Revise empties — so the instant the
+  // reviewer pressed, every row left the paper and spec §2-§4's `writing…`,
+  // `applied` and `not applied` were unreachable states of a surface that was
+  // no longer there. That left the repo's own invariant — nothing the reviewer
+  // sent may ever disappear — with no surface at all. They come off the round's
+  // immutable `asks` now, and a sent row offers no `×`: it is a fact about the
+  // past, not an offer to un-say it.
+  const refusedRows = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.ProseMirror .gly-row')];
+    return {
+      states: rows.map(
+        (r) => r.querySelector('.gly-row-state')?.textContent ?? '',
+      ),
+      tones: rows.map((r) => r.dataset.tone),
+      removable: rows.filter((r) => r.querySelector('.gly-row-remove')).length,
+      phase: document.body.classList.contains('gly-phase-cannot'),
+    };
+  });
   check(
-    'a refused round wears NOT ANSWERED, dashed and in the refusal voice',
+    'the refused instruction is still on the page, reading `not applied` in coral',
+    refusedRows.states.length > 0 &&
+      refusedRows.states.every((s) => s === 'not applied') &&
+      refusedRows.tones.every((t) => t === 'coral') &&
+      refusedRows.removable === 0 &&
+      refusedRows.phase === true,
+    JSON.stringify(refusedRows),
+  );
+  // AND THE BANNER SAYS IT IN WORDS, above the paper. `.gly-cannot` and its
+  // four parts had no browser check at all — and the element declared
+  // `display: grid`, which beat the UA's `[hidden]`, so an EMPTY coral box sat
+  // over the sheet on every page that had never seen a refusal.
+  const banner = await page.evaluate(() => {
+    const el = document.querySelector('.gly-cannot');
+    if (!el) {
+      return { present: false };
+    }
+    const p = document.querySelector('.ProseMirror');
+    return {
+      present: true,
+      hidden: el.hidden,
+      display: getComputedStyle(el).display,
+      label: el.querySelector('.gly-cannot-label')?.textContent ?? '',
+      body: el.querySelector('.gly-cannot-body')?.textContent ?? '',
+      why: el.querySelector('.gly-cannot-why')?.textContent ?? '',
+      fixed: el.querySelector('.gly-cannot-fixed')?.textContent ?? '',
+      abovePaper:
+        el.getBoundingClientRect().bottom <= p.getBoundingClientRect().top,
+    };
+  });
+  check(
+    'the could-not banner is up, above the paper, carrying the agent’s reason',
+    banner.present &&
+      banner.hidden === false &&
+      banner.display !== 'none' &&
+      /could not/.test(banner.body) &&
+      /passive voice/.test(banner.why) &&
+      /report, not a conversation/.test(banner.fixed) &&
+      banner.abovePaper,
+    JSON.stringify(banner),
+  );
+  check(
+    'a refused round is a hollow coral keyframe that says `cannot`',
     refusedRound &&
-      /NOT ANSWERED/.test(refusedRound.head) &&
-      refusedRound.dashed === 'dashed' &&
-      refusedRound.voice === 'italic',
+      /^R\d+$/.test(refusedRound.label) &&
+      /· cannot$/.test(refusedRound.title) &&
+      refusedRound.fill === 'none' &&
+      refusedRound.color === refusedRound.coral,
     JSON.stringify(refusedRound),
   );
 
-  // §6.4 — THE REVIEWER'S OWN EDITS ARE IN THE RAIL.
+  // §6.4 — A HAND EDIT IS COUNTED ONCE, IN THE FOOTER TRAIL, AND HAS NO CARD.
   //
-  // The rail is the list of what pressing Revise will send, and it showed half
-  // of it: an instruction is sent, and so is every edit the reviewer made by
-  // hand — that is what the round's `changes` carry, and without them an agent
-  // rewrites the reviewer's deletions back. There was no surface for that half
-  // anywhere, and the answer previously proposed was a SECOND list reachable
-  // from the Revise button. Court: "we don't need a second list or surface…
-  // one surface. all of the instructions."
+  // RETIRED, AND REPLACED RATHER THAN NARROWED. This section used to assert the
+  // opposite: that `paintRailCards` filed one `.gly-change` per reviewer edit
+  // under a `.gly-rail-changes` heading ("an edit the reviewer made by hand
+  // appears in the rail"), with `revert`'s two-click arm on the card. That
+  // surface is deleted. 02-states-and-behavior.md §1 gives a hand edit
+  // page-only marks — coral line-through ghosts, the lime insertion wash —
+  // cleared on send, and ONE count: the footer trail's `{E} edit(s), {I}
+  // instruction(s) →`. A second list of the same edits beside the prose that
+  // already shows them is the one-instruction-two-surfaces defect this branch
+  // removed everywhere else. Targeted revert survives where the spec puts it,
+  // over the ghost itself (`.gly-revert-float`, pending.ts) — the card's armed
+  // pill was the second copy of it and went with the card.
   //
-  // READ OFF THE SERVER'S LIST, not the browser's live trail: the trail runs
-  // ahead of the server by one save debounce and is not yet anything the agent
-  // could be told, so a rail painted from it would show work nobody has been
-  // sent.
   // A PARAGRAPH, NOT THE HEADING, and the difference is not cosmetic. Emptying
   // a heading leaves "#" behind, which is a `changed` whose new text appears in
   // every other heading — genuinely ambiguous, and the server refuses it by
   // design rather than reverting one at random. Deleting a paragraph is both
-  // the gesture a reviewer actually makes and the one shape revert can answer
-  // exactly: a whole block, put back where it was.
+  // the gesture a reviewer actually makes and the one shape the round can carry
+  // exactly: a whole block, gone from where it was.
+  //
+  // READ OFF THE SERVER'S LIST, not the browser's live trail: `paintRevise`
+  // counts `this.changes`, which is the round as the agent would receive it,
+  // and the save debounce means the number arrives a beat after the keystroke —
+  // hence the poll rather than one read.
   await page.evaluate(() => {
     const editor = window.galleyEdit.editor;
     const paras = [];
@@ -2862,85 +2367,44 @@ try {
     editor.commands.focus();
     editor.view.dispatch(editor.state.tr.delete(last.from, last.to));
   });
-  let railEdits = { cards: 0, head: '' };
-  for (let i = 0; i < 24 && railEdits.cards === 0; i++) {
+  let handEdit = { trail: '', cards: 0 };
+  for (let i = 0; i < 24 && !/edit/.test(handEdit.trail); i++) {
     await page.waitForTimeout(500);
-    railEdits = await page.evaluate(() => ({
-      cards: document.querySelectorAll('.gly-rail-changes .gly-change').length,
-      head:
-        document
-          .querySelector('.gly-rail-changes-head')
-          ?.innerText.trim()
-          .toLowerCase() || '',
-      quoted:
-        document.querySelector('.gly-change-before')?.innerText.trim() || '',
+    handEdit = await page.evaluate(() => ({
+      trail: (
+        document.querySelector('.gly-revise-trail')?.innerText || ''
+      ).trim(),
+      // Every name the deleted list ever wore, on every surface — the rail, the
+      // sheet, the bubble. The count is the assertion: a hand edit that grew a
+      // card back anywhere fails here, not only in the rail.
+      cards: document.querySelectorAll(
+        '.gly-change, .gly-rail-changes, .gly-rail-changes-head, .gly-change-revert',
+      ).length,
+      // A ghost the reviewer can hover to revert — the surface the spec DOES
+      // give a hand edit. Presence only: the float is positioned on hover.
+      ghosts: document.querySelectorAll('.gly-trail-ghost').length,
     }));
   }
   check(
-    'an edit the reviewer made by hand appears in the rail',
-    railEdits.cards > 0,
-    JSON.stringify(railEdits),
+    'a hand edit is counted in the footer trail',
+    /\b1 edit\b/.test(handEdit.trail),
+    JSON.stringify(handEdit),
   );
   check(
-    'and the section counts them, because that is what is checked before sending',
-    /your edit/.test(railEdits.head),
-    JSON.stringify(railEdits),
+    'and it has no card, on any surface — the marks in the prose are the surface',
+    handEdit.cards === 0,
+    JSON.stringify(handEdit),
   );
 
-  // REVERT IS TARGETED UNDO, and the two-step is the same primitive delete and
-  // restore already wear, because it discards work. The first press ARMS and
-  // must not act; only the second puts the words back. A one-press revert on a
-  // card the reviewer is reading is exactly the misfire the arming exists for.
-  const beforeRevert = await page.evaluate(() =>
-    document.querySelector('.ProseMirror').innerText.trim(),
-  );
-  const revertArmed = await page.evaluate(() => {
-    const b = document.querySelector('.gly-change-revert');
-    if (!b) {
-      return null;
-    }
-    b.click();
-    const now = document.querySelector('.gly-change-revert');
-    return {
-      armed: !!now && now.classList.contains('gly-armed'),
-      said: now ? now.innerText.trim() : '',
-    };
-  });
-  check(
-    'the first press on revert arms it and changes nothing',
-    revertArmed !== null &&
-      revertArmed.armed === true &&
-      (await page.evaluate(
-        (was) =>
-          document.querySelector('.ProseMirror').innerText.trim() === was,
-        beforeRevert,
-      )),
-    JSON.stringify(revertArmed),
-  );
-  await page.click('.gly-change-revert');
-  let reverted = beforeRevert;
-  for (let i = 0; i < 20 && reverted === beforeRevert; i++) {
-    await page.waitForTimeout(300);
-    reverted = await page.evaluate(() =>
-      document.querySelector('.ProseMirror').innerText.trim(),
-    );
-  }
-  check(
-    'and the second press puts the words back',
-    reverted !== beforeRevert,
-    JSON.stringify({
-      before: beforeRevert.slice(0, 60),
-      after: reverted.slice(0, 60),
-    }),
-  );
-  const clearedRail = await page.evaluate(
-    () => document.querySelectorAll('.gly-rail-changes .gly-change').length,
-  );
-  check(
-    'and the edit leaves the rail, because it is no longer in the round',
-    clearedRail === 0,
-    String(clearedRail),
-  );
+  // §6.4a — `a band that holds no cards reserves no height` IS RETIRED WITH THE
+  // BAND. It stated the invariant `paintAnchors` and `threadCard` kept between
+  // them: the band's height came from the stacker's bottom, the stacker's
+  // adrift tail summed every card whose anchor it could not measure, and an
+  // anchorless card counted into that height would have drawn a column of empty
+  // air above the rail's flow sections. `.gly-rail-band` is deleted, and so are
+  // both of its keepers — an instruction with a place in the document is a
+  // ProseMirror widget row under its block, and the anchorless ones are in flow
+  // in the sheet's slot with no height to reserve for anybody.
 
   // §6.5 — A SELECTION THAT CROSSES A BLOCK BOUNDARY CAN BE COMMENTED ON.
   //
@@ -2987,10 +2451,9 @@ try {
     JSON.stringify(crossed),
   );
   if (crossed) {
-    await page.waitForSelector('.gly-comment-button:not([hidden])', {
+    await page.waitForSelector('.gly-composer-form:not([hidden])', {
       timeout: 5000,
     });
-    await page.click('.gly-comment-button');
     await page.fill('.gly-composer-text', 'tighten this passage');
     const before = await page.evaluate(
       async () =>
@@ -3032,18 +2495,20 @@ try {
     );
   }
 
-  // §7 — HISTORY SURVIVES THE SEAL. LAST, because approving ends the review and
-  // every check above it needs a live one.
+  // §7 — THE RECORD SURVIVES THE SEAL. LAST, because approving ends the review
+  // and every check above it needs a live one.
   //
-  // Losing History was never argued — it was collateral. `sealHides` held the
-  // whole census strip, and the History door lives in that strip because
-  // Instructions and History are peers, so sealing a review took the record of
-  // it off the page. `layers.mjs` measured a `.gly-versions-open` click hanging
-  // for thirty seconds and throwing. The recorded reasoning for hiding ended
-  // "the single press that changes that is the press that brings the door
-  // back" — and reopen was deleted afterwards, so hiding outlived its excuse.
+  // Losing the record was never argued — it was collateral. `sealHides` held
+  // the whole census strip, and History's door lived in that strip, so sealing
+  // a review took the record of it off the page; `layers.mjs` measured a click
+  // on that door hanging for thirty seconds and throwing.
   //
-  // A sealed review is exactly when somebody wants to read what happened.
+  // THE DOOR IS DELETED AND THE CLAIM IS NOT. `History survives the seal — the
+  // door is shown, enabled and pressable` and `the instruction list's door does
+  // not` both read the census strip's two chips, and both chips are gone. The
+  // record is the timeline, which is in the footer at every width; a sealed
+  // review is exactly when somebody wants to read what happened, so the
+  // keyframes have to be there and pressable, and the sheet has to answer.
   await page.evaluate(() =>
     fetch('/_galley/revise', {
       method: 'POST',
@@ -3058,51 +2523,58 @@ try {
         ?.classList.contains('gly-seal-off') === false,
     { timeout: 8000 },
   );
-  const sealedBar = await page.evaluate(() => {
-    const door = document.querySelector('.gly-versions-open');
-    const count = document.querySelector('.gly-census-count');
-    if (!door) {
+  const sealedTrack = await page.evaluate(() => {
+    const key = document.querySelector('.gly-scrub-key');
+    if (!key) {
       return null;
     }
-    const r = door.getBoundingClientRect();
+    const r = key.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return {
       // READ WHAT THE BROWSER WILL DO WITH A CLICK, not a class. A rect inside
       // the window is not a control the reviewer can press, and `display: none`
       // on an ancestor is exactly what used to be wrong here.
-      doorShown: getComputedStyle(door).display !== 'none',
-      doorDisabled: door.disabled,
-      doorReachable: !!at && door.contains(at),
-      // The instruction list's door SHOULD be gone: on a sealed page every verb
+      shown: getComputedStyle(key).display !== 'none',
+      disabled: key.disabled,
+      reachable: !!at && key.contains(at),
+      // The instruction list's door SHOULD be gone on a sealed page: every verb
       // on every one of those cards is dead, so it leads to a surface nothing
-      // can be done on. History is the opposite — reading is all that is left.
-      countShown: !!count && getComputedStyle(count).display !== 'none',
+      // can be done on. The record is the opposite — reading is all that is
+      // left. `.gly-census-count` was the wide bar's door and IS DELETED with
+      // the census strip, so that clause could not fail; the door that still
+      // exists is the narrow bar's `.gly-bar-count`, which the seal kills
+      // (SEALED_VERBS, web/seal.ts), and it is what is read.
+      countShown: (() => {
+        const count = document.querySelector('.gly-bar-count');
+        return !!count && !count.disabled;
+      })(),
     };
   });
   check(
-    'History survives the seal — the door is shown, enabled and pressable',
-    sealedBar &&
-      sealedBar.doorShown &&
-      sealedBar.doorDisabled === false &&
-      sealedBar.doorReachable,
-    JSON.stringify(sealedBar),
+    'the timeline survives the seal — its keyframes are shown and pressable',
+    sealedTrack &&
+      sealedTrack.shown &&
+      sealedTrack.disabled === false &&
+      sealedTrack.reachable,
+    JSON.stringify(sealedTrack),
   );
   check(
     'and the instruction list’s door does not, because every verb behind it is dead',
-    sealedBar && sealedBar.countShown === false,
-    JSON.stringify(sealedBar),
+    sealedTrack && sealedTrack.countShown === false,
+    JSON.stringify(sealedTrack),
   );
-  await page.click('.gly-versions-open');
-  const sealedHistory = await page.evaluate(() => ({
-    open: document.querySelector('.gly-versions')?.hidden === false,
-    rounds: document.querySelectorAll(
-      '.gly-versions .gly-round, .gly-versions-list button',
-    ).length,
+  await page.click('.gly-scrub-key');
+  await page.waitForSelector('body.gly-scrubbing .gly-scrub-paper[data-v]');
+  const sealedRead = await page.evaluate(() => ({
+    scrubbing: document.body.classList.contains('gly-scrubbing'),
+    text: (
+      document.querySelector('.gly-scrub-paper[data-v]')?.innerText ?? ''
+    ).trim().length,
   }));
   check(
-    'and pressing it opens the record of the review that just ended',
-    sealedHistory.open,
-    JSON.stringify(sealedHistory),
+    'and pressing one reads the review that just ended',
+    sealedRead.scrubbing && sealedRead.text > 0,
+    JSON.stringify(sealedRead),
   );
 } finally {
   if (browser) await browser.close();

@@ -381,3 +381,31 @@ func TestABlockGoneAtTheEndIsPaintedOnce(t *testing.T) {
 		}
 	}
 }
+
+// FRONT MATTER IS ONE VERBATIM BLOCK. It used to be a rule block plus a
+// paragraph — the opening "---" matched the thematic-rule pattern and the YAML
+// under it was flattened into prose, closing delimiter and all. That is what
+// `revertChange` then joined back into the author's file.
+func TestFrontMatterIsOneVerbatimBlock(t *testing.T) {
+	const front = "---\nname: learn-anything\ndescription: Turns any topic into a plan.\n---"
+	blocks := Blocks(front + "\n\n# Learn Anything\n\nA paragraph.\n")
+	if len(blocks) != 3 {
+		t.Fatalf("want 3 blocks, got %d: %+v", len(blocks), blocks)
+	}
+	if blocks[0].Kind != KindFrontM || blocks[0].Text != front {
+		t.Fatalf("front matter not carried verbatim: %+v", blocks[0])
+	}
+	if !blocks[0].Kind.Atomic() {
+		t.Fatal("front matter must be atomic, or its lines get word-diffed as prose")
+	}
+}
+
+// AND A LEADING THEMATIC BREAK IS STILL A THEMATIC BREAK. The peel defers to
+// markdown.SplitFrontMatter precisely so an unterminated "---" keeps its old
+// meaning rather than swallowing the document.
+func TestALeadingThematicBreakIsNotFrontMatter(t *testing.T) {
+	blocks := Blocks("---\n\nA paragraph with no closing delimiter anywhere.\n")
+	if len(blocks) == 0 || blocks[0].Kind != KindRule {
+		t.Fatalf("want a leading rule block, got %+v", blocks)
+	}
+}

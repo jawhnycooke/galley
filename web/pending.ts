@@ -17,13 +17,9 @@ import { getJSON } from './net.ts';
 import { runFor, markElement, runTop } from './runs.ts';
 import { flash } from './card.ts';
 import { verdictLabel } from './verdict.ts';
-import {
-  diffPending,
-  arrivalMessage,
-  arrivalNeedsStrip,
-  queueArrivals,
-} from './arrivals.ts';
+import { diffPending, arrivalNeedsStrip, queueArrivals } from './arrivals.ts';
 import { AUTHOR } from './rail.ts';
+import { revertChange } from './cards.ts';
 import type { SuggestionLike } from './suggestions.ts';
 import type {
   AppShell,
@@ -33,7 +29,7 @@ import type {
   SavedView,
   Thread,
 } from './appshell.ts';
-import type { InstructionView } from './wire';
+import type { InstructionView, ReviewerChange } from './wire';
 
 // instructionsToThreads is refreshPending's wire-shape adaptation, pulled
 // out because it touches no `this` — it is a pure map over exactly the
@@ -59,7 +55,127 @@ function instructionsToThreads(
   }));
 }
 
+// makeRevertFloat builds the one `× revert` pill that follows the pointer over
+// the deletion ghosts. ONE element for every ghost, moved rather than rebuilt,
+// for watchLit's reason at the other end: the ghosts are widget decorations
+// and ProseMirror destroys and remakes them on every redraw, so a button owned
+// by a ghost is a button that will not exist in a moment. It hangs off `body`
+// rather than off the paper because nothing galley draws is ever inserted into
+// `.ProseMirror` by hand — see rows.ts.
+function makeRevertFloat(app: AppShell): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'gly-revert-float';
+  b.textContent = '× revert';
+  b.title = 'revert this edit';
+  b.hidden = true;
+  b.addEventListener('mousedown', (e) => e.preventDefault());
+  b.addEventListener('click', () => {
+    const key = b.dataset.key || '';
+    b.hidden = true;
+    if (!key) {
+      return;
+    }
+    // The rail's armed pill and this one ask the SAME question of the server
+    // and must carry back the same refusal — so both go through revertChange
+    // (cards.ts) rather than each keeping a copy of the sentence.
+    void revertChange(app, key);
+  });
+  document.body.appendChild(b);
+  app.revertFloat = b;
+  return b;
+}
+
+// changeKeyFor answers which reviewer change a ghost is part of, by the text
+// that was removed — see ghostEl (trail.ts) for why that is the only handle a
+// ghost has. Exact first, then containment: the server's diff summarises a
+// whole edited run where a ghost is one keystroke's worth of it.
+//
+// AMBIGUITY IS A NO. Deleting the word "the" in two paragraphs gives two
+// changes that both answer to the same text; picking the first would put a
+// `× revert` over one ghost that undoes the OTHER edit, silently and
+// destructively. Two candidates therefore behave exactly as none do — no pill
+// — and the reviewer reverts from the trail instead.
+function changeKeyFor(changes: ReviewerChange[], old: string): string {
+  const only = (match: (before: string) => boolean): string | null => {
+    const hits = changes.filter((c) => c.key && match(c.before || ''));
+    return hits.length === 1 ? hits[0].key || '' : null;
+  };
+  return (
+    only((before) => before === old) ??
+    only((before) => before.includes(old)) ??
+    ''
+  );
+}
+
 export const pendingMethods = {
+  // The `× revert` pill over a deletion ghost. Delegated on the paper for
+  // makeRevertFloat's reason, and bound ONCE — the listener outlives every
+  // redraw of the decorations it is about.
+  watchGhosts(this: AppShell): void {
+    const paper = this.editor.view.dom;
+    paper.addEventListener('mouseover', (e) => {
+      const ghost = (e.target as Element | null)?.closest<HTMLElement>(
+        '.gly-trail-ghost[data-old]',
+      );
+      // AND THE PILL GOES WHEN THE POINTER LEAVES THE GHOST, not only when it
+      // leaves the paper. `mouseover` fires for every element the pointer
+      // crosses, so moving off a ghost onto the prose beside it used to leave
+      // the pill standing — over words it was not about, ARMED with the key of
+      // the ghost it had been over. `× revert` is the one destructive verb a
+      // hand edit has, so a stale one is not clutter, it is a wrong deletion
+      // one click away.
+      const over = (e.target as Element | null)?.closest(
+        '.gly-revert-float, .gly-trail-ghost[data-old]',
+      );
+      if (!ghost) {
+        if (!over && this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
+        return;
+      }
+      const key = changeKeyFor(this.changes, ghost.dataset.old || '');
+      if (!key) {
+        // Nothing to revert THROUGH: the server has not diffed this keystroke
+        // into a change yet. No pill rather than a pill that does nothing —
+        // and the one that is up is about a different ghost, so it goes.
+        if (this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
+        return;
+      }
+      const btn = this.revertFloat ?? makeRevertFloat(this);
+      const r = ghost.getBoundingClientRect();
+      btn.style.top = `${r.top + window.scrollY - 22}px`;
+      btn.style.left = `${r.right + window.scrollX + 4}px`;
+      btn.dataset.key = key;
+      btn.hidden = false;
+    });
+    // AND A SCROLL TAKES IT WITH THE GHOST. The pill is a `body` child placed
+    // at page coordinates read once, on hover; the paper scrolls and it does
+    // not, so a scrolled page leaves it floating over unrelated prose, still
+    // armed. Hidden rather than re-placed: the pointer has left the ghost by
+    // definition once the words under it have moved.
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
+      },
+      { passive: true },
+    );
+    paper.addEventListener('mouseleave', (e) => {
+      // Unless the pointer went TO the pill — it is a `body` child sitting
+      // over the paper's own edge, so reaching for it leaves the paper, and
+      // hiding it there would be a button that cannot be pressed.
+      if (!this.revertFloat || e.relatedTarget === this.revertFloat) {
+        return;
+      }
+      this.revertFloat.hidden = true;
+    });
+  },
+
   // tick watches the two things the server can tell us that the websocket
   // cannot: when the projection last reached DISK, and when something rewrote
   // the file underneath us.
@@ -75,6 +191,19 @@ export const pendingMethods = {
     // tab that has since been closed, so the counter is read on every poll
     // rather than only after this page's own button was pressed.
     this.readRevise();
+    // While the agent is writing, the reviewer wants to see it land as it
+    // happens rather than at the normal cadence — so tick reschedules itself
+    // sooner instead of waiting for the outer setInterval's next beat. Guard
+    // with reviseTimer so only one 500ms chain is ever alive: the outer
+    // setInterval (web/entry.ts, POLL_MS) keeps firing every 1500ms
+    // regardless, and without this guard each of those beats would start its
+    // own concurrent chain that never stops for the rest of the revision.
+    if (this.reviseRunning && !this.reviseTimer) {
+      this.reviseTimer = window.setTimeout(() => {
+        this.reviseTimer = undefined;
+        this.tick();
+      }, 500);
+    }
     getJSON<SavedView>('/_galley/saved')
       .then((d) => {
         if (d && d.saved && d.saved !== this.savedMs) {
@@ -136,6 +265,20 @@ export const pendingMethods = {
         // `omitempty` on the Go side, so a round with no hand edits arrives
         // with the key ABSENT rather than as an empty array.
         this.changes = view.changes || [];
+        // AND A PILL ARMED WITH A KEY THE SERVER NO LONGER HAS COMES DOWN.
+        // `× revert` carries one change's key, taken on hover; the round can be
+        // sent, or the change reverted from somewhere else, between that hover
+        // and the click — and a press then posts a key the server answers 404
+        // to, or worse, does nothing visible while the reviewer believes it
+        // did. The refresh that learns the change is gone is the place that
+        // knows.
+        const pill = this.revertFloat;
+        if (pill && !pill.hidden) {
+          const key = pill.dataset.key || '';
+          if (!this.changes.some((c) => c.key === key)) {
+            pill.hidden = true;
+          }
+        }
         this.blocks = view.blocks || [];
         // NO TRAIL IS ADOPTED FROM THIS PAYLOAD, because the payload has none:
         // `pendingView` is `{instructions, blocks}`. `adoptTrail` and
@@ -158,11 +301,29 @@ export const pendingMethods = {
         // the label here rather than on its own 1s beat, so the button and the
         // census it reads can never disagree for a tick.
         this.verdict = verdictLabel(view);
-        this.pendingCount = (view.instructions || []).length;
-        this.paintCensus();
+        // A NEWLY FILED INSTRUCTION RETIRES THE LANDED ROUND. The WAS strip and
+        // the `applied`/`not applied` rows are the answer to the round that just
+        // came back; the moment the reviewer pins a new instruction they are
+        // composing the NEXT round, and a row under it that still reads
+        // `applied` from the last one is answering a question nobody asked.
+        // A GROWN COUNT IS THE TEST because filing is the only thing that grows
+        // it — a delete shrinks it, and a delete leaves the last round's reading
+        // exactly as true as it was.
+        const filed = (view.instructions || []).length;
+        if (filed > this.pendingCount && this.arrivalWas) {
+          this.arrivalWas = null;
+        }
+        this.pendingCount = filed;
+        this.paintBarCount();
         this.paintRevise();
         this.paintHold();
         this.paintRail();
+        // The rows are the anchored half of that same list, pinned inside the
+        // paper instead of beside it — see web/rows.ts. After paintRail for
+        // one reason only: they are painted from the same three fields it was
+        // (`comments`, `blocks`, the phase), so a single order keeps the rail
+        // and the rows from ever disagreeing about one poll.
+        this.paintRows();
         // An OPEN conversation is redrawn from the same fresh list every other
         // surface was just painted from — otherwise a reply the reviewer sent
         // from the bubble lands in the file and never appears in the only copy
@@ -174,6 +335,10 @@ export const pendingMethods = {
         if (arrived.length) {
           this.noticeArrivals(arrived);
         }
+        // LAST, BECAUSE IT COUNTS WHAT THE RAIL JUST DREW. The eyebrow's right
+        // half is the pending count and the slot's empty line is asked whether
+        // any whole-doc row exists — both are answers about the paint above.
+        this.paintFrame();
       })
       .catch(() => {});
   },
@@ -231,7 +396,10 @@ export const pendingMethods = {
     const runs = this.runsNow();
     const viewport = {
       height: window.innerHeight || document.documentElement.clientHeight || 0,
-      railVisible: !this.rail.root.hidden,
+      // The rail is deleted; an arrival's card, when it has one, is in the
+      // sheet. `false` rather than the field, so the viewport question this
+      // shape asks is answered honestly rather than by a surface that is gone.
+      railVisible: false,
     };
 
     const unseen: ArrivalItem[] = [];
@@ -268,10 +436,6 @@ export const pendingMethods = {
       return;
     }
     this.arrivalQueue = queueArrivals(this.arrivalQueue, unseen);
-    this.stripBatch = this.strip.root.hidden
-      ? unseen
-      : this.stripBatch.concat(unseen);
-    this.showStrip(arrivalMessage(this.stripBatch));
   },
 
   // Refreshing History also refreshes the count on its peer view control. It is

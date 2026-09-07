@@ -114,35 +114,19 @@ import {
   VERDICT_DISCARDED,
 } from './verdict.ts';
 import {
-  VIEWS,
-  DEFAULT_VIEW,
-  COULD_NOT,
-  ALL_ROUNDS,
   BACK_TO_DRAFT,
-  IDENTICAL_SAID,
   ageSaid,
-  changedSaid,
-  changeHead,
-  roundHead,
-  roundFoot,
-  whereSaid,
   workRounds,
   roundCards,
   ordinalOf,
   arrivalSaid,
-  askedOf,
-  VERSIONS_LABEL,
-  VERSIONS_NAME,
 } from './versions.ts';
 import {
   diffPending,
-  arrivalMessage,
   arrivalNeedsStrip,
   queueArrivals,
-  nextArrival,
   holdLabel,
   shownSuggestions,
-  arrivalAuthor,
   ARRIVAL_AGENT,
 } from './arrivals.ts';
 // The reveal moved out of entry.ts and into web/card.ts with the rest of the
@@ -207,8 +191,6 @@ import {
   writeCollapsed,
   readOverallOpen,
   writeOverallOpen,
-  overallHandle,
-  OVERALL_TITLE,
   RAIL_GAP,
   RAIL_MIN_WIDTH,
 } from './rail.ts';
@@ -4465,105 +4447,62 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
 }
 
 {
-  // ONE SURFACE, TWO STATES. This is the invariant the whole narrow layout
+  // ONE SURFACE, ONE STATE. This is the invariant the whole narrow layout
   // rests on, so it is asserted directly rather than inferred from the CSS.
-  const wide = railSurfaces({
-    width: 1400,
-    collapsed: false,
-    sheetOpen: false,
-  });
+  //
+  // THE RAIL IS DELETED AND EVERY `rail` CLAUSE WENT WITH IT — nine of them, on
+  // a key `railSurfaces` no longer returns: `a wide viewport gets the rail and
+  // nothing else`, `collapsing hides the rail without summoning the sheet`,
+  // `and the rail is not painted underneath it`, `the sheet never renders
+  // beside the rail`, `rail and sheet cannot both be true at any width…` and
+  // the `rail === true` half of the boundary check. Their subject is gone, and
+  // what they were really protecting — the sheet is reachable at every width,
+  // and the boundary is where the BOTTOM BAR appears — is asserted below over
+  // the shape that ships.
+  const wide = railSurfaces({ width: 1400, sheetOpen: false });
   check(
-    'a wide viewport gets the rail and nothing else',
-    wide.rail && !wide.bar && !wide.sheet,
+    'a wide viewport paints neither the bottom bar nor the sheet',
+    !wide.bar && !wide.sheet,
     wide,
   );
-
-  const collapsed = railSurfaces({
-    width: 1400,
-    collapsed: true,
-    sheetOpen: false,
-  });
+  // NOTHING IS BESIDE THE PAPER AT ANY WIDTH, which is what `collapsed` means:
+  // `main` recentres on the document's own measure. It used to be forced only
+  // below the breakpoint, where there was no room for a rail.
   check(
-    'collapsing hides the rail without summoning the sheet',
-    !collapsed.rail && !collapsed.bar && !collapsed.sheet,
-    collapsed,
+    'every width is collapsed now — there is no column beside the paper',
+    [400, 800, 991, RAIL_MIN_WIDTH, 1400, 2000].every(
+      (width) =>
+        railSurfaces({ width, sheetOpen: false }).collapsed === true &&
+        railSurfaces({ width, sheetOpen: true }).collapsed === true,
+    ),
   );
 
-  // THE SHEET IS THE REVIEW'S LIST AT EVERY WIDTH, and this is the check that
-  // had to change. It used to read `sheet === false` at 1400 whatever
-  // `sheetOpen` said — correct while the sheet was the rail's REPLACEMENT for
-  // the widths the rail does not exist at, and a straight regression the moment
-  // settled and anchorless conversations moved into it: `↺ reopen` is the only
-  // way back from a mis-clicked `✓ resolve`, and it would have lived on a
-  // surface no desktop reviewer could open. Run red against the tracked build
-  // it reports `{rail: true, sheet: false}`.
-  const wideSheet = railSurfaces({
-    width: 1400,
-    collapsed: false,
-    sheetOpen: true,
-  });
+  // THE SHEET IS THE REVIEW'S LIST AT EVERY WIDTH. It used to read `false` at
+  // 1400 whatever `sheetOpen` said — correct while the sheet was the rail's
+  // REPLACEMENT for the widths the rail does not exist at, and a straight
+  // regression the moment settled and anchorless conversations moved into it:
+  // `↺ reopen` is the only way back from a mis-clicked `✓ resolve`.
   check(
-    'a wide viewport can open the sheet — the settled conversations live there now',
-    wideSheet.sheet === true,
-    wideSheet,
-  );
-  // AND THE RAIL GOES WHEN IT DOES. One surface, one state: the invariant
-  // below is not weakened by the sheet becoming reachable, it is enforced from
-  // the other side.
-  check(
-    'and the rail is not painted underneath it',
-    wideSheet.rail === false,
-    wideSheet,
+    'the sheet opens at every width — the settled conversations live there',
+    [400, 800, 991, RAIL_MIN_WIDTH, 1400, 2000].every(
+      (width) => railSurfaces({ width, sheetOpen: true }).sheet === true,
+    ),
   );
 
-  const narrow = railSurfaces({
-    width: 800,
-    collapsed: false,
-    sheetOpen: false,
-  });
+  const narrow = railSurfaces({ width: 800, sheetOpen: false });
   check(
-    'a narrow viewport forces collapse and shows the bottom bar',
-    !narrow.rail && narrow.bar && narrow.collapsed === true,
+    'a narrow viewport shows the bottom bar',
+    narrow.bar && narrow.collapsed === true,
     narrow,
   );
 
-  const sheet = railSurfaces({ width: 800, collapsed: false, sheetOpen: true });
-  check(
-    'the sheet never renders beside the rail',
-    sheet.sheet === true && sheet.rail === false,
-    sheet,
-  );
-
-  // ONE SURFACE, ONE STATE — stated over every combination rather than over the
-  // one that used to be unreachable. This is the invariant railSurfaces exists
-  // for and it survives the sheet becoming a wide-screen surface unchanged.
-  const every = [];
-  for (const width of [800, 991, RAIL_MIN_WIDTH, 1400]) {
-    for (const collapsed of [false, true]) {
-      for (const sheetOpen of [false, true]) {
-        every.push({
-          at: { width, collapsed, sheetOpen },
-          got: railSurfaces({ width, collapsed, sheetOpen }),
-        });
-      }
-    }
-  }
-  check(
-    'rail and sheet cannot both be true at any width, collapse or sheet state',
-    every.every((e) => !(e.got.rail && e.got.sheet)),
-    every.filter((e) => e.got.rail && e.got.sheet),
-  );
-
-  // The boundary is 992 INCLUSIVE of the rail — the handoff's "wide (>=992px)".
+  // The boundary is 992: at and above it the footer carries the controls, and
+  // below it the bottom bar does — the handoff's "wide (>=992px)".
   check(
     'the surface boundary is exactly RAIL_MIN_WIDTH',
-    railSurfaces({ width: RAIL_MIN_WIDTH, collapsed: false, sheetOpen: false })
-      .rail === true &&
-      railSurfaces({
-        width: RAIL_MIN_WIDTH - 1,
-        collapsed: false,
-        sheetOpen: false,
-      }).bar === true,
+    railSurfaces({ width: RAIL_MIN_WIDTH, sheetOpen: false }).bar === false &&
+      railSurfaces({ width: RAIL_MIN_WIDTH - 1, sheetOpen: false }).bar ===
+        true,
   );
 }
 
@@ -4763,27 +4702,15 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
     }) === REVISE_IDLE,
   );
 
-  // THE HANDLE'S THIRD STATE. `+ instruct document` meant "none" and "one, settled" at
-  // once — measured after a sweep, on a document still carrying
-  // `{>>@document …<<}` and still rendering SETTLED in its own prose.
-  check(
-    'the handle carries the verb only when there is genuinely nothing there',
-    overallHandle(0, 0) === '+ instruct document',
-  );
-  check(
-    'an open doc instruction is counted',
-    overallHandle(1, 0) === '1 doc instruction' &&
-      overallHandle(2, 0) === '2 doc instructions',
-  );
-  check(
-    'a SETTLED doc instruction is not an absent one — it reads settled, not empty',
-    overallHandle(0, 1) === '✓ 1 doc instruction' &&
-      overallHandle(0, 3) === '✓ 3 doc instructions',
-  );
-  check(
-    'and an open one outranks a settled one, since the open one needs answering',
-    overallHandle(1, 2) === '1 doc instruction',
-  );
+  // THE HANDLE'S SIX CHECKS ARE RETIRED WITH `overallHandle` ITSELF. They read
+  // its three states (`+ instruct document` / `1 doc instruction` / `✓ 3 doc
+  // instructions`), the trimmed preposition and the 24ch reserve `▾ ` had to
+  // fit inside. The bar has no whole-document handle to speak for: the door is
+  // the sheet's dashed full-width slot (`.gly-docslot-add`, asserted below),
+  // which says its own verb and reserves nothing. Nothing was left importing
+  // the function but these checks, and a function alive only in its own probe
+  // is the dead surface this pass exists to remove — so both went. The census
+  // count below is a LIVE claim about censusCounts and stays where it was.
   check(
     'the census reports the settled doc instructions the handle needs',
     censusCounts({
@@ -4792,18 +4719,6 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
         { key: 'md-1', anchor: 'range', resolved: true },
       ],
     }).docSettled === 1,
-  );
-  // The reserve is a BOUND stated against THIS trio — see .gly-census-overall.
-  check(
-    '24ch bounds the widest handle the trio can print, ▾ included',
-    `▾ ${overallHandle(0, 99)}`.length <= 24,
-  );
-  check(
-    'the whole-doc handle says what its press does — the one bar control with no title',
-    typeof OVERALL_TITLE === 'string' &&
-      OVERALL_TITLE.length > 0 &&
-      !/\d/.test(OVERALL_TITLE),
-    OVERALL_TITLE,
   );
 }
 
@@ -6453,9 +6368,17 @@ function bindsContentField(src) {
     // in the source at all. The whole word is what is banned, and the bundle
     // carries third-party code with no such string in it either — measured
     // zero, so this is a real zero rather than a hopeful one.
+    //
+    // THE ` suggested ` HALF IS RETIRED WITH THE ARRIVAL STRIP. It was the
+    // positive control — proof the check was reading a bundle that really did
+    // announce arrivals — and the sentence it read (`the agent suggested …`)
+    // was the strip's copy, which is deleted. `ARRIVAL_AGENT` takes its place
+    // as the positive control, and it is the better one: it is the product's
+    // ONE name for the party, so a bundle carrying it is a bundle that named
+    // the party without naming a vendor, which is the whole claim.
     check(
       'and no surface in the bundle names a vendor',
-      !/claude/i.test(src) && src.includes(' suggested '),
+      !/claude/i.test(src) && src.includes(ARRIVAL_AGENT),
     );
     // INVERTED, AND THE INVERSION IS THE RULING. It read *the whole-doc
     // composer lives in the instruction rail*, and it was green over both of
@@ -6469,13 +6392,22 @@ function bindsContentField(src) {
     // returning and a check that only looked for the new string would not see
     // it. `gly-overall-rail` stays: the instructions already FILED are still
     // the rail's, which is the half that never had to move.
+    // AND THEN INVERTED AGAIN, ONE STEP FURTHER ALONG THE SAME ARGUMENT
+    // (Task 7). The verb was `+ Instruction` in the BAR, because the bar was
+    // the only surface that was both document-level and reachable at any
+    // scroll position. The frame gives a third answer: the whole-doc SLOT, a
+    // dashed full-width row directly above the paper, which is document-level
+    // AND beside the thing it is about AND scrolls with it. So the string this
+    // asserted absent is the string it asserts present — the old rail HANDLE is
+    // still gone (`.gly-overall-toggle`, asserted absent), and what is here now
+    // is the slot's own row.
     check(
-      'capture is chrome, and the rail carries no handle of its own',
+      'capture is the sheet’s own slot, and the rail carries no handle of its own',
       src.includes('gly-capture') &&
-        src.includes('+ Instruction') &&
-        src.includes('gly-overall-rail') &&
+        src.includes('gly-docslot-add') &&
+        src.includes('+ instruction on the whole document') &&
         src.includes('add an instruction on the whole doc') &&
-        !src.includes('+ instruction on the whole document'),
+        !src.includes('gly-overall-toggle'),
     );
 
     // The trail: the ghost and the highlight. Written red-first against the
@@ -6516,14 +6448,18 @@ function bindsContentField(src) {
         !src.includes('gly-changed-list') &&
         !src.includes('gly-change-adrift'),
     );
-    // Instructions and History are peer document views now. The instruction
-    // count is on its own named control beside History, not hidden inside the
-    // verdict button's label.
+    // THE COUNT SURVIVES ITS NEIGHBOUR. This check read the instruction count
+    // as a named control BESIDE the History chip — the two doors were peers in
+    // the census strip. The chip and the strip are both deleted (the scrubber
+    // is the record's door), so what is left of the claim is the half that is
+    // still true and still worth defending: the count is its own labelled
+    // control, `.gly-bar-count`, and not a number hidden inside the verdict
+    // button's label. The History half is asserted absent.
     check(
-      'the built bundle carries the instruction count beside History',
+      'the built bundle carries the instruction count on its own control',
       src.includes('Instructions · ') &&
-        src.includes('gly-census-count') &&
-        src.includes('gly-versions-open'),
+        src.includes('gly-bar-count') &&
+        !src.includes('gly-versions-open'),
     );
 
     // THE SEAL. A binary embedding a pre-seal bundle serves a page that keeps
@@ -6589,20 +6525,20 @@ function bindsContentField(src) {
     // property is unchanged: this tail exists nowhere else in the bundle, so it
     // still tells a sealing build from one that merely has TipTap in it.
     //
-    // AND THE TAIL MOVED AGAIN, FOR THE ONE EXEMPTION THE LIST HAS.
-    // `.gly-census button` became `.gly-census button:not(.gly-versions-open)`
-    // when History stopped dying with the seal: the census strip is a group of
-    // VIEW DOORS, a door is not a verb, and a sealed review is exactly when
-    // somebody wants to read what happened. The `:not(...)` is asserted here
-    // rather than merely tolerated, because a build that dropped it would
-    // disable the door while leaving it on screen — shown, reachable and dead,
-    // which this codebase rates as worse than absent.
+    // AND THE TAIL MOVED A THIRD TIME, WHEN THE EXEMPTION'S SUBJECT WAS
+    // DELETED. `.gly-census button:not(.gly-versions-open)` carried the one
+    // exemption the list had — the census strip was a group of VIEW DOORS and
+    // History's led somewhere reading is the whole point. Both are gone (the
+    // scrubber is the record's door and it is not a verb), and an exemption
+    // whose subject is deleted must be deleted with it. `.gly-bar-count` is
+    // named in its place: the narrow bar's `Instructions · N`, the last door
+    // into a list whose every verb dies with the seal. Asserted here so a build
+    // that dropped it ships a live door onto dead cards.
     check(
       'the built bundle carries the sealed bar and its dead verbs',
       src.includes('gly-seal-off') &&
-        src.includes(
-          '.gly-overall-input, .gly-census button:not(.gly-versions-open)',
-        ),
+        src.includes('.gly-overall-input, .gly-bar-count') &&
+        !src.includes('.gly-census button'),
     );
     // AND THE BOX A COMMENT IS TYPED INTO, which is asserted separately because
     // it was added for a reason neither list's tail records: `submitOnEnter`
@@ -6615,7 +6551,7 @@ function bindsContentField(src) {
     check(
       'the built bundle seals the composer textarea, and releases it again',
       src.includes('.gly-composer button, .gly-composer-text') &&
-        src.includes('.gly-comment-button, .gly-composer-text'),
+        src.includes('.gly-composer-cancel, .gly-composer-text'),
     );
     // AND THE HALF THE SEAL OWNS OUTRIGHT — the controls with no painter the
     // unseal EDGE runs, which is the sharpened form of the invariant (a
@@ -6623,31 +6559,23 @@ function bindsContentField(src) {
     // without this list is a bundle that kills those controls for the life of
     // the tab, and the head of the list is what tells the two apart.
     //
-    // `.gly-census-count` IS IN IT NOW, and it joined the moment it stopped
-    // being a `<span>`. It is the door to the review's whole list — the sheet,
-    // where the settled conversations live — it is built ONCE in `makeCensus`
-    // and never rebuilt, and `paintCensus` re-derives the `disabled` flag of
-    // `✓ all` and nothing else. Left out, the first seal would take the way
-    // back to `↺ reopen` away permanently and Reopen would hand back every verb
-    // on the page except the one that reaches the record. Run red against the
-    // tracked bundle it reports the old tail with no count in it.
-    //
-    // `.gly-census-overall` HAS LEFT IT, and the head of the list is
-    // `.gly-census-count` now. The whole-document handle was a bar control
+    // `.gly-census-overall` HAS LEFT IT, and so has the count that headed it.
+    // The whole-document handle was a bar control
     // opening a floating panel; then it was the first card of the instruction
     // rail, reached by `.gly-overall-toggle`; it is a bar control again
-    // (`.gly-capture-open`, one of `.gly-census button` and covered by that
-    // entry), and the box it opens floats over the rail as `.gly-capture`. The
-    // INPUT is the entry in this list that ever mattered, and it kept its class
-    // through both moves for exactly that reason. The count is still here for
-    // the reason it joined — it is built ONCE in `makeCensus` and never
-    // rebuilt, so a seal that did not release it would kill the door to the
-    // review's own list for the life of the tab.
+    // (`.gly-capture-open`, named directly in SEALED_VERBS now that the census
+    // strip it once rode inside is deleted), and the box it opens floats over
+    // the rail as `.gly-capture`. The INPUT is the entry in this list that ever
+    // mattered, and it kept its class through both moves for exactly that
+    // reason. `.gly-census-count` HAS LEFT THE LIST with the strip that built
+    // it: the count is `.gly-bar-count` now, whose flag `paintBarCount`
+    // re-derives from `this.sealed` on an edge `applySeal` runs — a painter,
+    // so SEALED_VERBS and not this list.
     check(
       'the built bundle carries the verbs the seal owns in both directions',
-      src.includes(
-        '.gly-census-count, .gly-overall-input, .gly-composer-send, ',
-      ) && src.includes('.gly-comment-button, .gly-composer-text'),
+      src.includes('.gly-overall-input, .gly-composer-send, ') &&
+        src.includes('.gly-composer-cancel, .gly-composer-text') &&
+        !src.includes('.gly-census-count, .gly-overall-input'),
     );
     // And the Strike button is GONE — with its class, its label and its
     // cross-block sentence. Deletion is the keyboard's; a bundle still
@@ -6705,85 +6633,13 @@ function bindsContentField(src) {
       );
     }
 
-    {
-      check(
-        'one arrival names its section',
-        arrivalMessage([
-          { kind: 'insert', section: 'Shape', author: 'agent' },
-        ]) === 'agent suggested an insert in §Shape, below your viewport',
-      );
-      check(
-        'several arrivals coalesce',
-        arrivalMessage([
-          { kind: 'insert', author: 'agent' },
-          { kind: 'delete', author: 'agent' },
-          { kind: 'insert', author: 'agent' },
-        ]) ===
-          'agent suggested 3 edits while you read — show me steps through them',
-      );
-      // A document with no headings has no section, and "in §, below your
-      // viewport" is not a sentence.
-      check(
-        'a sectionless arrival drops the clause rather than printing an empty one',
-        arrivalMessage([{ kind: 'delete', author: 'agent' }]) ===
-          'agent suggested a delete, below your viewport',
-      );
-      check('nothing arrived says nothing', arrivalMessage([]) === '');
-      // A substitution is one change and has its own word: falling through to the
-      // "an edit" default would be vaguer than the payload already is, and
-      // borrowing "a delete" would name half of what arrived.
-      check(
-        'a replacement is announced as one',
-        arrivalMessage([{ kind: 'replace', author: 'agent' }]) ===
-          'agent suggested a replacement, below your viewport',
-      );
-
-      // THE STRIP NAMED A VENDOR AND NOTHING ELSE ON THE SCREEN DID. `claude` was
-      // hard-coded in both sentences while every card head, the standing sentence
-      // and the CLI's own default all said `agent` — so a proposal filed by
-      // `galley suggest --author dana` was announced as having come from claude,
-      // three inches from a card reading `REPLACE · DANA · JUST NOW`. Shown red
-      // against the tracked bundle: the two checks above read `claude suggested …`.
-      check(
-        'the arrival names ITS OWN author, whoever filed it',
-        arrivalMessage([{ kind: 'replace', author: 'dana' }]) ===
-          'dana suggested a replacement, below your viewport',
-      );
-      check(
-        'and the string `claude` appears in no arrival sentence at all',
-        ![
-          arrivalMessage([{ kind: 'insert', author: 'agent' }]),
-          arrivalMessage([{ kind: 'insert' }]),
-          arrivalMessage([
-            { kind: 'insert', author: 'dana' },
-            { kind: 'delete', author: 'dana' },
-          ]),
-        ].some((s) => s.includes('claude')),
-      );
-      // An unnamed proposer is the ordinary case for a mark parsed out of a file:
-      // CriticMarkup has nowhere to record an author, so the strip has no name to
-      // print and prints the general one rather than an empty space.
-      check(
-        'an arrival with no author falls back to the general name',
-        arrivalMessage([{ kind: 'insert' }]) ===
-          `${ARRIVAL_AGENT} suggested an insert, below your viewport`,
-      );
-      // TWO PARTIES HAVE NO SINGLE NAME. Picking the first would attribute the
-      // other's work to it, which is the same defect as `claude` with a subtler
-      // cause.
-      check(
-        'a batch from two parties is announced under neither of them',
-        arrivalMessage([
-          { kind: 'insert', author: 'dana' },
-          { kind: 'insert', author: 'agent' },
-        ]) ===
-          `${ARRIVAL_AGENT} suggested 2 edits while you read — show me steps through them`,
-      );
-      check(
-        "a batch from ONE party keeps that party's name",
-        arrivalAuthor([{ author: 'dana' }, { author: 'dana' }]) === 'dana',
-      );
-    }
+    // THE ARRIVAL SENTENCE'S OWN GRAMMAR IS DELETED WITH THE STRIP THAT SAID
+    // IT. `arrivalMessage` composed `agent suggested an insert in §Shape, below
+    // your viewport` and its coalesced form, and thirteen checks here held its
+    // section clause, its plural, its one-party name and its refusal to say
+    // anything about nothing. There is no surface left to print it: a round
+    // says what it did where it happened. `queueArrivals` survives it and is
+    // still checked below.
 
     {
       // THE STRIP IS FOR WHAT THE REVIEWER CANNOT SEE. An arrival whose mark is on
@@ -6816,9 +6672,9 @@ function bindsContentField(src) {
     }
 
     {
-      // The queue is what `show me` steps through, and it is NOT the rail's card
-      // list: a card can be decided or scrolled past without the reviewer having
-      // seen what arrived.
+      // The queue is what an arrival is remembered in, and it is NOT the rail's
+      // card list: a card can be decided or scrolled past without the reviewer
+      // having seen what arrived.
       const q1 = queueArrivals([], [{ run: 'a' }, { run: 'b' }]);
       const q2 = queueArrivals(q1, [{ run: 'b' }, { run: 'c' }]);
       check(
@@ -6826,16 +6682,11 @@ function bindsContentField(src) {
         q2.map((a) => a.run).join(',') === 'a,b,c',
       );
 
-      const step = nextArrival(q2, [{ run: 'b' }, { run: 'c' }]);
-      check(
-        'show me skips an arrival that is no longer pending',
-        step.arrival.run === 'b' &&
-          step.queue.map((a) => a.run).join(',') === 'c',
-      );
-      check(
-        'a queue with nothing live left steps nowhere',
-        nextArrival(q2, []).arrival === null,
-      );
+      // `nextArrival` WENT WITH `show me`. It answered one press of the strip's
+      // stepping verb — the first queued arrival still pending, and the queue
+      // without it — and the strip is deleted. The queue itself is not: it is
+      // still what `withhold`/`release` accumulate into, which is what the
+      // check above holds.
     }
 
     {
@@ -7207,56 +7058,21 @@ function bindsContentField(src) {
       }
       check('hostile storage cannot take the editor down', threw === false);
 
-      // THE HANDLE LEADS WITH THE VERB. Court went looking for a way to comment on
-      // the whole document and did not find it — it was there all along, reading
-      // `on trial.md · 1 note`: the only NOUN in a row of verbs (`✓ all`, the
-      // since-retired `✗ all`, `Revise`). A description of what exists never says
-      // you may add to it.
-      //
-      // The two requirements pull opposite ways at zero, so both are asserted:
-      // empty must carry a VERB (that is exactly when someone is hunting for it,
-      // and exactly when a count says nothing), and non-empty must still show the
-      // COUNT without opening the panel (a folded conversation that hid the fact
-      // of itself would be worse than the space it saves).
-      //
-      // "on the whole doc" trimmed to "doc": the handle sits in a strip whose
-      // width is part of the bar's fold arithmetic, and the long form's reserve
-      // held ~100px of preposition at every width — a third of why the bar folded
-      // at ordinary desktop widths. "doc" keeps the claim ("about the whole
-      // document, not a span of it"), and the panel's head still spells it out.
-      check(
-        'an empty overall thread invites a note rather than counting to zero',
-        overallHandle(0) === '+ instruct document',
-      );
-      check(
-        'and never merely describes what is not there',
-        /[+]|add|note on/.test(overallHandle(0)) &&
-          !overallHandle(0).includes('0'),
-      );
-      check(
-        'one note reads singular, and still scopes itself to the whole doc',
-        overallHandle(1) === '1 doc instruction',
-      );
-      check(
-        'several notes read plural',
-        overallHandle(3) === '3 doc instructions',
-      );
-      check(
-        'the count is visible without opening the panel, at every size',
-        [1, 2, 12].every((n) => overallHandle(n).startsWith(String(n))),
-      );
-      // The document's name is gone from the handle — that is the room the verb
-      // needed. The bar carries it a few inches to the left and the panel's own
-      // head still reads "on <doc> as a whole".
-      check(
-        'the handle no longer spends its width on the document name',
-        !overallHandle(2).includes('.md'),
-      );
+      // THE HANDLE'S OWN CHECKS ARE RETIRED WITH IT — see the block on
+      // censusCounts above for the reason. `overallHandle` spoke for the census
+      // strip's whole-document control, and the strip is deleted; the door is
+      // the sheet's dashed slot now.
     }
 
+    // THE RAIL IS DELETED, AND THE BUNDLE IS WHERE THAT IS ASSERTED. Its root
+    // and its two regions are the ones a stray builder could put back without a
+    // source reader noticing, which is what this file's absence checks are for.
     check(
-      'the built bundle carries the instruction rail',
-      src.includes('gly-rail') && src.includes('gly-card'),
+      'the built bundle has no rail left in it — no root, no band, no notice',
+      !src.includes('gly-rail-band') &&
+        !src.includes('gly-rail-notice') &&
+        !src.includes("'gly-rail'") &&
+        src.includes('gly-card'),
     );
     // AND NOT ONE OF THE FIVE MECHANISMS THAT MANAGED ITS OVERFLOW. Dimming was
     // struck from this design once, came back bounded by a cap, and is now gone
@@ -7274,28 +7090,24 @@ function bindsContentField(src) {
         !src.includes('gly-fold-more') &&
         !src.includes('and 1 more '),
     );
-    // AND NOTHING REPLACED THEM. The rail was four sections — anchored cards,
-    // anchorless, settled, changed — and it is the map and a notice. Each of
-    // the three left for its own reason (see makeRail), and this asserts the
-    // ABSENCE, because a bundle is the one place a section can come back
-    // without a source reader noticing. Run red against the tracked bundle it
-    // reports `gly-rail-anchorless` and `gly-rail-settled` both present.
+    // AND NOTHING REPLACED THEM. The rail's four sections — anchored cards,
+    // anchorless, settled, changed — each left for its own reason, and the last
+    // two of them are asserted absent here because a bundle is the one place a
+    // section can come back without a source reader noticing.
     check(
-      'the built bundle has one section after the map, and it is a notice',
-      src.includes('gly-rail-notice') &&
-        !src.includes('gly-rail-anchorless') &&
-        !src.includes('gly-rail-settled'),
+      'the built bundle has no anchorless or settled rail section',
+      !src.includes('gly-rail-anchorless') && !src.includes('gly-rail-settled'),
     );
-    // THE EMPTY RAIL TEACHES, AND THE SETTLED NOTICE IT REPLACED IS ASSERTED
-    // ABSENT. An Approve-faced primary already says the document is settled, so
-    // the notice was a second, quieter voice for it; what a cold-open page
-    // never said is how to ask for a change at all. Run red against the tracked
-    // bundle it reports the old sentence present and the new one missing.
+    // THE TEACH CARD IS GONE WITH THE COLUMN IT TAUGHT FROM. It said `HOW THIS
+    // WORKS — select any words in the document to ask for a change` in a dashed
+    // card at the right of every cold-open page, on a design with no right-hand
+    // column; the slot's own empty line and the `?` sheet say it where the
+    // reviewer is looking. The settled notice it once replaced stays absent —
+    // an Approve-faced primary already says the document is settled.
     check(
-      'the built bundle carries the teaching empty state, and not the settled notice',
-      src.includes('Select any words in the document to ask for a change.') &&
-        src.includes('go to the agent as one round.') &&
-        src.includes('gly-rail-teach') &&
+      'the built bundle carries neither the teach card nor the settled notice',
+      !src.includes('Select any words in the document to ask for a change.') &&
+        !src.includes('gly-rail-teach') &&
         !src.includes('nothing pending — the document is settled'),
     );
     // §2.2: the whole-document instruction is a card in the rail and nothing
@@ -7305,8 +7117,8 @@ function bindsContentField(src) {
     // absent above. The verb carries no count, because the count is on the
     // primary and the cards are directly underneath it.
     check(
-      'the built bundle offers the whole-document instruction from the BAR',
-      src.includes('+ Instruction') &&
+      'the built bundle offers the whole-document instruction from the SLOT',
+      src.includes('gly-docslot-add') &&
         !src.includes('Whole-document instruction · '),
     );
     // §2.3: an instruction is editable. Both the verb and the endpoint it
@@ -7318,12 +7130,14 @@ function bindsContentField(src) {
         src.includes("op:'edit'") ||
         src.includes('op: "edit"'),
     );
-    // An instruction whose highlight disappeared remains a full card in the
-    // rail; it is not replaced by copy pointing at the removed sheet.
+    // An instruction whose highlight disappeared remains a full card; it is not
+    // replaced by copy pointing at a removed surface. It renders in the SLOT
+    // now, and the class is named for the surface it is on.
     check(
-      'the built bundle keeps unplaced instructions in the rail',
+      'the built bundle keeps unplaced instructions, in the doc slot',
       src.includes('its words were removed') &&
-        src.includes('gly-rail-unplaced'),
+        src.includes('gly-docslot-unplaced') &&
+        !src.includes('gly-rail-unplaced'),
     );
 
     check(
@@ -7452,21 +7266,23 @@ function bindsContentField(src) {
     // left a check on that string green. What only this menu puts in the
     // bundle is its own rows and their classes, so those are what is read.
     check(
-      'the built bundle offers capture from the bar AND from a right-click',
-      src.includes('+ Instruction') &&
+      'the built bundle offers capture from the slot AND from a right-click',
+      src.includes('gly-docslot-add') &&
         src.includes('gly-menu-item') &&
         src.includes('gly-menu-detail') &&
         src.includes('Instruction on the whole document') &&
         src.includes('Instruction on this passage'),
     );
 
-    // THE CENSUS STRIP SURVIVES ITS SWEEP. `✓ all` is deleted — it POSTed
-    // /_galley/sweep, a 404, from a button `makeCensus` had already stopped
-    // appending — so what the strip carries is the count, and the count is the
-    // door to the sheet.
+    // THE CENSUS STRIP IS DELETED AND THIS CHECK IS ITS EPITAPH. It asserted
+    // the strip and its count were in the shipped bundle; nothing builds either
+    // any more (`Instructions · N` is the narrow bar's `.gly-bar-count`, and the
+    // sheet is the review's list at every width). Asserted ABSENT, the way the
+    // arrival strip's check below was inverted, so the strip cannot come back
+    // beside the surface that replaced it.
     check(
-      'the built bundle carries the census strip',
-      src.includes('gly-census') && src.includes('gly-census-count'),
+      'and the census strip is gone, not merely unbuilt',
+      !src.includes('gly-census-count') && !src.includes('gly-census'),
     );
     // AND NONE OF THE TWELVE WORKFLOW ENDPOINTS, asserted as one claim off the
     // one list. internal/serve/rounds_surface_test.go asserts every one of these
@@ -7513,19 +7329,17 @@ function bindsContentField(src) {
       src.includes('galleyKeepPlace') && src.includes('scrollTo'),
     );
 
-    // The arrival strip and its two verbatim strings. A bundle that grew the
-    // diff but lost the strip would announce nothing, and the symptom is
-    // silence — indistinguishable from an agent that never suggested anything.
+    // THE ARRIVAL STRIP IS DELETED AND THESE TWO CHECKS ARE ITS EPITAPH.
+    // They asserted `gly-strip`, `show me`, `fades · the count keeps it` and
+    // the two arrival sentences were all in the shipped bundle — a bundle that
+    // grew the diff but lost the strip would have announced nothing. The strip
+    // is gone because a round now says what it did WHERE it happened, so the
+    // claim is asserted on that surface instead: `gly-row` and the WAS strip
+    // below, and the eyebrow's own checks. Asserted ABSENT so the floating
+    // banner cannot come back beside the surface that replaced it.
     check(
-      'the built bundle carries the arrival strip',
-      src.includes('gly-strip') &&
-        src.includes('show me') &&
-        src.includes('fades · the count keeps it'),
-    );
-    check(
-      'the built bundle carries both arrival sentences',
-      src.includes('below your viewport') &&
-        src.includes('edits while you read — show me steps through them'),
+      'and the arrival strip is gone, not merely unbuilt',
+      !src.includes('gly-strip') && !src.includes('fades · the count keeps it'),
     );
     // The count is the durable record, so its pulse is what outlives the strip.
     // THE CARD'S "new" BADGE IS NOT, and this check used to read it here.
@@ -7687,51 +7501,40 @@ function bindsContentField(src) {
       !css.includes('gly-connector'),
     );
     // AND THE LIGHT IS THERE, in both themes, which is the claim that replaces
-    // them. The token is asserted in the light AND the dark block, because a
-    // wash defined once reads as a wash that works everywhere right up until
-    // somebody opens the page at night — and the pixel itself is read in a real
-    // browser by layers §10, which is where "it is not any mark's wash" lives.
+    // them. The token is asserted in the dark-default :root and BOTH light
+    // blocks (Task 1's dark-first repaint spells light twice on purpose — the
+    // prefers-color-scheme block and the [data-theme="light"] override, so
+    // the override can win over the media query — see web/editor.css's Step 3
+    // comment), so a wash defined once reads as a wash that works everywhere
+    // right up until somebody opens the page at night — and the pixel itself
+    // is read in a real browser by layers §10, which is where "it is not any
+    // mark's wash" lives.
     check(
       'the built stylesheet lights the words, and names a colour for both themes',
       /\.gly-lit\{[^}]*background:var\(--gly-lit-bg/.test(css) &&
-        (css.match(/--gly-lit-bg:/g) || []).length === 2,
+        (css.match(/--gly-lit-bg:/g) || []).length === 3,
     );
-    // THE RAIL IS NOT FIXED, AND IT STILL STARTS AT THE BAR'S MEASURED FOOT.
-    // Read off the built stylesheet for the reason above, and asserted as two
-    // halves that are easy to think are one. ABSOLUTE is what makes it scroll
-    // with the prose. `top` is a SEPARATE question, and this check used to
-    // require the bar's height be ABSENT from the rule — on the reasoning that
-    // a sticky bar is in flow, so a rail at the page's top begins below it for
-    // free. That is true of a flow sibling and false of an out-of-flow box:
-    // absolute positioning against the initial containing block put `top: 0` at
-    // document y 0, under the opaque bar, and everything paintAnchors did not
-    // place by hand was drawn there (see §10a of layers.mjs). The offset is
-    // back and it is MEASURED — a constant is what the fold made wrong, in the
-    // other direction.
-    //
-    // AND THE OFFSET NOW CARRIES A SECOND TERM, WHICH IS ONE NUMBER WITH
-    // HISTORY'S. The rail begins at the bar's measured foot PLUS the reserved
-    // sub-bar row (`--gly-rail-top`), because History's rail hangs off the same
-    // token — before that the two columns jumped 64px apart on a mode switch,
-    // measured 52.2 against 116.2 at 1440. The bar's measured height is still
-    // required to be in there: that is the half a constant got wrong when the
-    // bar folded, and it is a different claim from the row being reserved.
+    // THE RAIL'S POSITIONING CHECK IS RETIRED WITH THE RAIL. It asserted
+    // `.gly-rail { position: absolute; top: calc(var(--gly-bar-h) + …) }` and
+    // no `position: fixed` — that the margin column scrolled with the prose and
+    // began at the bar's MEASURED foot rather than a constant one a folded bar
+    // made wrong. There is no `.gly-rail`; nothing is beside the paper. The
+    // token it hung off, `--gly-rail-top`, is still where the PROSE starts and
+    // is still asserted, below.
+    // AND THE TOKEN IT HANGS OFF IS STILL DECLARED. History's rail was the
+    // second column that had to agree with this one; it is deleted, so that
+    // half of the check is retired and what remains is the number itself —
+    // read off the BUILT stylesheet, because that is what the binary embeds.
+    // AND THE ROW IS NOW ZERO, DECLARED AS ZERO. The 40px it reserved was
+    // History's sub-bar, deleted; the sheet's eyebrow took the row's job
+    // (frame.ts) and needs no reserve, and the 40px of air above the sheet
+    // was the reviewer's first complaint of 2026-09-07. What is asserted is
+    // still that the number is a TOKEN the prose column hangs off, not a
+    // literal guessed in two places.
     check(
-      'the built stylesheet has the rail scrolling with the document, from the bar’s measured foot',
-      /\.gly-rail\{[^}]*position:absolute/.test(css) &&
-        /\.gly-rail\{[^}]*top:calc\(var\(--gly-bar-h[^}]*var\(--gly-rail-top/.test(
-          css,
-        ) &&
-        !/\.gly-rail\{[^}]*position:fixed/.test(css),
-    );
-    // AND BOTH RAILS HANG OFF THE ONE TOKEN. Read off the BUILT stylesheet
-    // because that is what the binary embeds: a rule that agreed in the source
-    // and was overridden in the bundle is the shape this file exists to catch.
-    check(
-      'and History’s rail hangs off the same reserved row, so a mode switch moves nothing',
+      'and the reserved row it is measured from is declared, not guessed',
       /--gly-rail-top:\s*calc\(var\(--gly-sub-h\)/.test(css) &&
-        /--gly-sub-h:\s*40px/.test(css) &&
-        /\.gly-versions-rail\{[^}]*top:var\(--gly-rail-top\)/.test(css),
+        /--gly-sub-h:\s*0px/.test(css),
     );
     // AND IT HAS NO DISCLOSURES LEFT TO FLOAT. `bottom: 100%` on
     // `.gly-settled-list` and `.gly-changed-list` is what grew them upward over
@@ -7796,15 +7599,17 @@ function bindsContentField(src) {
         css.includes('grid-template-areas:"label"'),
     );
     // THE COUNT'S RESERVE MOVED TO THE BUTTON THAT SENDS WHAT IT COUNTS.
-    // `Instructions · N` is `display: none` at every width now — the number is
-    // on the primary — so its 24ch bounds nothing, and a check reading it would
-    // be certifying a reserve on a box with no paint. The claim the reserve was
-    // written for is unchanged and is asserted one control over: a number that
-    // changes on somebody else's click may move the text and never the button.
+    // `Instructions · N` was `display: none` at every width and is now deleted
+    // outright with the census strip, so the second half of this check reads
+    // the absence rather than the hidden box. The claim the reserve was written
+    // for is unchanged and is asserted one control over: a number that changes
+    // on somebody else's click may move the text and never the button.
     check(
       'the pending count sits in a reserved box on the primary itself',
-      /\.gly-revise-count\{[^}]*min-width:5ch/.test(css) &&
-        /\.gly-census-count\{display:none/.test(css),
+      /\.gly-revise-idle\{[^}]*min-width:13ch/.test(css) &&
+        /\.gly-revise-idle\{[^}]*text-align:left/.test(css) &&
+        !/\.gly-revise-count\{[^}]*min-width/.test(css) &&
+        !css.includes('.gly-census'),
     );
     // And the label those three nodes read as is one spelling, not two: the
     // button composes `Revise` + the clause + ` ▾`, and reviseIdleLabel is the
@@ -7824,15 +7629,15 @@ function bindsContentField(src) {
         roundPhrase(2, PHASE_AGENT) === 'round 2 · with the agent',
       roundPhrase(0, PHASE_DRAFT),
     );
-    // AND IT IS A BUTTON THAT LOOKS LIKE ONE. `.gly-census-overall` beside it
-    // was found only after Court failed to find it, and the diagnosis was that
-    // it read as a noun in a row of verbs. A count that opens the review's
-    // whole list has to be dressed as a control, so it takes the strip's own
-    // button chrome and adds the hover every other control there has.
+    // AND THE DOOR IT WAS IS THE NARROW BAR'S NOW, AT THE ONE WIDTH THE SHEET
+    // IS STILL REACHED FROM. This read the wide census count's own hover —
+    // *a count that opens the review's whole list has to be dressed as a
+    // control* — and that button is deleted with the strip. `.gly-bar-count`
+    // is what is left of the claim: it is a real button in a bar of buttons,
+    // and `paintBarCount` is the one thing that labels it.
     check(
-      'and it is dressed as the control it became, with a hover of its own',
-      bundle.includes('show the current draft and its instructions') &&
-        /\.gly-census-count:hover:not\(\[disabled\]\)\{border-color/.test(css),
+      'and the sheet keeps one door, in the bar that still has one',
+      bundle.includes('gly-bar-count') && bundle.includes('Instructions · '),
     );
 
     // --- no proposal card, and therefore no reply box on one ---
@@ -7919,32 +7724,21 @@ function bindsContentField(src) {
       bundle.includes('ResizeObserver') && /gly-bar["']\)/.test(bundle),
     );
     // AND OPENING IT FLOWS IN THE PANEL AND RE-FLOORS THE CARDS, WHICH IS THE
-    // FOURTH ANSWER THIS CHECK HAS HAD.
-    //
-    // It first asserted *opening it no longer schedules a re-measure*, sound
-    // while the panel was chrome floating off the bar: no mark moved. Then the
-    // panel became the rail's first card, directly above `.gly-rail-band`, so
-    // opening it moved the BAND rather than the marks — and `paintAnchors`
-    // writes every card as a band-LOCAL top, so the map went 55.59px stale with
-    // the old proxy still green; it was inverted to demand the re-measure. Then
-    // the card became `position: absolute` and left the flow, so it moved
-    // nothing and the check demanded it place itself against `chromeFrame` and
-    // schedule no repaint.
-    //
-    // The card is back in the flow now, ON PURPOSE — a child of the
-    // whole-document panel, so it reads as one of the cards rather than a
-    // shadowed box floating over them, which is what Court reported. Opening it
-    // moves the band, so the map has to re-floor, and the 39.29px staleness the
-    // in-flow version had before is answered by the repaint rather than by
-    // fleeing the flow. `openCapture` is read for the two things that make the
-    // new contract true: it does NOT write a `top` (it is flowed, not placed)
-    // and it DOES call `scheduleAnchors` (the repaint that re-floors the
-    // anchored cards on their marks). The pixels themselves are rounds-ux.mjs's
-    // before/after comparison of every card in the band.
+    // FOURTH ANSWER THIS CHECK HAS HAD, and the fifth is that there is no
+    // question left. It asserted, in turn: opening the capture card schedules
+    // no re-measure; it DOES schedule one, because the card is the rail's first
+    // and moves the band under every card's band-local top; it places itself
+    // against `chromeFrame` and schedules none, because it left the flow; and
+    // it flows in the panel and re-floors the cards. Every one of those was
+    // about a positioned card map that the card's own height moved. The rail is
+    // deleted: the capture card is in the sheet's dashed slot, in flow, with
+    // nothing positioned against a mark to go stale, and `scheduleAnchors` and
+    // `paintAnchors` are gone with it. The claim that survives — the card does
+    // not place itself by hand — is asserted here.
     check(
-      'opening capture flows in the panel and re-floors the cards',
-      /openCapture\([^)]*\)\{[\s\S]{0,600}?scheduleAnchors/.test(bundle) &&
-        !/openCapture\([^)]*\)\{[\s\S]{0,600}?style\.top=/.test(bundle),
+      'opening capture flows in the slot and places nothing by hand',
+      !/openCapture\([^)]*\)\{[\s\S]{0,600}?style\.top=/.test(bundle) &&
+        !bundle.includes('scheduleAnchors'),
     );
 
     // Revise is the second, and the only one that keeps changing after the
@@ -7958,16 +7752,18 @@ function bindsContentField(src) {
         /\.gly-revise-secs\{[^}]*min-width:4ch/.test(css) &&
         bundle.includes('gly-revise-secs'),
     );
-    // The handle's label carries a count, and the count changes when a note is
-    // filed in the panel it opens. 16ch is a bound, like the census count's —
-    // retuned from 28ch when the label pair dropped "on the whole doc". It is
-    // a label TRIO now (the settled face, `✓ n doc instructions`, which is what
-    // `+ instruct document` used to swallow), and sixteen still bounds it exactly:
-    // `▾ ✓ 99 doc instructions`. The pure check on that arithmetic is beside
-    // overallHandle above; this one reads the SHIPPED stylesheet.
+    // THE WHOLE-DOC HANDLE HAD A RESERVE BECAUSE IT WAS IN THE BAR. It was
+    // `.gly-census-overall`, whose label carried a count that changed on
+    // somebody else's event, so 24ch bounded it against sliding its
+    // neighbours. The door is the sheet's dashed full-width slot now
+    // (`.gly-docslot-add`), which spans the column and cannot resize anything
+    // beside it — the reserve has nothing left to bound, so the check reads
+    // that the handle really did leave the bar rather than certifying a width
+    // on a box with no paint. The label arithmetic itself is still checked on
+    // overallHandle above.
     check(
-      'the whole-doc handle reserves its width against its own count',
-      /\.gly-census-overall\{[^}]*min-width:calc\(24ch/.test(css),
+      'the whole-doc door is out of the bar entirely, so it reserves nothing',
+      !css.includes('.gly-census-overall') && css.includes('.gly-docslot-add'),
     );
   }
 }
@@ -8005,52 +7801,12 @@ function bindsContentField(src) {
   // Pure logic first: the pairing is what the history is FOR, and it is the one
   // thing here a string check can reach without a browser.
   check(
-    'a round card says which round it is and how long ago',
-    roundHead(3, { at: new Date(Date.now() - 5 * 60 * 1000).toISOString() }) ===
-      'ROUND 3 · 5M AGO',
-    roundHead(3, { at: new Date(Date.now() - 5 * 60 * 1000).toISOString() }),
-  );
-  check(
     'a round that just landed says so in words rather than in a zero',
     ageSaid(new Date().toISOString()) === 'JUST NOW',
   );
-  // AND THE FOOT CARRIES NO ARROW ANY MORE. ← is the ANSWER's, and the answer
-  // is the sentence the agent wrote — the foot is a version and a count beneath
-  // it. While the foot held the arrow, the only ← on the card pointed at a
-  // number, and the agent's own words were rendered after a → as though the
-  // reviewer had said them.
-  check(
-    'and its foot names the version it produced and how far it moved',
-    roundFoot({ n: 4, changed: 3 }) === 'v4 · 3 changes',
-    roundFoot({ n: 4, changed: 3 }),
-  );
-  check(
-    'one change is one change, not 1 changes',
-    changedSaid(1) === '1 change' &&
-      changedSaid(3) === '3 changes' &&
-      changedSaid(0) === 'no changes',
-  );
-  // ONE COPY OF THE WORDS, AND THE SERVER JOINED THEM. The ask carries the
-  // instruction; the answer points at it. Both arrive middot-joined by
-  // reviewerInstruction and are RENDERED, never re-joined — two joiners are two
-  // spellings of one rule.
-  check(
-    'the round that asked carries the instruction',
-    askedOf({ n: 4, instruction: 'shorten the second paragraph · say why' }) ===
-      'shorten the second paragraph · say why',
-  );
-  check(
-    'and the round that answered reaches the one it is answering',
-    askedOf({ n: 5, answers: 4, asked: 'shorten the second paragraph' }) ===
-      'shorten the second paragraph',
-  );
-  check(
-    'a round with nothing asked of it says nothing',
-    askedOf({ n: 1 }) === '',
-  );
-  // THE FILE AS GALLEY OPENED IT IS NOT A ROUND ANYBODY HAD, so it is not in
-  // the list and it does not take an ordinal. It is the landing's dashed foot
-  // card, which is a different claim from "it is hidden".
+  // THE FILE AS GALLEY OPENED IT IS NOT A ROUND ANYBODY HAD, so it is not one
+  // of the exchanges and it does not take an ordinal. It is the timeline's
+  // first keyframe, which is a different claim from "it is hidden".
   check(
     'the starting version is not counted as a round of work',
     workRounds([
@@ -8095,46 +7851,15 @@ function bindsContentField(src) {
       ordinalOf(exchange, 4),
     ]),
   );
-  // `CHANGE k OF K` IS COMPUTED AT RENDER, from the list the server just
-  // handed back. An ordinal renumbers; nothing persists one.
-  // The place arrives LOWERCASED from the server and the head is uppercased by
-  // the stylesheet, which is the chrome layer's rule and not this string's.
-  check(
-    'a change card names its place in this reading and the place on the page',
-    changeHead(2, 3, 'the budget') === 'CHANGE 2 OF 3 · the budget',
-    changeHead(2, 3, 'the budget'),
-  );
-  check(
-    'and a change with no heading above it says only which change it is',
-    changeHead(1, 1, '') === 'CHANGE 1 OF 1',
-  );
-  check(
-    'the sub-bar names the round and the two versions it sits between',
-    whereSaid(3, 3, 4) === 'ROUND 3 · V3 → V4',
-    whereSaid(3, 3, 4),
-  );
-  // IDENTICAL SIDES SAY SO. An empty diff with no sentence over it reads as a
-  // surface that failed to load, which is the one thing a record must not do.
-  check(
-    'two identical sides say so rather than showing a blank page',
-    IDENTICAL_SAID === 'identical — no changes in this round',
-  );
   // --- phase 2: the agent's changes are APPLIED ---
   //
-  // THE EXCEPTION READS AS ENGLISH IN THE ONE SLOT THE EYE IS ALREADY ON. A
-  // round where nothing happened has no author to name, and `v5 · could-not` is
-  // the wire's reason word leaking onto the surface a reviewer reads.
-  check(
-    'an exception says so where the count would be, in words',
-    roundFoot({ n: 5, reason: COULD_NOT, changed: 0 }) ===
-      'v5 · the agent could not',
-    roundFoot({ n: 5, reason: COULD_NOT, changed: 0 }),
-  );
-  // AND THE ARRIVAL NAMES THE same visible door the reviewer can press.
+  // AND THE ARRIVAL NAMES THE SURFACE THAT CAN SHOW THE ROUND, which is the
+  // timeline: the History chip it used to name is deleted, and a sentence
+  // pointing at a door that is not there is worse than one pointing nowhere.
   check(
     'a round arriving names what happened and where to read it',
-    arrivalSaid({ n: 7 }) === 'v7 · agent revised · see History' &&
-      arrivalSaid({ n: 7 }).includes(VERSIONS_LABEL),
+    arrivalSaid({ n: 7 }) === 'v7 · agent revised · see timeline' &&
+      arrivalSaid({ n: 7 }).includes('timeline'),
   );
   // AND IT FITS THE CELL IT IS PRINTED IN. The readout ellipsises at its END, so
   // a sentence longer than the box loses its last clause — measured at 1440px,
@@ -8162,28 +7887,14 @@ function bindsContentField(src) {
     'nothing arrives before the page has been told anything',
     arrivalSaid(null) === '' && arrivalSaid({ n: 0 }) === '',
   );
-  // THE DEFAULT VIEW IS THE DOCUMENT — decision 6. v12 is just v12, and every
-  // other reading is on demand.
+  // THE VIEWS PICKER IS DELETED WITH THE READING STAGE — `changes` and `side
+  // by side` were two panes of the History drawer, and the spec is one sheet.
+  // What is left is the one way out, and it wears the arrow that says it leaves
+  // rather than the `‹` that used to go up a level inside History.
   check(
-    'the default history reading shows the changes',
-    DEFAULT_VIEW === 'inplace',
+    'the way back out of a version is the primary’s own face',
+    BACK_TO_DRAFT === '← back to draft',
   );
-  check(
-    'history offers only the two useful comparisons',
-    VIEWS.map((v) => v.key).join(',') === 'inplace,sbs' &&
-      VIEWS.map((v) => v.label).join(',') === 'changes,side by side',
-  );
-  // TWO ARROWS OF ONE WEIGHT A FEW INCHES APART READ AS TWO SPELLINGS OF ONE
-  // GESTURE, and they are not one gesture: `‹ all rounds` goes up a level
-  // inside History, `← back to draft` leaves it. Apart by shape, in the
-  // vocabulary the rest of this surface is drawn with.
-  check(
-    'the two ways back are told apart by their own glyphs',
-    ALL_ROUNDS === '‹ all rounds' && BACK_TO_DRAFT === '← back to draft',
-  );
-  // ONE LIST AND THEN IT STOPS. The spec names squashing, grouping, filtering
-  // and a timeline as deliberately not built, so the panel must not have grown
-  // a control for any of them.
 
   const bundle = (() => {
     try {
@@ -8204,18 +7915,15 @@ function bindsContentField(src) {
       bundle.includes('/_galley/versions') &&
         bundle.includes('/_galley/versions/view'),
     );
+    // THE DOOR TO THE RECORD IS THE TIMELINE ITSELF. The History chip is
+    // deleted, so the two checks that asserted its label and its accessible
+    // name are retired; the scrubber's own track is what the bundle must carry.
     check(
-      'the built bundle carries the bar’s door to the record, at one width',
-      bundle.includes(VERSIONS_LABEL),
+      'the built bundle carries the scrubber that replaced the chip',
+      bundle.includes('gly-scrub-key') && bundle.includes('gly-scrub-track'),
     );
     check(
-      'and the visible door says what its accessible name says',
-      VERSIONS_LABEL === 'History' &&
-        VERSIONS_NAME === 'history' &&
-        bundle.includes('aria-label'),
-    );
-    check(
-      'and History exposes the explicit restore-as-draft mutation',
+      'and the record exposes the explicit restore-as-draft mutation',
       bundle.includes('/_galley/versions/restore'),
     );
     // ONE LIST AND THEN IT STOPS. Squashing, grouping, filtering and a timeline
@@ -8226,8 +7934,8 @@ function bindsContentField(src) {
     // names of things somebody chose not to build is a check that goes red on
     // the documentation of its own claim.
     check(
-      'the history is one list — no squash, no group, no filter, no timeline',
-      !/gly-versions-(filter|group|timeline|squash)/.test(bundle),
+      'the record has grown no browsing surface — no squash, group or filter',
+      !/gly-versions-(filter|group|squash)/.test(bundle),
     );
     // PHASE 2's TWO ENDPOINTS reach the bundle's own poll: the arrival number
     // and the exception ride GET /_galley/revise, which the page already reads
@@ -8237,9 +7945,9 @@ function bindsContentField(src) {
       'the built bundle reads the arrival off the poll it already makes',
       bundle.includes('landed') && bundle.includes('cannot'),
     );
-    // THE DEFAULT VIEW IS STILL THE DOCUMENT. The flip is which view an ARRIVAL
-    // lands on, and it is the only override of DEFAULT_VIEW in the bundle.
-    check('an arrival lands on the Changes view', bundle.includes('inplace'));
+    // THE ONE VIEW LEFT IS THE DOCUMENT WEARING ITS MARKS, which is what both
+    // the scrubber's papers and the arrival's WAS strips are rendered from.
+    check('every reading is the in-place one', bundle.includes('inplace'));
   }
 
   const roundsCss = (() => {
@@ -8253,20 +7961,19 @@ function bindsContentField(src) {
     }
   })();
   if (roundsCss) {
-    // IT COVERS, IT DOES NOT DISPLACE, and it hangs off the bar's MEASURED
-    // height — the bar wraps, so a constant here is drawn under the fold.
+    // IT IS THE SHEET, NOT A SURFACE OVER IT. `History uses the page layout
+    // rather than a full-screen overlay` and `it sits below the bottom bar`
+    // both read `.gly-versions`, the section History drew itself into while
+    // `main` was `display: none`. That section is deleted: the scrubber's two
+    // papers sit in the frame where the draft's paper does. So the claim those
+    // two checks made — a version is read IN the page, never over it — is
+    // asserted on what replaced them: the stage is in flow, and the draft's own
+    // paper is the thing that steps aside for it.
     check(
-      'History uses the page layout rather than a full-screen overlay',
-      /\.gly-versions\{[^}]*position:relative/.test(roundsCss) &&
-        /body\.gly-history-mode>main\{display:none/.test(roundsCss),
-    );
-    // BELOW the bottom bar, which carries the count, the step and the way back
-    // at narrow widths. A record must never be what covers them.
-    const z = roundsCss.match(/\.gly-versions\{[^}]*z-index:(\d+)/);
-    check(
-      'and it sits below the bottom bar, which is the way back',
-      !!z && Number(z[1]) < 50,
-      z && z[1],
+      'a version is read on the sheet itself, never on a surface over it',
+      /\.gly-scrub-stage\{[^}]*position:relative/.test(roundsCss) &&
+        !/\.gly-scrub-stage\{[^}]*position:fixed/.test(roundsCss) &&
+        /body\.gly-scrubbing \.ProseMirror\{display:none/.test(roundsCss),
     );
     // A MOVE IS NEITHER AN INSERTION NOR A DELETION, and the check is the
     // INEQUALITY — reading "it is muted" would pin one treatment and go green
@@ -8296,35 +8003,513 @@ function bindsContentField(src) {
         roundsCss,
       ),
     );
-    // AN EXCEPTION IS APART BY SHAPE AS WELL AS BY WORD, which is the same
-    // discipline the moved rule above is drawn with and the trail ghost was
-    // corrected to. It is a round in which nothing happened, in a list where
-    // every other entry is a diff.
-    const cannot = roundsCss.match(
-      /\.gly-versions \.gly-versions-round\.gly-versions-cannot\{([^}]*)\}/,
-    );
+    // THE EXCEPTION'S ROUND CARD AND THE DOOR'S ARRIVAL RING ARE BOTH DELETED
+    // SURFACES — the landing's card list went with History and the chip it
+    // ringed went with it, so the two rules those checks read are gone. The
+    // exception is drawn on the timeline now, and it is apart by shape there
+    // for the same reason: hollow and coral, never a wash of ins or del.
     check(
-      'a round the agent could not do is apart by shape, not only by word',
-      !!cannot && /dashed/.test(cannot ? cannot[1] : ''),
-      cannot && cannot[1],
-    );
-    // THE DOOR'S ARRIVAL STATE IS PAINT AND NOTHING ELSE. It is toggled by
-    // SOMEBODY ELSE'S event, in a bar whose oldest rule is that nothing may move
-    // under the cursor — so this declaration may not carry width, padding,
-    // border-width, font-size or margin. `box-shadow` draws inside the border
-    // box and contributes no geometry.
-    const isNew = roundsCss.match(
-      /\.gly-bar \.gly-versions-open\.is-new\{([^}]*)\}/,
-    );
-    check(
-      'the arrival marks the door in paint only — no geometry on somebody else’s event',
-      !!isNew &&
-        !/(^|;)(width|padding|margin|font-size|border-width|border:)/.test(
-          isNew ? isNew[1] : '',
+      'a round the agent could not do is apart by shape on the timeline',
+      // The built stylesheet is minified and drops the attribute quotes, so
+      // the pattern may not require them.
+      /\.gly-scrub-key\[data-fill=["']?none["']?\] \.gly-scrub-dot\{[^}]*background:transparent/.test(
+        roundsCss,
+      ) &&
+        /\.gly-scrub-key\[data-tone=["']?coral["']?\]\{[^}]*color:var\(--gly-coral/.test(
+          roundsCss,
         ),
-      isNew && isNew[1],
     );
   }
+}
+
+// --- timeline.ts (pure) ---
+{
+  {
+    const { labelStride, showLabel, trackToT } = await import('./timeline.ts');
+    check(
+      'labelStride: wide track keeps every label',
+      labelStride(800, 5) === 1 && labelStride(800, 12) === 1,
+    );
+    check(
+      'labelStride: a crowded track thins to every 2nd, then 3rd',
+      labelStride(400, 20) === 3 && labelStride(600, 20) === 2,
+      [labelStride(400, 20), labelStride(600, 20)],
+    );
+    check(
+      'showLabel: first, last, nearest and every stride-th survive',
+      showLabel(0, 20, 3, 7) &&
+        showLabel(19, 20, 3, 7) &&
+        showLabel(7, 20, 3, 7) &&
+        showLabel(6, 20, 3, 7) &&
+        !showLabel(8, 20, 3, 7),
+    );
+    check(
+      'trackToT: the last pixels are the head',
+      trackToT(795, 800, 12) === 12 && trackToT(792, 800, 12) === 12,
+    );
+    check(
+      'trackToT: elsewhere it is linear',
+      Math.abs(trackToT(400, 800, 5) - 3) < 1e-9 && trackToT(0, 800, 5) === 1,
+    );
+  }
+  const { keyframesOf, scrubState, scrubLabel, appearOpacity } =
+    await import('./timeline.ts');
+  const r = (n, reason, extra = {}) => ({
+    n,
+    at: '2026-09-06T08:00:00Z',
+    authors: 'you',
+    reason,
+    instruction: '',
+    answers: 0,
+    asked: '',
+    changed: 0,
+    ...extra,
+  });
+  const rounds = [
+    r(1, 'opened'),
+    r(2, 'revise'),
+    r(3, 'landed', { answers: 1 }),
+    r(4, 'could-not'),
+    r(5, 'landed', { answers: 2 }),
+  ];
+  const k = keyframesOf(rounds, false);
+  check(
+    'keyframes: one per round, evenly spaced',
+    k.length === 5 && k[0].left === 0 && k[2].left === 50 && k[4].left === 100,
+    k,
+  );
+  check(
+    'keyframes: labels R1..Rn, head draft is hollow accent',
+    k[0].label === 'R1' &&
+      k[4].label === 'R5' &&
+      k[4].title === 'R5 draft' &&
+      k[4].fill === 'none' &&
+      k[4].tone === 'accent',
+    k[4],
+  );
+  check(
+    'keyframes: a could-not round is hollow coral',
+    k[3].fill === 'none' &&
+      k[3].tone === 'coral' &&
+      k[3].label === 'R4' &&
+      k[3].title === 'R4 · cannot',
+    k[3],
+  );
+  check(
+    'keyframes: sealed head fills',
+    keyframesOf(rounds, true)[4].fill === 'accent' &&
+      keyframesOf(rounds, true)[4].label === 'R5',
+  );
+  check(
+    'keyframes: a single round sits at 0 and is the head',
+    keyframesOf([r(1, 'opened')], false)[0].left === 0,
+  );
+  const s = scrubState(2.5, 5);
+  check(
+    'scrub: mid-way is fully faded',
+    (s.near === 2 || s.near === 3) &&
+      s.frac === 0.5 &&
+      s.opacity === 0 &&
+      s.blur === 3 &&
+      !s.atHead,
+    s,
+  );
+  const q = scrubState(2.1, 5);
+  check(
+    'scrub: a tenth off is 80% opaque, 0.6px blur',
+    q.near === 2 &&
+      Math.abs(q.opacity - 0.8) < 1e-9 &&
+      Math.abs(q.blur - 0.6) < 1e-9,
+    q,
+  );
+  check(
+    'scrub: the head is atHead and crisp',
+    scrubState(5, 5).atHead &&
+      scrubState(5, 5).opacity === 1 &&
+      scrubState(4.995, 5).atHead,
+  );
+  check(
+    'scrub: t is clamped',
+    scrubState(0, 5).near === 1 && scrubState(9, 5).near === 5,
+  );
+  check(
+    'label: head without revision',
+    scrubLabel(4, 4, false) === 'v4 → draft',
+  );
+  check(
+    'label: head with revision',
+    scrubLabel(5, 5, true) === 'v5 · agent revised',
+  );
+  check('label: on a keyframe', scrubLabel(3, 5, true) === 'v3');
+  check('label: between', scrubLabel(2.4, 5, true) === 'v2 → v3');
+  check(
+    'appear: a block born in v3 fades in over t∈[2,3]',
+    appearOpacity(1, 3) === 0 &&
+      appearOpacity(2.5, 3) === 0.5 &&
+      appearOpacity(4, 3) === 1,
+  );
+}
+
+// --- theme.ts ---
+{
+  const { readTheme, nextTheme, resolveTheme, themeLabel } =
+    await import('./theme.ts');
+  check(
+    'readTheme: unknown/null falls back to system',
+    readTheme(null) === 'system' && readTheme('bogus') === 'system',
+  );
+  check(
+    'readTheme: light and dark pass through',
+    readTheme('light') === 'light' && readTheme('dark') === 'dark',
+  );
+  check(
+    'nextTheme cycles system → light → dark → system',
+    nextTheme('system') === 'light' &&
+      nextTheme('light') === 'dark' &&
+      nextTheme('dark') === 'system',
+  );
+  check(
+    'resolveTheme: system follows the browser',
+    resolveTheme('system', true) === 'dark' &&
+      resolveTheme('system', false) === 'light',
+  );
+  check(
+    'resolveTheme: explicit choice ignores the browser',
+    resolveTheme('light', true) === 'light' &&
+      resolveTheme('dark', false) === 'dark',
+  );
+  check(
+    'themeLabel: system reads auto',
+    themeLabel('system') === 'auto' && themeLabel('dark') === 'dark',
+  );
+}
+
+// --- tokens: editor.css and edit.html declare the same :root, and the two light blocks agree ---
+{
+  const fs = await import('node:fs');
+  const css = fs.readFileSync(new URL('./editor.css', import.meta.url), 'utf8');
+  const html = fs.readFileSync(
+    new URL('../internal/serve/edit.html', import.meta.url),
+    'utf8',
+  );
+  const tokens = (s) =>
+    [...s.matchAll(/--gly-[a-z0-9-]+(?=\s*:)/g)].map((m) => m[0]);
+  const rootOf = (s) => {
+    const m = s.match(/:root\s*\{([\s\S]*?)\n\}/);
+    return m ? m[1] : '';
+  };
+  const a = new Set(tokens(rootOf(css))),
+    b = new Set(tokens(rootOf(html)));
+  const missing = [...a].filter((t) => !b.has(t)),
+    extra = [...b].filter((t) => !a.has(t));
+  check(
+    'edit.html :root declares every editor.css :root token',
+    missing.length === 0 && extra.length === 0,
+    { missing, extra },
+  );
+  const light = (s) => {
+    const m = s.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/);
+    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
+  };
+  const auto = (s) => {
+    const m = s.match(
+      /@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-theme="dark"\]\)\s*\{([\s\S]*?)\n\s*\}/,
+    );
+    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
+  };
+  check(
+    'the two light blocks in editor.css agree',
+    light(css) !== null && light(css) === auto(css),
+    { light: light(css), auto: auto(css) },
+  );
+}
+
+// --- phase.ts ---
+{
+  const { phaseOf, dotFor, trailSaid, eyebrowRight } =
+    await import('./phase.ts');
+  const base = {
+    sealed: false,
+    running: false,
+    waiting: false,
+    handoff: false,
+    cannot: '',
+    landed: 0,
+    pendingCount: 0,
+    edits: 0,
+  };
+  check(
+    'phase: sealed wins',
+    phaseOf({ ...base, sealed: true, running: true }) === 'approved',
+  );
+  check(
+    'phase: running or waiting is revising',
+    phaseOf({ ...base, running: true }) === 'revising' &&
+      phaseOf({ ...base, waiting: true }) === 'revising',
+  );
+  check(
+    'phase: cannot beats review',
+    phaseOf({ ...base, cannot: 'no such file', landed: 3 }) === 'cannot',
+  );
+  check(
+    'phase: a landed round with nothing pending is review',
+    phaseOf({ ...base, landed: 3 }) === 'review',
+  );
+  check(
+    'phase: a landed round with new instructions is markup again',
+    phaseOf({ ...base, landed: 3, pendingCount: 1 }) === 'markup',
+  );
+  check('phase: default is markup', phaseOf(base) === 'markup');
+  check(
+    'dot: green idle, coral pending, accent for the agent',
+    dotFor('markup', 0) === 'green' &&
+      dotFor('markup', 2) === 'coral' &&
+      dotFor('revising', 2) === 'accent' &&
+      dotFor('review', 0) === 'accent' &&
+      dotFor('cannot', 1) === 'coral' &&
+      dotFor('approved', 0) === 'accent',
+  );
+  check('trail: empty when nothing pending', trailSaid(0, 0) === '');
+  check(
+    'trail: singular and plural',
+    trailSaid(1, 3) === '1 edit, 3 instructions →' &&
+      trailSaid(2, 1) === '2 edits, 1 instruction →',
+  );
+  check(
+    'eyebrow: draft, marked up, needs approval',
+    eyebrowRight('markup', 0, 0).text === 'DRAFT' &&
+      eyebrowRight('markup', 1, 0).text === 'DRAFT · MARKED UP' &&
+      eyebrowRight('markup', 1, 0).tone === 'coral' &&
+      eyebrowRight('review', 0, 0).text === 'NEEDS YOUR APPROVAL' &&
+      eyebrowRight('revising', 1, 0).text === 'WITH THE AGENT' &&
+      eyebrowRight('cannot', 1, 0).text === 'UNCHANGED' &&
+      eyebrowRight('approved', 0, 0).text === 'SETTLED',
+  );
+}
+
+// --- frame.ts ---
+{
+  const { eyebrowLeft, WHOLE_DOC_LABEL, HELP_LINES, cannotSaid, CANNOT_FIXED } =
+    await import('./frame.ts');
+  check(
+    'cannot banner copy',
+    cannotSaid(4) === 'round 4 · the agent could not · document unchanged' &&
+      CANNOT_FIXED.startsWith('This is a report'),
+  );
+  check(
+    'eyebrow: working draft at head',
+    eyebrowLeft('markup', 5, 4, { atHead: true, near: 4 }) ===
+      'WORKING DRAFT · ROUND 5',
+  );
+  check(
+    'eyebrow: review at head',
+    eyebrowLeft('review', 5, 5, { atHead: true, near: 5 }) === 'ROUND 5 · V5',
+  );
+  check(
+    'eyebrow: viewing an old version',
+    eyebrowLeft('markup', 5, 4, { atHead: false, near: 2, at: 'yesterday' }) ===
+      'VIEWING V2 · YESTERDAY',
+  );
+  check(
+    "whole-doc label is the spec's",
+    WHOLE_DOC_LABEL === '+ instruction on the whole document',
+  );
+  check('help has the five gestures', HELP_LINES.length === 5);
+}
+
+// --- composer chips ---
+{
+  const { SUGGESTIONS, chipPrefill, headComposer } =
+    await import('./composer.ts');
+  check(
+    'four suggestion chips',
+    SUGGESTIONS.join('|') === 'tighter|more concrete|shorter|plainer language',
+  );
+  check(
+    'a chip prefills capitalised with an em dash',
+    chipPrefill('plainer language') === 'Plainer language — ',
+  );
+  check(
+    'composer eyebrow quotes the selection',
+    headComposer('a long, structured research document').startsWith(
+      'INSTRUCTION · ON "',
+    ),
+  );
+}
+
+// --- rows.ts ---
+{
+  const { blockEnd } = await import('./rows.ts');
+  const doc = { childCount: 3, child: (i) => ({ nodeSize: [10, 20, 30][i] }) };
+  check(
+    'blockEnd: end of the first block is its size minus the closing token',
+    blockEnd(doc, 0) === 9,
+  );
+  check(
+    'blockEnd: later blocks add the earlier sizes',
+    blockEnd(doc, 1) === 29 && blockEnd(doc, 2) === 59,
+  );
+  check('blockEnd: out of range is -1', blockEnd(doc, 3) === -1);
+}
+
+// --- arrival matching ---
+{
+  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN_DEL } =
+    await import('./rows.ts');
+  const blocks = [
+    'Intro paragraph.',
+    'A long, structured research document covering everything.',
+    'Closing, and this skill is where it ends.',
+  ];
+  const m = matchBlocks(
+    [
+      {
+        ins: 'A long, structured research document covering',
+        del: 'a long structured doc',
+      },
+      { ins: 'nothing like this', del: '' },
+    ],
+    blocks,
+  );
+  check(
+    'matchBlocks: finds the block whose text contains the inserted prefix',
+    m[0] === 1,
+    m,
+  );
+  check('matchBlocks: unmatched is null', m[1] === null, m);
+  check(
+    'matchBlocks: an empty insertion matches by deletion text',
+    matchBlocks(
+      [{ ins: '', del: 'Closing, and this skill is where' }],
+      blocks,
+    )[0] === 2,
+  );
+  // THE FLOOR IS THE WHOLE POINT: `, this skill` is twelve characters and it
+  // occurs inside the third block AND inside anything else that says it. On the
+  // real document a fragment that short matched the FRONTMATTER and hung a WAS
+  // strip full of the wrong prose at the top of the paper.
+  check(
+    'matchBlocks: a short DELETION probe is refused, not guessed',
+    PROBE_MIN_DEL === 20,
+  );
+  // AND AN INSERTION PROBE IS NOT HELD TO IT. The agent's new words did not
+  // exist a version ago, so they are distinctive at a fraction of the length —
+  // a 19-character insertion is a real change, and refusing it would drop the
+  // WAS strip off the one block that moved.
+  check(
+    'matchBlocks: a 19-char insertion still finds its block',
+    matchBlocks(
+      [{ ins: 'structured research', del: 'a long structured doc' }],
+      blocks,
+    )[0] === 1,
+  );
+  check(
+    'matchBlocks: a 12-char deletion matches nothing',
+    matchBlocks([{ ins: '', del: ', this skill' }], blocks)[0] === null,
+  );
+  check(
+    'dedupeWas: one WAS per block, the longest deletion',
+    JSON.stringify(
+      dedupeWas([
+        { index: 2, was: 'short' },
+        { index: 1, was: 'the middle one' },
+        { index: 2, was: 'a considerably longer one' },
+      ]),
+    ) ===
+      JSON.stringify([
+        { index: 1, was: 'the middle one' },
+        { index: 2, was: 'a considerably longer one' },
+      ]),
+  );
+  // The sent-round rows' bridge: an ask is found by the words it was on.
+  const doc = {
+    childCount: blocks.length,
+    child: (i) => ({ textContent: blocks[i] }),
+  };
+  check(
+    'quoteBlockIndex: an ask finds its block by the quote it was on',
+    quoteBlockIndex(doc, 'A long, structured research document') === 1,
+  );
+  // A SHORT QUOTE IS FINE WHERE IT IS UNIQUE — `retry budget` is an ordinary
+  // instruction anchor — and refused where it is not. Ambiguity, not length.
+  check(
+    'quoteBlockIndex: a short but unique quote still finds its block',
+    quoteBlockIndex(doc, 'Closing') === 2,
+  );
+  check(
+    'quoteBlockIndex: a quote in two blocks is refused, not guessed',
+    quoteBlockIndex(
+      {
+        childCount: 2,
+        child: (i) => ({
+          textContent: ['the retry budget', 'a retry budget'][i],
+        }),
+      },
+      'retry budget',
+    ) === -1,
+  );
+  check(
+    'quoteBlockIndex: a quote in no block is -1',
+    quoteBlockIndex(doc, 'words that appear nowhere in this paper') === -1,
+  );
+  // THE THREE WORDS A SENT INSTRUCTION READS, per 02-states-and-behavior.md
+  // §2-§4. They were unreachable before rows came off the round's `asks` —
+  // `grep "not applied" web/*.mjs` was zero hits — and `writing…` is still the
+  // one no browser fixture can hold long enough to read.
+  const { askState } = await import('./rows.ts');
+  check(
+    'a sent instruction reads `writing…` while the agent has it',
+    askState('revising', false) === 'writing…' &&
+      askState('revising', true) === 'writing…',
+  );
+  check(
+    'and `applied` or `not applied` by what the round answered',
+    askState('review', true) === 'applied' &&
+      askState('review', false) === 'not applied',
+  );
+  check(
+    'and `not applied` after a refusal, whatever the ask said',
+    askState('cannot', true) === 'not applied' &&
+      askState('cannot', false) === 'not applied',
+  );
+}
+
+// --- verdict menu copy ---
+{
+  const v = await import('./verdict.ts');
+  check(
+    "menu copy is the spec's",
+    v.MENU_REVISE_EXPLAIN ===
+      'Hand the document to the agent with everything pending.' &&
+      v.MENU_TRUST_EXPLAIN ===
+        'Approve only after the agent successfully applies them. Stays open on cannot.' &&
+      v.MENU_TRUST_TAG === 'conditional',
+  );
+}
+
+// --- rows.ts: rows for selection-anchored instructions ---
+{
+  const { runBlockIndex } = await import('./rows.ts');
+  const mk = (run) => ({ marks: run ? [{ attrs: { run } }] : [] });
+  const block = (...runs) => ({
+    descendants(cb) {
+      for (const r of runs) {
+        if (cb(mk(r)) === false) return;
+      }
+    },
+  });
+  const doc = {
+    childCount: 3,
+    child: (i) => [block(null), block('r-1', 'r-2'), block('r-3')][i],
+  };
+  check(
+    'runBlockIndex finds the block holding the run mark',
+    runBlockIndex(doc, 'r-2') === 1 && runBlockIndex(doc, 'r-3') === 2,
+  );
+  check(
+    'runBlockIndex is -1 when no mark carries the run',
+    runBlockIndex(doc, 'r-9') === -1,
+  );
 }
 
 process.exit(failures === 0 ? 0 : 1);

@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/schuettc/galley/internal/markdown"
 )
 
 // split.go is the SENTENCE-SPLITTING RULE from the rounds-and-versions spec,
@@ -28,16 +30,17 @@ const (
 	KindTable    Kind = "table"
 	KindMath     Kind = "math"
 	KindRule     Kind = "rule"
+	KindFrontM   Kind = "frontmatter"
 	KindListItem Kind = "listitem"
 	KindQuote    Kind = "quote"
 	KindBoundary Kind = "boundary"
 )
 
-// Atomic reports whether a block's content is NOT PROSE — code, a table, or
-// display math. Nothing inside one is ever word-diffed: it has no sentences,
-// only lines, and a word-diff of a code line paints half an identifier.
+// Atomic reports whether a block's content is NOT PROSE — code, a table,
+// display math, or front matter. Nothing inside one is ever word-diffed: it
+// has no sentences, only lines, and a word-diff of a code line paints half an identifier.
 func (k Kind) Atomic() bool {
-	return k == KindCode || k == KindTable || k == KindMath
+	return k == KindCode || k == KindTable || k == KindMath || k == KindFrontM
 }
 
 // Block is one container a sentence may never cross.
@@ -66,9 +69,26 @@ var (
 // is a property under test; making the diff depend on it would put "can galley
 // open this" in front of "can the reviewer read what changed", and a version is
 // a record, not a document under review.
+//
+// FRONT MATTER IS PEELED OFF FIRST, AND IT IS THE ONE PLACE THIS SPLITTER
+// DEFERS TO ANOTHER PACKAGE. Without this the opening "---" matches reRule and
+// the YAML under it is swept into a paragraph — line breaks flattened to
+// spaces, the closing "---" swallowed as the paragraph's last word. That is
+// cosmetic in a diff and destructive in `revertChange`, which REBUILDS the
+// document by joining these blocks: it wrote the flattened paragraph back to
+// the author's file and the front matter was gone.
+//
+// `markdown.SplitFrontMatter` is a byte scanner, not `markdown.Parse` — it
+// decodes nothing and refuses no dialect, so the doctrine above holds. Sharing
+// it is the point: two spellings of "where does the front matter end" is
+// exactly the disagreement that corrupted the file.
 func Blocks(src string) []Block {
-	lines := strings.Split(src, "\n")
 	var out []Block
+	if raw, rest := markdown.SplitFrontMatter([]byte(src)); raw != nil {
+		out = append(out, Block{KindFrontM, strings.TrimRight(string(raw), "\n")})
+		src = string(rest)
+	}
+	lines := strings.Split(src, "\n")
 	for i := 0; i < len(lines); {
 		ln := lines[i]
 		if strings.TrimSpace(ln) == "" {
@@ -243,7 +263,7 @@ func Sentences(text string, kind Kind) []string {
 	switch kind {
 	case KindHeading, KindMath, KindRule:
 		return []string{text}
-	case KindTable, KindCode:
+	case KindTable, KindCode, KindFrontM:
 		var out []string
 		for _, ln := range strings.Split(text, "\n") {
 			if strings.TrimSpace(ln) != "" {

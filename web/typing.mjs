@@ -1580,7 +1580,6 @@ const filedInstructions = async () =>
   const SAID = 'filed with the return key';
   await select('about the connection');
   await page.waitForTimeout(300);
-  await page.click('.gly-composer .gly-comment-button');
   await page.fill('.gly-composer .gly-composer-text', SAID);
 
   // Shift-Enter FIRST, and it is not decoration: it proves the modifier is
@@ -1680,7 +1679,6 @@ const filedInstructions = async () =>
   // fails.
   await select(JOINS);
   await page.waitForTimeout(300);
-  await page.click('.gly-composer .gly-comment-button');
   check(
     'and the composer is typeable again for the next comment — the flight guard let go',
     !(await page.locator('.gly-composer .gly-composer-text').isDisabled()) &&

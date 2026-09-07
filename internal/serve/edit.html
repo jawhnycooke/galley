@@ -32,54 +32,117 @@
      loaded, which is the whole reason it is here. Anything added to
      editor.css's `:root` is added here in the same commit until then. */
   :root {
-    color-scheme: light dark;
-    --gly-bg: #f4f5f8;
-    --gly-fg: #1a1d27;
-    --gly-muted: #59606f;
-    --gly-line: #e3e5ec;
-    --gly-accent: #b06f14;
-    /* THE ACTION COLOUR, and it is galley's own — site/style.css's --signal,
-       the same value web/editor.css imports. The one filled control on this
-       page is filled with it. Kept in step with editor.css's :root by hand:
-       these are the values that file expects to find, and a shell that
-       declares a different --gly-signal renders an unbuilt checkout in a
-       colour the built one never uses. */
-    --gly-signal: #146e85;
-    --gly-signal-ink: #ffffff;
-    /* ONE ELEVATION AND ONE INSTRUCTION INK, in step with editor.css's :root
-       for the reason the note above gives. Nothing in the shell's own markup
-       floats or is filled with --gly-hl, so neither is read on an unbuilt
-       page — they are here because this block's contract is that it declares
-       what editor.css declares, and a token that exists in one of the two is
-       the drift this comment exists to prevent. */
-    --gly-lift: 0 6px 22px rgba(0, 0, 0, 0.16);
+    color-scheme: dark light;
+    --gly-bg: #0b0d12;
+    --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #151a26 0%, #0b0d12 60%);
+    --gly-fg: #f2efe6;
+    --gly-muted: #8b90a0;
+    --gly-muted2: #b8bcc8;
+    --gly-line: #2a2e38;
+    --gly-panel-bg: #1a1e28;
+    --gly-panel-hover: #22262f;
+
+    --gly-accent: #d6ff3d;
+    --gly-on-accent: #0b0d12;
+    --gly-accent-glow: 0 0 30px rgba(214, 255, 61, 0.35);
+    --gly-accent-fill-12: rgba(214, 255, 61, 0.12);
+    --gly-accent-fill-16: rgba(214, 255, 61, 0.16);
+    --gly-accent-fill-18: rgba(214, 255, 61, 0.18);
+    --gly-dashed: #8aa800;
+
+    --gly-coral: #ff5c39;
+    --gly-coral-fill: rgba(255, 92, 57, 0.1);
+    --gly-coral-fill-deep: rgba(255, 92, 57, 0.14);
+    --gly-amber: #e0b64a;
+    --gly-green: #4f9e63;
+
+    --gly-sheet-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    --gly-menu-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    --gly-composer-shadow: 0 0 0 4px rgba(214, 255, 61, 0.12), 0 12px 30px rgba(0, 0, 0, 0.35);
+    --gly-footer-fade: linear-gradient(180deg, rgba(11, 13, 18, 0) 0%, #0b0d12 30%);
+
+    /* The paper is NOT themed: white sheet, dark ink, in both themes. */
+    --gly-paper: #ffffff;
+    --gly-paper-ink: #1a1a1a;
+    --gly-fence: #f6f6f6;
+    --gly-was-ink: #777777;
+    --gly-del-ghost: #b34a30;
+
+    /* Aliases: the old meanings, spelled in the new palette. */
+    --gly-signal: var(--gly-accent);
+    --gly-signal-soft: var(--gly-accent-fill-12);
+    --gly-signal-ink: var(--gly-on-accent);
+    --gly-hl: var(--gly-coral);
+    --gly-hl-bg: var(--gly-coral-fill);
     --gly-hl-ink: #ffffff;
-    /* The brand mark's own amber — see internal/serve/assets/favicon.svg and
-       site/index.html's inline logo. Deliberately a separate token from
-       --gly-accent: the accent is this surface's interactive colour and has
-       already drifted from the brand value in dark mode (#eba63f), while the
-       mark is the same two hex codes wherever it renders. */
-    --gly-mark-amber: #b06f14;
-    --gly-mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-    --gly-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --gly-ins: var(--gly-accent);
+    --gly-ins-bg: var(--gly-accent-fill-12);
+    --gly-del: var(--gly-coral);
+    --gly-del-bg: var(--gly-coral-fill);
+    --gly-card: var(--gly-bg);
+    --gly-flash: rgba(214, 255, 61, 0.45);
+    --gly-live-bg: rgba(214, 255, 61, 0.08);
+    --gly-live-fg: var(--gly-accent);
+    --gly-lit-bg: rgba(224, 182, 74, 0.26);
+    --gly-lift: var(--gly-menu-shadow);
+    --gly-mark-amber: var(--gly-accent);
+
+    --gly-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --gly-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --gly-bg: #14161d;
-      --gly-fg: #e8eaf1;
-      --gly-muted: #969cae;
-      --gly-line: #2b2f3b;
-      --gly-accent: #eba63f;
-      --gly-signal: #5fb6c9;
-      --gly-signal-ink: #10141b;
-      --gly-hl-ink: #10141b;
-      --gly-mark-amber: #d08b1f;
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --gly-bg: #f4f3ee;
+      --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, #f4f3ee 60%);
+      --gly-fg: #14161c;
+      --gly-muted: #6b6f7a;
+      --gly-muted2: #4a4e58;
+      --gly-line: #d3d1c7;
+      --gly-panel-bg: #e9e8e1;
+      --gly-panel-hover: #dedcd3;
+      --gly-accent: #5a7d00;
+      --gly-on-accent: #ffffff;
+      --gly-accent-glow: 0 0 30px rgba(90, 125, 0, 0.25);
+      --gly-dashed: #5a7d00;
+      --gly-coral: #c8401f;
+      --gly-amber: #9a6b00;
+      --gly-sheet-shadow: 0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
+      --gly-menu-shadow: 0 20px 50px rgba(20, 22, 28, 0.18);
+      --gly-composer-shadow: 0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
+      --gly-footer-fade: linear-gradient(180deg, rgba(244, 243, 238, 0) 0%, #f4f3ee 30%);
+      --gly-flash: rgba(90, 125, 0, 0.35);
+      --gly-live-bg: rgba(90, 125, 0, 0.08);
+      --gly-lit-bg: rgba(154, 107, 0, 0.24);
     }
+  }
+  :root[data-theme="light"] {
+    --gly-bg: #f4f3ee;
+    --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, #f4f3ee 60%);
+    --gly-fg: #14161c;
+    --gly-muted: #6b6f7a;
+    --gly-muted2: #4a4e58;
+    --gly-line: #d3d1c7;
+    --gly-panel-bg: #e9e8e1;
+    --gly-panel-hover: #dedcd3;
+    --gly-accent: #5a7d00;
+    --gly-on-accent: #ffffff;
+    --gly-accent-glow: 0 0 30px rgba(90, 125, 0, 0.25);
+    --gly-dashed: #5a7d00;
+    --gly-coral: #c8401f;
+    --gly-amber: #9a6b00;
+    --gly-sheet-shadow: 0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
+    --gly-menu-shadow: 0 20px 50px rgba(20, 22, 28, 0.18);
+    --gly-composer-shadow: 0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
+    --gly-footer-fade: linear-gradient(180deg, rgba(244, 243, 238, 0) 0%, #f4f3ee 30%);
+    --gly-flash: rgba(90, 125, 0, 0.35);
+    --gly-live-bg: rgba(90, 125, 0, 0.08);
+    --gly-lit-bg: rgba(154, 107, 0, 0.24);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: var(--gly-bg);
+    background: var(--gly-canvas), var(--gly-bg);
     color: var(--gly-fg);
     font: 16px/1.6 var(--gly-sans);
   }
@@ -139,9 +202,16 @@
      own content, and an icon has no smaller legible size to shrink to. */
   .gly-mark { flex: none; width: 1em; height: 1em; }
   .gly-doc-name { min-width: 0; }
+  /* THE PATH IS CHROME, AND THIS FILE HAS TO SAY SO TOO. editor.css styles
+     `.gly-doc-path` in the built page; on an unbuilt checkout the shell is the
+     whole stylesheet, and without this the document's directory rendered at
+     full body size and full weight beside the title — two titles, one of them
+     a path. Same claim as the `:root` mirror this file states above: a rule
+     the fallback needs is a rule the fallback carries. */
+  .gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; opacity: 0.7; }
   /* THE BAR HAS ONE FLEXIBLE CELL, AND IT SITS BETWEEN THE READOUT AND THE
-     CONTROLS. Everything before it — the name, the census, the ONE readout —
-     is a readout or a count whose width changes as the document does;
+     CONTROLS. Everything before it — the name and the ONE readout — is a
+     readout whose width changes as the document does;
      everything after it is a CONTROL, pinned to the right edge, whose position
      therefore depends only on the widths of the controls themselves.
 
@@ -230,18 +300,13 @@
     cursor: default;
     opacity: 0.6;
   }
-  main { max-width: 46rem; margin: 0 auto; padding: 32px 20px 40vh; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 20px 40vh; }
 </style>
 </head>
 <body>
 <header class="gly-bar">
-  <span class="gly-doc">
-    <svg class="gly-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <rect x="6" y="14" width="52" height="6" rx="3" fill="var(--gly-muted)"/>
-      <path d="M 14 54 L 32 26 L 50 54" fill="none" stroke="var(--gly-mark-amber)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span class="gly-doc-name">{{.Title}}</span>
-  </span>
+  <span class="gly-doc"><span class="gly-mark" aria-hidden="true"></span><span class="gly-doc-name">{{.Title}}</span></span>
+  <span class="gly-doc-path" title="{{.Path}}">{{.Path}}</span>
   <span id="gly-status" class="gly-status" role="status" aria-live="polite"></span>
   <span class="gly-spacer"></span>
   <button id="gly-revise" type="button">Revise</button>
