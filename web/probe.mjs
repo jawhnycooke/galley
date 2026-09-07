@@ -8331,6 +8331,30 @@ function bindsContentField(src) {
   }
 }
 
+// --- timeline.ts (pure) ---
+{
+  const { keyframesOf, scrubState, scrubLabel, appearOpacity } = await import('./timeline.ts');
+  const r = (n, reason, extra = {}) => ({ n, at: '2026-09-06T08:00:00Z', authors: 'you', reason, instruction: '', answers: 0, asked: '', changed: 0, ...extra });
+  const rounds = [r(1, 'opened'), r(2, 'revise'), r(3, 'landed', { answers: 1 }), r(4, 'could-not'), r(5, 'landed', { answers: 2 })];
+  const k = keyframesOf(rounds, false);
+  check('keyframes: one per round, evenly spaced', k.length === 5 && k[0].left === 0 && k[2].left === 50 && k[4].left === 100, k);
+  check('keyframes: labels R1..Rn, head draft is hollow accent', k[0].label === 'R1' && k[4].label === 'R5 draft' && k[4].fill === 'none' && k[4].tone === 'accent', k[4]);
+  check('keyframes: a could-not round is hollow coral', k[3].fill === 'none' && k[3].tone === 'coral' && k[3].label === 'R4 · cannot', k[3]);
+  check('keyframes: sealed head fills', keyframesOf(rounds, true)[4].fill === 'accent' && keyframesOf(rounds, true)[4].label === 'R5');
+  check('keyframes: a single round sits at 0 and is the head', keyframesOf([r(1, 'opened')], false)[0].left === 0);
+  const s = scrubState(2.5, 5);
+  check('scrub: mid-way is fully faded', (s.near === 2 || s.near === 3) && s.frac === 0.5 && s.opacity === 0 && s.blur === 3 && !s.atHead, s);
+  const q = scrubState(2.1, 5);
+  check('scrub: a tenth off is 80% opaque, 0.6px blur', q.near === 2 && Math.abs(q.opacity - 0.8) < 1e-9 && Math.abs(q.blur - 0.6) < 1e-9, q);
+  check('scrub: the head is atHead and crisp', scrubState(5, 5).atHead && scrubState(5, 5).opacity === 1 && scrubState(4.995, 5).atHead);
+  check('scrub: t is clamped', scrubState(0, 5).near === 1 && scrubState(9, 5).near === 5);
+  check('label: head without revision', scrubLabel(4, 4, false) === 'v4 → draft');
+  check('label: head with revision', scrubLabel(5, 5, true) === 'v5 · agent revised');
+  check('label: on a keyframe', scrubLabel(3, 5, true) === 'v3');
+  check('label: between', scrubLabel(2.4, 5, true) === 'v2 → v3');
+  check('appear: a block born in v3 fades in over t∈[2,3]', appearOpacity(1, 3) === 0 && appearOpacity(2.5, 3) === 0.5 && appearOpacity(4, 3) === 1);
+}
+
 // --- theme.ts ---
 {
   const { readTheme, nextTheme, resolveTheme, themeLabel } = await import('./theme.ts');
