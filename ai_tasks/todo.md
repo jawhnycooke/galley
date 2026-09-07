@@ -1,0 +1,30 @@
+# Timeline Draft — tracker
+
+Plan: `ai_tasks/plans/2026-09-06-timeline-draft.md` (spec: `../handoff/timeline-draft/`).
+Branch: `feat/timeline-draft`. Decision 2026-09-06: re-value the existing `--gly-*` tokens under their names (dark-first + `[data-theme]`), not a parallel namespace.
+
+| # | Task | Depends on | Status |
+|---|---|---|---|
+| 0 | Branch + clean baseline | — | [ ] |
+| 1 | Tokens, theme switch, white sheet | 0 | [ ] |
+| 2 | Self-hosted fonts | 1 | [ ] |
+| 3 | Phase (pure) + header readout | 1 | [ ] |
+| 4 | Footer: primary, trail, verdict menu, cancel | 3 | [ ] |
+| 5 | Timeline pure functions | — | [ ] |
+| 6 | Timeline track, drag, crossfade, History replaced | 4, 5 | [ ] |
+| 7 | Frame: eyebrow, whole-doc slot, onboarding, `?` | 3, 6 | [ ] |
+| 8 | Inline composer: eyebrow, bar, chips, dimming | 1 | [ ] |
+| 9 | Pinned rows as decorations, ghost revert, fence grip | 3, 7 | [ ] |
+| 10 | Wire: per-round `asks[].answered` (Go) | — | [ ] |
+| 11 | Arrival inline: WAS strip, agent note, applied rows | 9, 10 | [ ] |
+| 12 | cannot banner | 7 | [ ] |
+| 13 | Keys: ←/→, Esc, j/k over rows | 6, 9 | [ ] |
+| 14 | Delete retired surfaces | 6, 7, 9, 11, 13 | [ ] |
+| 15 | HTML page-mode pill | 7, 14 | [ ] |
+| 16 | Streaming polish (optional) | 9 | [ ] |
+| 17 | Final verification + PR | all | [ ] |
+
+Parallel-safe waves: {1} → {2, 3, 5, 8, 10} → {4} → {6} → {7} → {9, 12} → {11, 13} → {14} → {15, 16} → {17}.
+
+## Review
+(filled in at completion)
