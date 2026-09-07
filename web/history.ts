@@ -279,11 +279,22 @@ export const historyMethods = {
         [...(r.matches(sel) ? [r] : []), ...r.querySelectorAll(sel)]
           .map((e) => e.textContent ?? '')
           .join(' ');
+      // THE CONTEXT IS THE REGION AS IT READS NOW: everything but the deleted
+      // words. It is what places a change whose inserted words are too short
+      // to probe with (`rows.ts`, matchBlocks). Read from a clone so the
+      // `.gly-del` text is still there for `del` beside it. A region that IS
+      // a deleted block has no surviving words, and says so.
+      const surviving = (r: Element) => {
+        const c = r.cloneNode(true) as Element;
+        c.querySelectorAll('.gly-del').forEach((d) => d.remove());
+        return c.textContent ?? '';
+      };
       const regions = [...doc.querySelectorAll('[data-gly-region]')];
       const changes = regions.map((r) => ({
         k: Number(r.getAttribute('data-gly-region')),
         ins: text(r, '.gly-ins'),
         del: text(r, '.gly-del'),
+        ctx: r.matches('.gly-del') ? '' : surviving(r),
       }));
       // THE BLOCKS, AND NOTHING GALLEY PINNED BETWEEN THEM. A widget decoration
       // is placed at a top-level position, so a pinned row and a WAS strip are
