@@ -11,9 +11,9 @@
 // three options weighed and why this one was chosen.
 
 import { stepPending, keyTargetIsEditable } from './rail.ts';
-import { revealMark } from './card.ts';
+import { motion } from './card.ts';
+import { rowsKey } from './rows.ts';
 import { closeMenu, menuOpen, moveMenuFocus } from './menu.ts';
-import { runFor, markElement } from './runs.ts';
 import type { AppShell } from './appshell.ts';
 
 export const keyMethods = {
@@ -71,6 +71,13 @@ export const keyMethods = {
         this.paintVersionsButton();
         return;
       }
+      // SCRUBBING THE TIMELINE is its own surface — `body.gly-scrubbing` marks
+      // it, same as the versions panel marks History — and Esc returns to now
+      // rather than falling through to the capture card underneath.
+      if (document.body.classList.contains('gly-scrubbing')) {
+        this.scrubHome();
+        return;
+      }
       // The capture card closes on Esc like every other surface here — it is
       // something on screen that is in the way, and the one key that means
       // "put that away" has to reach it. Its `cancel` button says the same
@@ -90,6 +97,22 @@ export const keyMethods = {
       if (keyTargetIsEditable(active) && active instanceof HTMLElement) {
         active.blur();
       }
+      return;
+    }
+    // ←/→ STEP THE TIMELINE, BEFORE THE MENU'S OWN ARROWS: a reviewer
+    // scrubbing keyframes is not typing into anything and has no menu open,
+    // so the guard here is the same editability check the stepper below
+    // uses, done early because the target keys collide with nothing else.
+    const editable =
+      keyTargetIsEditable(event.target) ||
+      keyTargetIsEditable(document.activeElement);
+    if (
+      !editable &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+      this.timeline
+    ) {
+      event.preventDefault();
+      this.scrubStep(event.key === 'ArrowLeft' ? -1 : 1);
       return;
     }
     // THE MENU'S OWN ARROWS, BEFORE THE EDITABLE GUARD AND BEFORE THE STEPPER.
@@ -152,47 +175,30 @@ export const keyMethods = {
     }
   },
 
-  // stepOrder is the runs `j`/`k` and `↓ next` walk: the INSTRUCTIONS ON THE
-  // PAGE, in the order the reviewer sees them.
+  // stepOrder is what `j`/`k` walk: the PINNED ROWS first — the rows plugin's
+  // own state (rows.ts) rather than anything re-derived here, so a block or
+  // whole-doc instruction cannot drift from what is on screen — and then any
+  // instruction card the rows miss. `SetAnchor` (internal/review/doc.go) only
+  // stamps `anchorKey` for a thread that is not a range of prose, so a
+  // selection-anchored instruction has no row: it is a mark in the paper and a
+  // card in the rail, and the rail's own cards are still what places it here.
   //
-  // IT USED TO BE `this.suggestions.filter(decidable)`, AND IT WAS EMPTY. The
-  // comment here said so out loud — "IT IS EMPTY ON THE ROUNDS-ONLY WIRE …
-  // and the stepper therefore reaches nothing" — and concluded that stepping
-  // "survives its two verbs because stepping is navigation: it asks the server
-  // for nothing and cannot fail". Cannot fail is true and is not the standard:
-  // two keys and a labelled button in the bar advertised a way through the
-  // review and did nothing at all when pressed. This codebase already has the
-  // sentence for that — a door that answers the press and shows nothing is
-  // worse than one that refuses — and it was written about a control that at
-  // least ran its handler.
-  //
-  // The population it should always have walked is the one the rail exists to
-  // hold: the reviewer's live instructions, beside the text they are about.
-  // `pendingView` is `{instructions, blocks}`, so those ARE the pending view.
-  //
-  // READ OFF THE PAINTED CARDS RATHER THAN RE-DERIVED FROM `this.comments`,
-  // and that is the whole reason it cannot drift: the rail's stacker has
-  // already sorted them into document order and dropped the ones with nowhere
-  // to be, so this is exactly what is on screen. Re-deriving the order here
-  // would be a second spelling that agrees until the day a placement rule
-  // changes on one side only — this repository's most-recorded defect.
-  //
-  // The SHEET is the fallback surface and not a second population: below the
-  // rail's breakpoint the rail's cards are not on the page and the sheet's are
-  // the same instructions on the surface that is.
-  //
-  // IT WALKS THREAD KEYS AND NOT RUNS, which is the correction that made this
-  // work at all. A run means a MARK, and `!!thread.run` is not "does this
-  // instruction have a place" — CLAUDE.md records that exact wrong predicate
-  // costing every block-anchored conversation its card. Keying on runs here
-  // repeated it: measured on the real fixture, the rail held two instruction
-  // cards and BOTH reported `data-run` absent, so a run-keyed stepper was
-  // still walking an empty list — the same defect one population over. A key
-  // is the thread's own stable identity and every card has one.
+  // WHEN NEITHER HAS ANYTHING AND THE PHASE IS REVIEW, the pending
+  // instructions are gone (landed and cleared) but the WAS strips are still
+  // up, so the walk falls back to the `.gly-revised` blocks they hang under —
+  // keyed by their position in the document, the only identity a revised
+  // block has once its row is gone.
   stepOrder(this: AppShell): string[] {
-    const surface = this.cards.length ? this.cards : this.sheetCards;
     const seen = new Set<string>();
     const out: string[] = [];
+    const s = rowsKey.getState(this.editor.state);
+    for (const r of s?.spec.rows ?? []) {
+      if (!seen.has(r.key)) {
+        seen.add(r.key);
+        out.push(r.key);
+      }
+    }
+    const surface = this.cards.length ? this.cards : this.sheetCards;
     for (const card of surface) {
       const key = card.thread.key;
       if (key && !seen.has(key)) {
@@ -200,61 +206,46 @@ export const keyMethods = {
         out.push(key);
       }
     }
-    return out;
+    if (out.length) {
+      return out;
+    }
+    if (this.phase() !== 'review') {
+      return [];
+    }
+    return [...document.querySelectorAll('.gly-revised')].map(
+      (_, i) => `revised:${i}`,
+    );
   },
 
-  // step moves to the next pending mark and shows it wherever the current
-  // surface shows things: the card flashes when the rail is open, and the
-  // bubble opens on the mark itself when it is not.
+  // step moves to the next pinned row (or, in review with nothing pinned, the
+  // next revised block), outlines its card the same way it always has, and
+  // scrolls the row itself into view.
   step(this: AppShell, direction: 1 | -1) {
     const next = stepPending(this.stepOrder(), this.stepped, direction);
     if (!next) {
       return;
     }
     this.stepped = next;
-    // The sheet's cards too: with the sheet open it is the surface showing the
-    // list, and outlining a card behind it would be outlining nothing.
+    // The sheet's cards too: with the sheet open it is the surface showing
+    // the list, and outlining a card behind it would be outlining nothing.
     const all = this.cards.concat(this.sheetCards);
     for (const card of all) {
       card.el.classList.toggle('gly-stepped', card.thread.key === next);
     }
-    const card = all.find((c) => c.thread.key === next);
-    if (!card) {
+    const row = document.querySelector(`.gly-row[data-key="${next}"]`);
+    if (row) {
+      row.scrollIntoView({ block: 'center', behavior: motion() });
       return;
     }
-    // A MARK IF THERE IS ONE, THE CARD IF THERE IS NOT — and the second half is
-    // not a fallback for a failure, it is the ordinary case for an instruction
-    // on a block or on the whole document. Those have no mark by construction
-    // (that is what docmodel.Note exists for), so "step to the mark" would
-    // silently skip every one of them.
-    //
-    // `suggestion: null` is not a gap being papered over: `runFor` takes the
-    // exact-run branch whenever `run` is set, and the loose-peer fallback
-    // beside it exists for a mark-derived suggestion that lost its run. An
-    // instruction's run is the thread's, minted server-side, so the exact
-    // branch is the only one that can apply.
-    const run = card.run
-      ? runFor(this.runsNow(), { run: card.run, suggestion: null })
-      : null;
-    const el = run ? markElement(this.editor.view, run) : null;
-    if (!el) {
-      // flashThreadCard is the ONE implementation of "show me that card",
-      // already used by the click path from a mark in the prose. Reaching for
-      // it here rather than scrolling the element by hand is what keeps one
-      // reveal gesture in the product.
-      this.flashThreadCard(next);
+    if (next.startsWith('revised:')) {
+      const i = Number(next.slice('revised:'.length));
+      document
+        .querySelectorAll('.gly-revised')
+        [i]?.scrollIntoView({ block: 'center', behavior: motion() });
       return;
     }
-    revealMark(el);
-    this.scheduleAnchors();
-    if (!this.rail.root.hidden) {
-      return;
-    }
-    // No rail to flash a card in: open the bubble on the mark, which carries the
-    // same metadata line and the same two verbs.
-    const found = this.bubble.markAt(el);
-    if (found) {
-      this.bubble.show(el, found);
-    }
+    // A selection-anchored instruction has no row (see stepOrder) — its card
+    // is the only place on screen that names it, so that is what is revealed.
+    this.flashThreadCard(next);
   },
 };
