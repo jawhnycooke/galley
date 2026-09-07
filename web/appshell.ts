@@ -695,7 +695,6 @@ export interface AppMethods {
   makeBottomBar(): {
     root: HTMLElement;
     count: HTMLButtonElement;
-    versions: HTMLButtonElement;
   };
   makeSheet(): {
     root: HTMLElement;

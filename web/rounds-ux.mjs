@@ -1431,6 +1431,33 @@ try {
     JSON.stringify(exits) === JSON.stringify(['Revise', 'Revise & Approve']),
     JSON.stringify(exits),
   );
+  // AND EACH EXIT SAYS WHAT IT DOES, UNDER ITS OWN TITLE. `Revise` and
+  // `Revise & Approve` are four words apart and one of them ends the review;
+  // `.gly-verdict-explain` is the line that tells them apart, and nothing in a
+  // browser had ever read it. probe.mjs pins the two strings in the bundle,
+  // which is green over a line that never renders.
+  const explains = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll('.gly-verdict-menu .gly-verdict-explain'),
+    ].map((e) => ({
+      said: e.textContent.trim(),
+      shown: e.offsetParent !== null,
+      under: (() => {
+        const title = e.parentElement.querySelector('.gly-verdict-title');
+        return (
+          !!title &&
+          e.getBoundingClientRect().top >=
+            title.getBoundingClientRect().bottom - 1
+        );
+      })(),
+    })),
+  );
+  check(
+    'and each exit carries its explanation, rendered, under its own title',
+    explains.length === 2 &&
+      explains.every((e) => e.shown && e.under && e.said.length > 20),
+    JSON.stringify(explains),
+  );
   await page.click('.gly-verdict-revise');
   await page.waitForFunction(
     async () =>
@@ -2218,6 +2245,67 @@ try {
     await page.waitForTimeout(250);
   }
 
+  // AND THE ROW THE REFUSAL IS ABOUT SURVIVES THE PRESS THAT SENT IT. Rows were
+  // built from the PENDING list, which Revise empties — so the instant the
+  // reviewer pressed, every row left the paper and spec §2-§4's `writing…`,
+  // `applied` and `not applied` were unreachable states of a surface that was
+  // no longer there. That left the repo's own invariant — nothing the reviewer
+  // sent may ever disappear — with no surface at all. They come off the round's
+  // immutable `asks` now, and a sent row offers no `×`: it is a fact about the
+  // past, not an offer to un-say it.
+  const refusedRows = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.ProseMirror .gly-row')];
+    return {
+      states: rows.map(
+        (r) => r.querySelector('.gly-row-state')?.textContent ?? '',
+      ),
+      tones: rows.map((r) => r.dataset.tone),
+      removable: rows.filter((r) => r.querySelector('.gly-row-remove')).length,
+      phase: document.body.classList.contains('gly-phase-cannot'),
+    };
+  });
+  check(
+    'the refused instruction is still on the page, reading `not applied` in coral',
+    refusedRows.states.length > 0 &&
+      refusedRows.states.every((s) => s === 'not applied') &&
+      refusedRows.tones.every((t) => t === 'coral') &&
+      refusedRows.removable === 0 &&
+      refusedRows.phase === true,
+    JSON.stringify(refusedRows),
+  );
+  // AND THE BANNER SAYS IT IN WORDS, above the paper. `.gly-cannot` and its
+  // four parts had no browser check at all — and the element declared
+  // `display: grid`, which beat the UA's `[hidden]`, so an EMPTY coral box sat
+  // over the sheet on every page that had never seen a refusal.
+  const banner = await page.evaluate(() => {
+    const el = document.querySelector('.gly-cannot');
+    if (!el) {
+      return { present: false };
+    }
+    const p = document.querySelector('.ProseMirror');
+    return {
+      present: true,
+      hidden: el.hidden,
+      display: getComputedStyle(el).display,
+      label: el.querySelector('.gly-cannot-label')?.textContent ?? '',
+      body: el.querySelector('.gly-cannot-body')?.textContent ?? '',
+      why: el.querySelector('.gly-cannot-why')?.textContent ?? '',
+      fixed: el.querySelector('.gly-cannot-fixed')?.textContent ?? '',
+      abovePaper:
+        el.getBoundingClientRect().bottom <= p.getBoundingClientRect().top,
+    };
+  });
+  check(
+    'the could-not banner is up, above the paper, carrying the agent’s reason',
+    banner.present &&
+      banner.hidden === false &&
+      banner.display !== 'none' &&
+      /could not/.test(banner.body) &&
+      /passive voice/.test(banner.why) &&
+      /report, not a conversation/.test(banner.fixed) &&
+      banner.abovePaper,
+    JSON.stringify(banner),
+  );
   check(
     'a refused round is a hollow coral keyframe that says `cannot`',
     refusedRound &&

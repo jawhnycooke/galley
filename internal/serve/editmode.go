@@ -993,6 +993,13 @@ func (s *EditServer) Handler() http.Handler {
 		mux.HandleFunc("/_galley/fonts/"+f, serveAssetHint("assets/fonts/"+f,
 			"font/woff2", "a checkout that includes internal/serve/assets/fonts"))
 	}
+	// AND THE LICENCE THE FACES ARE SERVED UNDER. Both families are OFL, which
+	// requires the licence to travel with the fonts; it is embedded in the
+	// binary and had no route, so the one file the licence obliges galley to
+	// make available was the one file it would not serve.
+	mux.HandleFunc("/_galley/fonts/LICENSE-OFL.txt", serveAssetHint(
+		"assets/fonts/LICENSE-OFL.txt", "text/plain; charset=utf-8",
+		"a checkout that includes internal/serve/assets/fonts"))
 	// The caret, committed rather than built — unlike the three routes above,
 	// this one never 404s on a fresh checkout.
 	mux.HandleFunc("/_galley/favicon.svg", serveAsset("assets/favicon.svg", "image/svg+xml"))

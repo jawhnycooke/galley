@@ -8392,13 +8392,47 @@ function bindsContentField(src) {
     'quoteBlockIndex: an ask finds its block by the quote it was on',
     quoteBlockIndex(doc, 'A long, structured research document') === 1,
   );
+  // A SHORT QUOTE IS FINE WHERE IT IS UNIQUE — `retry budget` is an ordinary
+  // instruction anchor — and refused where it is not. Ambiguity, not length.
   check(
-    'quoteBlockIndex: a short quote is refused',
-    quoteBlockIndex(doc, 'Closing') === -1,
+    'quoteBlockIndex: a short but unique quote still finds its block',
+    quoteBlockIndex(doc, 'Closing') === 2,
+  );
+  check(
+    'quoteBlockIndex: a quote in two blocks is refused, not guessed',
+    quoteBlockIndex(
+      {
+        childCount: 2,
+        child: (i) => ({
+          textContent: ['the retry budget', 'a retry budget'][i],
+        }),
+      },
+      'retry budget',
+    ) === -1,
   );
   check(
     'quoteBlockIndex: a quote in no block is -1',
     quoteBlockIndex(doc, 'words that appear nowhere in this paper') === -1,
+  );
+  // THE THREE WORDS A SENT INSTRUCTION READS, per 02-states-and-behavior.md
+  // §2-§4. They were unreachable before rows came off the round's `asks` —
+  // `grep "not applied" web/*.mjs` was zero hits — and `writing…` is still the
+  // one no browser fixture can hold long enough to read.
+  const { askState } = await import('./rows.ts');
+  check(
+    'a sent instruction reads `writing…` while the agent has it',
+    askState('revising', false) === 'writing…' &&
+      askState('revising', true) === 'writing…',
+  );
+  check(
+    'and `applied` or `not applied` by what the round answered',
+    askState('review', true) === 'applied' &&
+      askState('review', false) === 'not applied',
+  );
+  check(
+    'and `not applied` after a refusal, whatever the ask said',
+    askState('cannot', true) === 'not applied' &&
+      askState('cannot', false) === 'not applied',
   );
 }
 

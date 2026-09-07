@@ -72,8 +72,8 @@ print(
     f"dupes: {len(groups)} clone groups — bound {BOUND}"
     f"  ({stats.get('duplicated_lines', '?')} of {stats.get('total_lines', '?')} lines)"
 )
-# The standing 46 live in exactly these files. A new clone group is far more
-# likely to touch a file outside that set than to be a forty-seventh harness
+# The standing 50 live in exactly these files. A new clone group is far more
+# likely to touch a file outside that set than to be a fifty-first harness
 # repeat, so name those first — printing the whole population on failure buries
 # the one group that is actually new.
 KNOWN = {

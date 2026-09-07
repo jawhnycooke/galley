@@ -200,8 +200,9 @@ export const historyMethods = {
   //
   // THE DEFAULT VIEW IS STILL THE DOCUMENT. Nothing opens over the prose here —
   // the revision is already in the words under the cursor, which is the point of
-  // the phase. What this does is mark the door and, when it is pressed, land on
-  // THAT round `in place`. See VersionsPanel.showRound.
+  // the phase. What this does is note the round and read it in place:
+  // `readArrivalInline` below, which is what replaced `VersionsPanel.showRound`
+  // when History's landing was deleted (the class has no such method).
   readArrival(this: AppShell, d: ReviseView) {
     const n = Number(d.landed || 0);
     const why = d.cannot || '';
@@ -284,9 +285,21 @@ export const historyMethods = {
         ins: text(r, '.gly-ins'),
         del: text(r, '.gly-del'),
       }));
-      const blocks = [...document.querySelectorAll('.ProseMirror > *')].map(
-        (b) => b.textContent ?? '',
-      );
+      // THE BLOCKS, AND NOTHING GALLEY PINNED BETWEEN THEM. A widget decoration
+      // is placed at a top-level position, so a pinned row and a WAS strip are
+      // DIRECT CHILDREN of `.ProseMirror` — indistinguishable from a paragraph
+      // to `> *`. `matchBlocks` returns an index into this list and `rows.ts`
+      // uses it as a ProseMirror CHILD index, so every row already on the page
+      // shifted every WAS strip below it onto the wrong paragraph, and off the
+      // end of the document entirely once there were enough of them. It was
+      // latent only because rows were emptied by the press that produced the
+      // arrival; they survive it now (sentRows), which is what made it real.
+      const blocks = [
+        ...document.querySelectorAll<HTMLElement>('.ProseMirror > *'),
+      ]
+        .filter((b) => !b.classList.contains('gly-row'))
+        .filter((b) => !b.classList.contains('gly-was-wrap'))
+        .map((b) => b.textContent ?? '');
       const at = matchBlocks(changes, blocks);
       const round = this.versionsPanel.rounds?.find((r) => r.n === n);
       // THE ROUND'S OWN SENTENCE IS THE FALLBACK NOTE. `ChangeView.note` is the

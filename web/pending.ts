@@ -118,13 +118,30 @@ export const pendingMethods = {
       const ghost = (e.target as Element | null)?.closest<HTMLElement>(
         '.gly-trail-ghost[data-old]',
       );
+      // AND THE PILL GOES WHEN THE POINTER LEAVES THE GHOST, not only when it
+      // leaves the paper. `mouseover` fires for every element the pointer
+      // crosses, so moving off a ghost onto the prose beside it used to leave
+      // the pill standing — over words it was not about, ARMED with the key of
+      // the ghost it had been over. `× revert` is the one destructive verb a
+      // hand edit has, so a stale one is not clutter, it is a wrong deletion
+      // one click away.
+      const over = (e.target as Element | null)?.closest(
+        '.gly-revert-float, .gly-trail-ghost[data-old]',
+      );
       if (!ghost) {
+        if (!over && this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
         return;
       }
       const key = changeKeyFor(this.changes, ghost.dataset.old || '');
       if (!key) {
         // Nothing to revert THROUGH: the server has not diffed this keystroke
-        // into a change yet. No pill rather than a pill that does nothing.
+        // into a change yet. No pill rather than a pill that does nothing —
+        // and the one that is up is about a different ghost, so it goes.
+        if (this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
         return;
       }
       const btn = this.revertFloat ?? makeRevertFloat(this);
@@ -134,6 +151,20 @@ export const pendingMethods = {
       btn.dataset.key = key;
       btn.hidden = false;
     });
+    // AND A SCROLL TAKES IT WITH THE GHOST. The pill is a `body` child placed
+    // at page coordinates read once, on hover; the paper scrolls and it does
+    // not, so a scrolled page leaves it floating over unrelated prose, still
+    // armed. Hidden rather than re-placed: the pointer has left the ghost by
+    // definition once the words under it have moved.
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (this.revertFloat) {
+          this.revertFloat.hidden = true;
+        }
+      },
+      { passive: true },
+    );
     paper.addEventListener('mouseleave', (e) => {
       // Unless the pointer went TO the pill — it is a `body` child sitting
       // over the paper's own edge, so reaching for it leaves the paper, and
@@ -234,6 +265,20 @@ export const pendingMethods = {
         // `omitempty` on the Go side, so a round with no hand edits arrives
         // with the key ABSENT rather than as an empty array.
         this.changes = view.changes || [];
+        // AND A PILL ARMED WITH A KEY THE SERVER NO LONGER HAS COMES DOWN.
+        // `× revert` carries one change's key, taken on hover; the round can be
+        // sent, or the change reverted from somewhere else, between that hover
+        // and the click — and a press then posts a key the server answers 404
+        // to, or worse, does nothing visible while the reviewer believes it
+        // did. The refresh that learns the change is gone is the place that
+        // knows.
+        const pill = this.revertFloat;
+        if (pill && !pill.hidden) {
+          const key = pill.dataset.key || '';
+          if (!this.changes.some((c) => c.key === key)) {
+            pill.hidden = true;
+          }
+        }
         this.blocks = view.blocks || [];
         // NO TRAIL IS ADOPTED FROM THIS PAYLOAD, because the payload has none:
         // `pendingView` is `{instructions, blocks}`. `adoptTrail` and

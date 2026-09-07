@@ -142,27 +142,36 @@ export function dedupeWas(was: WasSpec[]): WasSpec[] {
 
 // A SENT ASK IS FOUND BY THE WORDS IT WAS ON. Its thread has left the pending
 // list by then (`internal/serve/editmode.go`: sent instructions live in the
-// immutable round ledger and never come back), so there is no anchorKey to
-// look up — but the round carries the `quote` the reviewer selected, and that
-// text is still in the paper unless the agent rewrote exactly it. Same
-// normalised containment `matchBlocks` uses, same reason, and the same floor:
-// a two-word quote would match half the document.
+// immutable round ledger and never come back), so there is no anchorKey to look
+// up — but the round carries the `quote` the reviewer selected, and that text is
+// still in the paper unless the agent rewrote exactly it.
+//
+// AMBIGUITY IS A NO, AND THAT IS THE RULE HERE RATHER THAN A LENGTH FLOOR. A
+// quote is whatever the reviewer happened to select: `retry budget` is twelve
+// characters and a perfectly ordinary instruction anchor, so refusing it by
+// length would drop the row off the one block it belongs to. What makes a short
+// quote dangerous is not its length but its being in TWO blocks — and that is
+// checkable directly. Exactly one match is an answer; two is a coin toss, and a
+// row under the wrong paragraph is worse than no row, because the reviewer reads
+// it as the agent having been asked about words it never was.
 export function quoteBlockIndex(
   doc: { childCount: number; child(i: number): { textContent: string } },
   quote: string,
 ): number {
-  // The deletion floor, for the deletion reason: a quote is words that are
-  // still in the paper, so a short one matches whatever else says them.
   const probe = norm(quote).slice(0, 40);
-  if (probe.length < PROBE_MIN_DEL) {
+  if (!probe) {
     return -1;
   }
+  let found = -1;
   for (let i = 0; i < doc.childCount; i++) {
     if (norm(doc.child(i).textContent).includes(probe)) {
-      return i;
+      if (found >= 0) {
+        return -1;
+      }
+      found = i;
     }
   }
-  return -1;
+  return found;
 }
 
 function rowDOM(r: RowSpec, onRemove: (key: string) => void): HTMLElement {
@@ -395,8 +404,11 @@ function askBlockIndex(shell: AppShell, doc: PMNode, ask: AskView): number {
   return block ? block.index : quoteBlockIndex(doc, ask.quote ?? '');
 }
 
-// The word a sent ask's row reads, per spec §2-§4.
-function askState(
+// The word a sent ask's row reads, per spec §2-§4. Exported for probe.mjs:
+// `writing…` is the one of the three the browser gates cannot reach — the
+// fixtures' `--on-revise` returns at once, so the revising window is shorter
+// than a poll — and a vocabulary nothing pins is a vocabulary that drifts.
+export function askState(
   phase: 'revising' | 'review' | 'cannot',
   answered: boolean,
 ): RowSpec['state'] {

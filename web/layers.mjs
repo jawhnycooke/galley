@@ -56,7 +56,7 @@
 //
 // docs/design/2026-08-08-handoff-spec.md assigns every element to exactly one
 // of three layers, and every change it asks for is PAINT. Paint is invisible to
-// motion.mjs, which measures rects, and invisible to probe.mjs, which has no
+// rounds-ux.mjs, which measures rects, and invisible to probe.mjs, which has no
 // DOM at all. It is also where this stylesheet's worst class of bug lives:
 // `.gly-card button` (0,1,1) silently beats `.gly-thread-delete` (0,1,0), so a
 // rule can be written, reviewed, commented and shipped without ever applying.
@@ -158,7 +158,7 @@ const HERE = mkdtempSync(join(tmpdir(), 'galley-layers-'));
 // after the sweep loop. Held by a filename alone it was the fixture hazard
 // CLAUDE.md names, in the gate that sweeps eleven widths. 1600 walking a flat
 // bar is no longer a fixture hole but the product's own new shape — an
-// ordinary name is not SUPPOSED to fold 1600 any more, and motion.mjs carries
+// ordinary name is not SUPPOSED to fold 1600 any more, and rounds-ux.mjs carries
 // a name long enough to fold its own wide viewport on purpose.
 //
 // RE-MEASURED 2026-08-20, against the instruction bar. The bar lost its
@@ -1910,7 +1910,7 @@ await page.emulateMedia({ colorScheme: 'light' });
 //
 // So the sweep reads `document.elementFromPoint` back at each control's centre
 // and requires that control or a descendant of it. There is precedent one file
-// over: motion.mjs reads elementFromPoint back at the coordinate it clicked,
+// over: rounds-ux.mjs reads elementFromPoint back at the coordinate it clicked,
 // on the argument that "nothing moved" and "what you clicked is still under
 // your finger" are separate facts. This is that distinction, standing still.
 //
@@ -1944,7 +1944,7 @@ await page.emulateMedia({ colorScheme: 'light' });
     1600, 1450, 1400, 1200, 1100, 1000, 992, 991, 900, 768, 600, 390,
   ];
   // Every child of the bar and every button anywhere in it — the same landmark
-  // set motion.mjs snapshots, for the same reason: the claim is about the bar,
+  // set rounds-ux.mjs snapshots, for the same reason: the claim is about the bar,
   // not about one button in it.
   const barProbe = () =>
     page.evaluate(() => {
@@ -3427,8 +3427,8 @@ console.log('\n--- §9/§10/§10a · the rail — DELETED, fixture state only --
 {
   // THE REVISION IS ASKED FOR THROUGH THE ENDPOINT, NOT THE BUTTON. With work
   // pending the button DISCLOSES a two-exit menu rather than posting (see
-  // askRevise) — motion.mjs drives that menu. What matters here is the state
-  // the page ends up in.
+  // askRevise) — web/rounds-ux.mjs drives that menu. What matters here is the
+  // state the page ends up in.
   const asked = await page.evaluate(async () => {
     const res = await fetch('/_galley/revise', {
       method: 'POST',
@@ -3715,6 +3715,268 @@ console.log('\n--- §8a · a live page owns its own disabled flags ---');
 // the version stands IN the sheet and does NOT cover the way back. The bottom
 // bar carries the count, the step and the way out at narrow widths, and a
 // version drawn over them is the covered-control defect wearing a new coat.
+console.log('\n--- §14 · the surfaces this redesign added ---');
+//
+// EVERY ONE OF THESE WAS UNGATED IN A BROWSER. The theme button, the `?` sheet,
+// the verdict menu's explanatory lines, the scrubber's own drag, the readout's
+// dot, the pinned row's geometry and the three width reserves were argued in
+// comments and asserted, at most, as strings in the bundle — which proves a
+// rule was AUTHORED, not that it APPLIES. That is the exact failure the primary
+// button shipped with: `#gly-revise.gly-revise { display: inline-flex }` beat
+// the one-cell grid the whole reserve mechanism rests on, and a text search for
+// the grid rule stayed green through it.
+{
+  // --- the theme button: one press, two writes ---
+  const themeBefore = await page.evaluate(() => ({
+    attr: document.documentElement.getAttribute('data-theme'),
+    label: document.querySelector('.gly-theme-label')?.textContent ?? null,
+    stored: window.localStorage.getItem('galley-theme'),
+  }));
+  check(
+    'the theme button is on the page and says which theme is on',
+    themeBefore.label !== null,
+    themeBefore,
+  );
+  await page.click('.gly-theme');
+  await page.waitForTimeout(200);
+  const themeAfter = await page.evaluate(() => ({
+    attr: document.documentElement.getAttribute('data-theme'),
+    label: document.querySelector('.gly-theme-label')?.textContent ?? null,
+    stored: window.localStorage.getItem('galley-theme'),
+    // The palette really moved: `--gly-bg` is what every surface is drawn on.
+    bg: getComputedStyle(document.body).backgroundColor,
+  }));
+  check(
+    'pressing it writes data-theme, repaints, and remembers the choice',
+    themeAfter.label !== themeBefore.label &&
+      themeAfter.stored !== null &&
+      themeAfter.stored === themeAfter.attr,
+    { before: themeBefore, after: themeAfter },
+  );
+  // AND ITS BOX DOES NOT MOVE — the bar rule, on a control whose label changes
+  // on its own press (`dark` / `light` / `auto`). 9ch is the reserve.
+  //
+  // A `ch` RESERVE IS READ IN PIXELS, because that is what the browser resolves
+  // it to and what the reviewer's eye is measuring. The button's own `9ch` is
+  // compared against a probe of nine `0` glyphs in the same font, so the check
+  // fails when the RULE stops applying — which is the failure mode this file
+  // exists for — and not when the font stack changes.
+  const themeBox = await page.evaluate(() => {
+    const b = document.querySelector('.gly-theme');
+    const probe = document.createElement('span');
+    probe.style.font = getComputedStyle(b).font;
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.textContent = '000000000';
+    document.body.appendChild(probe);
+    const nine = probe.getBoundingClientRect().width;
+    probe.remove();
+    return {
+      width: Math.round(b.getBoundingClientRect().width),
+      reserve: Math.round(parseFloat(getComputedStyle(b).minWidth)),
+      nine: Math.round(nine),
+    };
+  });
+  //
+  // MEASURED ACROSS THE WHOLE CYCLE, not across one press. `auto`, `light` and
+  // `dark` are three different words and the box has to be the same width under
+  // all three; two of them happened to be equal, so a single press could pass
+  // over a button that moves.
+  const widths = [themeBox.width];
+  // Two more presses: with the one above they close the three-step cycle, and
+  // `widths` then holds one measurement per label.
+  for (let i = 0; i < 2; i += 1) {
+    await page.click('.gly-theme');
+    await page.waitForTimeout(200);
+    widths.push(
+      await page.evaluate(() =>
+        Math.round(
+          document.querySelector('.gly-theme').getBoundingClientRect().width,
+        ),
+      ),
+    );
+  }
+  check(
+    'the theme button reserves its label, so its own press never moves it',
+    Math.abs(themeBox.reserve - themeBox.nine) <= 2 &&
+      widths.every((w) => w === widths[0]),
+    { themeBox, widths },
+  );
+  // The loop above closed the auto → light → dark → auto cycle, so the palette
+  // is back where this section found it and nothing below reads one the rest of
+  // the file did not measure against. NOT a reload: this fixture carries a hand
+  // edit and a placed composer that §12 and §13 read.
+  await page.evaluate(() => {
+    window.localStorage.removeItem('galley-theme');
+  });
+  check(
+    'and the cycle comes back to where it started',
+    (await page.evaluate(() =>
+      document.documentElement.getAttribute('data-theme'),
+    )) === themeBefore.attr,
+  );
+
+  // --- the ? sheet: a toggle, and it is really hidden when it is shut ---
+  const helpShut = await page.evaluate(() => {
+    const el = document.querySelector('.gly-help');
+    return {
+      present: !!el,
+      hidden: el?.hidden ?? null,
+      display: el ? getComputedStyle(el).display : null,
+      lines: el ? el.querySelectorAll('p').length : 0,
+    };
+  });
+  check(
+    'the help sheet is shut at rest, and `hidden` really hides it',
+    helpShut.present && helpShut.hidden === true && helpShut.display === 'none',
+    helpShut,
+  );
+  await page.click('.gly-help-open');
+  await page.waitForTimeout(200);
+  const helpOpen = await page.evaluate(() => {
+    const el = document.querySelector('.gly-help');
+    return {
+      hidden: el.hidden,
+      display: getComputedStyle(el).display,
+      lines: el.querySelectorAll('p').length,
+      overProse: (() => {
+        const p = document.querySelector('.ProseMirror p');
+        return (
+          el.getBoundingClientRect().bottom <= p.getBoundingClientRect().top
+        );
+      })(),
+    };
+  });
+  check(
+    'pressing ? opens it, with the five gestures, above the paper and not over it',
+    helpOpen.hidden === false &&
+      helpOpen.display !== 'none' &&
+      helpOpen.lines === 5 &&
+      helpOpen.overProse,
+    helpOpen,
+  );
+  await page.click('.gly-help-open');
+  await page.waitForTimeout(200);
+  check(
+    'and pressing it again shuts it — it is a toggle, not a door',
+    (await page.evaluate(() => document.querySelector('.gly-help').hidden)) ===
+      true,
+  );
+
+  // --- the readout's dot ---
+  //
+  // IT NEVER RENDERED. `makeReadoutDot` inserted it into `#gly-status` and every
+  // branch of `paintReadout` then wrote `textContent`, which replaces every
+  // child — so the App re-tinted a detached node on every poll and the reviewer
+  // saw no dot at all. Read off the page, with its tone, because "the element
+  // exists" was true the whole time it was invisible.
+  const dot = await page.evaluate(() => {
+    const el = document.querySelector('#gly-status .gly-dot');
+    if (!el) {
+      return { present: false };
+    }
+    const r = el.getBoundingClientRect();
+    return {
+      present: true,
+      tone: el.dataset.tone ?? null,
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      colour: getComputedStyle(el).backgroundColor,
+      first: document.querySelector('#gly-status').firstElementChild === el,
+      said: document.querySelector('#gly-status').innerText.trim(),
+    };
+  });
+  check(
+    'the readout paints a dot, and it survives the sentence being rewritten',
+    dot.present &&
+      dot.first === true &&
+      dot.w > 0 &&
+      dot.h > 0 &&
+      !!dot.tone &&
+      dot.said.length > 0,
+    dot,
+  );
+
+  // --- the row pinned under its block ---
+  const row = await page.evaluate(() => {
+    const el = document.querySelector('.ProseMirror .gly-row');
+    if (!el) {
+      return { present: false };
+    }
+    const marked = document.querySelector('.ProseMirror .gly-marked');
+    const paper = document.querySelector('.ProseMirror');
+    const r = el.getBoundingClientRect();
+    const b = marked ? marked.getBoundingClientRect() : null;
+    const p = paper.getBoundingClientRect();
+    return {
+      present: true,
+      belowItsBlock: b ? Math.round(r.top) >= Math.round(b.top) : null,
+      insidePaper:
+        Math.round(r.left) >= Math.round(p.left) &&
+        Math.round(r.right) <= Math.round(p.right),
+      state: el.querySelector('.gly-row-state')?.textContent ?? '',
+      tone: el.dataset.tone ?? null,
+    };
+  });
+  check(
+    'a pinned row sits below the block it is about, inside the sheet',
+    row.present &&
+      row.belowItsBlock !== false &&
+      row.insidePaper &&
+      !!row.state &&
+      !!row.tone,
+    row,
+  );
+
+  // --- the primary's own two reserves ---
+  //
+  // 13ch (the counting face) and 23ch (the trail) are the two magic numbers the
+  // bar rule is spelled in, and NEITHER had a gate anywhere. Read as computed
+  // widths on the real elements, because a `min-width` in a rule that does not
+  // apply reserves nothing — which is precisely how the primary shipped 425px
+  // wide with its four faces in a row.
+  const reserves = await page.evaluate(() => {
+    const b = document.getElementById('gly-revise');
+    const trail = document.querySelector('.gly-revise-trail');
+    const chIn = (el, n) => {
+      const probe = document.createElement('span');
+      probe.style.font = getComputedStyle(el).font;
+      probe.style.position = 'absolute';
+      probe.style.visibility = 'hidden';
+      probe.textContent = '0'.repeat(n);
+      document.body.appendChild(probe);
+      const w = probe.getBoundingClientRect().width;
+      probe.remove();
+      return Math.round(w);
+    };
+    return {
+      // `display` comes back BLOCKIFIED — the primary is a flex item of
+      // `.gly-timeline-right`, so `inline-grid` computes as `grid`. The claim
+      // is the grid and its single named area, which is what makes the four
+      // faces one cell; `inline` is not part of it.
+      display: getComputedStyle(b).display,
+      areas: getComputedStyle(b).gridTemplateAreas,
+      trail: trail
+        ? Math.round(parseFloat(getComputedStyle(trail).minWidth))
+        : null,
+      trail23: trail ? chIn(trail, 23) : null,
+      trailPx: trail ? Math.round(trail.getBoundingClientRect().width) : null,
+    };
+  });
+  check(
+    'the primary is a ONE-CELL GRID — the reservation the four faces rest on',
+    /grid/.test(reserves.display) && /label/.test(reserves.areas),
+    reserves,
+  );
+  check(
+    'the footer trail reserves 23ch, in pixels, on the element that has it',
+    reserves.trail !== null &&
+      Math.abs(reserves.trail - reserves.trail23) <= 2 &&
+      reserves.trailPx >= reserves.trail,
+    reserves,
+  );
+}
+
 console.log('\n--- §12 · reading an earlier version ---');
 {
   await page.setViewportSize({ width: WIDE.width, height: WIDE.height });
@@ -3853,6 +4115,65 @@ console.log('\n--- §12 · reading an earlier version ---');
       escaped.prose !== 'none',
     escaped,
   );
+  // THE HANDLE IS DRAGGED, AND NOT ONLY THE KEYFRAME PRESSED. `.gly-scrub-handle`
+  // is the scrubber's own gesture and the record's only continuous door, and
+  // nothing anywhere drove it: every check here and in rounds-ux clicks a
+  // keyframe, which is a different code path (`scrubTo(k.n)` against the
+  // pointer arithmetic on the track). A drag is also the case the last-move-wins
+  // ticket in `scrubTo` exists for — dozens of calls, one paint.
+  {
+    const track = await page.locator('.gly-scrub-track').boundingBox();
+    const handle = await page.locator('.gly-scrub-handle').boundingBox();
+    await page.mouse.move(
+      handle.x + handle.width / 2,
+      handle.y + handle.height / 2,
+    );
+    await page.mouse.down();
+    // Left across the track in steps, the way a pointer actually arrives.
+    for (let i = 1; i <= 8; i += 1) {
+      await page.mouse.move(
+        track.x + track.width * (1 - i / 8) * 0.9,
+        handle.y + handle.height / 2,
+      );
+      await page.waitForTimeout(40);
+    }
+    await page.mouse.up();
+    await page.waitForSelector('body.gly-scrubbing .gly-scrub-paper[data-v]', {
+      timeout: 8000,
+    });
+    const dragged = await page.evaluate(() => {
+      const paper = document.querySelector('.gly-scrub-paper[data-v]');
+      return {
+        scrubbing: document.body.classList.contains('gly-scrubbing'),
+        at: paper ? Number(paper.dataset.v) : null,
+        max: window.galleyEdit.app.scrubMax(),
+        atHead: window.galleyEdit.app.atHead(),
+        text: (paper?.innerText ?? '').trim().length,
+        eyebrow: document.querySelector('.gly-eyebrow')?.innerText ?? '',
+      };
+    });
+    check(
+      'dragging the handle reads an earlier version — one paint, off the head',
+      dragged.scrubbing === true &&
+        dragged.atHead === false &&
+        dragged.at !== null &&
+        dragged.at < dragged.max &&
+        dragged.text > 0 &&
+        /VIEWING V/.test(dragged.eyebrow),
+      dragged,
+    );
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(
+      () => !document.body.classList.contains('gly-scrubbing'),
+      undefined,
+      { timeout: 5000 },
+    );
+    check(
+      'and Esc puts the draft back — one predicate, and every surface reads it',
+      (await page.evaluate(() => window.galleyEdit.app.atHead())) === true,
+    );
+  }
+
   await page.setViewportSize({ width: WIDE.width, height: WIDE.height });
   await page.waitForTimeout(300);
 }
@@ -4255,7 +4576,7 @@ console.log('\n--- §13 · an applied round ---');
 // LAST, because it ends the review: every section above needs a live one.
 //
 // PAINT IS INVISIBLE TO EVERY OTHER GATE, and the seal adds a whole bar nobody
-// else looks at. `just verify` never opens a browser; motion.mjs holds rects
+// else looks at. `just verify` never opens a browser; rounds-ux.mjs holds rects
 // across a click and a stably-wrong colour survives it untouched; probe.mjs has
 // no DOM. Two claims live here and nowhere else. The terminal bar is CHROME —
 // it must not paint at the document's size or in the document's colour, which

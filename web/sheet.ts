@@ -1,5 +1,6 @@
 // web/sheet.ts owns the review sheet: the narrow layout's whole chrome
-// (makeBottomBar — the Instructions door, the History chip, `↓ next`), the
+// (makeBottomBar — the Instructions door and `↓ next`; the History chip is
+// deleted, and the record is the footer's timeline at every width), the
 // full-screen list surface itself (makeSheet — its head, its body, its
 // settled region), opening and closing it, and painting it: `paintSheet`
 // renders `railThreads ∪ overallThreads` through `this.threadCard`, and

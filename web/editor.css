@@ -2540,6 +2540,19 @@ body.gly-revising .gly-dot {
 .gly-theme:hover {
   color: var(--gly-fg);
 }
+/* AND THE RESERVE IS ON THE WORD, WHICH IS THE THING THAT CHANGES. `9ch` on
+   the BUTTON is a floor, and a floor is not a reserve: the button's content —
+   swatch, gap, label, padding — is wider than nine characters, so the box sized
+   to its content and `auto` → `light` → `dark` measured 82, 75, 82 as the
+   reviewer pressed it. A control that moves on its own press is the one thing
+   this bar forbids, and the theme button was the third to do it. `light` is the
+   widest of the three labels; 5ch holds it, laid out left so the word does not
+   slide inside its own box either. */
+.gly-theme-label {
+  display: inline-block;
+  min-width: 5ch;
+  text-align: left;
+}
 .gly-theme-swatch {
   width: 10px;
   height: 10px;
@@ -2757,15 +2770,16 @@ body.gly-revising .gly-dot {
   text-align: left;
   white-space: pre;
 }
-/* THE TRAIL'S CLAUSE AND ITS 23ch RESERVE ARE BOTH GONE, and the deletion is
-   named because the reasoning it carried is still true of the count that
-   replaced it. `Finish ▾ · 6 edits, 2 replies` said what the press would tell
-   the agent, in a reserved box, for the reason .gly-revise-count states above:
-   a number that changes on somebody else's click may change the text and never
-   the box. The rounds-only workflow has no trail to count — paintRevise stopped
-   writing the clause and left the reserve behind, 23ch of nothing inside the
-   primary — so the box goes with the words, and its argument survives one
-   element to the left. */
+/* THE TRAIL'S CLAUSE LEFT THE BUTTON AND KEPT ITS 23ch RESERVE, one element to
+   the left. `Finish ▾ · 6 edits, 2 replies` said what the press would tell the
+   agent, INSIDE the primary, in a reserved box, for the reason
+   `.gly-revise-count` states above: a number that changes on somebody else's
+   click may change the text and never the box. The clause is
+   `.gly-revise-trail` in the timeline's right-hand cell now (Task 4) and its
+   reserve is live there — `min-width: 23ch`, further down this file — because
+   the claim is unchanged: `1 edit, 6 instructions →` grows and shrinks as the
+   reviewer types, and the primary beside it may not move when it does. This
+   block said both were GONE, which was true of neither. */
 /* --- the verdict menu ---
 
    The two-exit disclosure the Revise face's press opens (see askRevise). It
@@ -4130,7 +4144,7 @@ main {
    re-centring it in a row the note had grown), so the second click — the
    irreversible one — landed where the first one had not been. The note drops
    to its own line under the pill instead. `.gly-card-note:empty` is
-   `display: none` (:1707), so at rest the row is exactly the one line it was.
+   `display: none` (see that rule), so at rest the row is the one line it was.
    Caught by `web/layers.mjs` §4, `delete keeps its box when it arms`. */
 .gly-row-doc {
   display: flex;
@@ -4254,6 +4268,25 @@ body.gly-revising .ProseMirror > .gly-marked::after {
     opacity: 0;
   }
 }
+/* A BLOCK THAT ALREADY HAS A BOX KEEPS ITS OWN. The two marks above pull a wash
+   out to the column's edge with negative margins and pad the text back off it,
+   which is right for a paragraph — it has no box of its own to disturb. A fence
+   and a figure DO: `.ProseMirror pre` sets `padding: 0.8rem 1rem` and a border,
+   so marking one added twelve pixels of padding to that and then pulled the
+   whole box twelve pixels wider on each side. The box moved and resized under
+   the reviewer at the moment they marked it — the bar rule, asked of the paper,
+   and the one gesture where the thing that moves IS the thing that was clicked.
+   The wash still lands; only the geometry is left alone. Declared after both
+   marks, at (0,2,0) against their (0,2,0), so source order decides. */
+.ProseMirror > pre.gly-marked,
+.ProseMirror > pre.gly-revised,
+.ProseMirror > .gly-figure.gly-marked,
+.ProseMirror > .gly-figure.gly-revised {
+  padding: 0.8rem 1rem;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .ProseMirror > .gly-revised {
   background: var(--gly-accent-fill-18);
   border-radius: 6px;

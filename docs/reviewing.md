@@ -104,40 +104,31 @@ With no instructions pending the button reads **`Approve`** and the press sends 
 
 ## Reading what came back
 
-When a round lands, the readout says so and the `History` chip goes amber:
+When a round lands, the readout says so and a new keyframe appears on the timeline:
 
 ```
-v4 · agent revised · see History
+v4 · agent revised · on the timeline
 ```
 
-A strip announces it with the counts, taken from the server and not from anything the page drew:
+The round is read **where it happened**. The blocks the agent changed tint, and under each one a `WAS` strip carries what that passage said before, struck through, with the agent's own sentence about the change beneath it. The instruction that asked for it reads `applied` in its row; one the agent left alone reads `not applied`.
+
+If the agent could not do what you asked, the round is still cut — with the document unchanged — and a coral banner above the paper says so:
 
 ```
-round 3 answered · v4 · 3 changes
+round 3 · the agent could not · document unchanged
 ```
 
-If the agent could not do what you asked, the round is still cut — with the document unchanged — and it says so instead:
+The reason travels with it, and under it: *This is a report, not a conversation. Answer it with a different instruction in the next round.* The round's keyframe on the timeline is hollow and coral, labelled `· cannot`, so the refusal is in the record as well as on the page.
 
-```
-round 3 · the agent could not · v4
-```
+### Reading an earlier version
 
-The reason travels with it (`v4 · could not: the file it refers to does not exist in this repo`). A `cannot` is a report, not a conversation: you answer it with a different instruction in a new round.
+The timeline in the footer is the record. Drag its handle, press a keyframe, or step it with `←` and `→`: the paper crossfades to that version, the eyebrow reads `VIEWING V2 · 4M AGO`, and the primary becomes `← back to draft`. `Esc` returns to now, with the scroll position you left.
 
-Pressing `History` after an arrival lands you on that round's changes. Pressing it cold gives you the landing — every round, newest first, one card per exchange, each carrying `ROUND n · 4M AGO`, the instruction that produced it (`→ …`) and the agent's own sentence about the revision (`← …`), over `v4 · 3 changes`. `V1 · STARTING VERSION` sits at the foot: the file as galley opened it, which is not a round anybody had. With nothing there yet it says `No history yet — the first Revise creates a version.`
-
-Inside a round the sub-bar reads `ROUND 3 · V3 → V4` and offers two views:
-
-- **changes** — the round's document with the moved passages marked in place. This is the default; opening a round is already the question it answers.
-- **side by side** — `v3 · before` and `v4 · after`. It is unavailable on v1, which has nothing to sit beside.
-
-The rail beside the paper carries one card per change, `CHANGE 2 OF 3 · <nearest heading>`, with the instruction it answers and the agent's note on it. Clicking or pressing Enter on a card scrolls to that change on the paper and pins it; Esc releases the pin, and Esc again leaves History. A round that moved nothing says `identical — no changes in this round`.
-
-History is a reading mode and nothing in it changes the draft — the readout says `reading round 3 · draft is untouched` while you are there. The primary button becomes `← back to draft`, and the scroll position you left is restored.
+Nothing you do there changes the draft — the readout says `2 rounds · draft is untouched` while you are reading — and the whole-document slot goes away, because a version is a record and not somewhere to write.
 
 ### Restoring an older version
 
-At the right of the sub-bar, quietly, is **`restore v3 as draft`**. It copies that version over your current draft. It arms like the delete verb does: the first click changes it to `replace draft?`, the second sends, and the arming lapses after four seconds. It does not amend or delete any round — the next send records a normal new round from the restored draft — and the status line confirms `restored from v3 · not sent`.
+While you are reading a version, quietly at the right of the eyebrow, is **`restore v3 as draft`**. It copies that version over your current draft. It arms like the delete verb does: the first click changes it to `replace draft?`, the second sends, and the arming lapses after four seconds. It does not amend or delete any round — the next send records a normal new round from the restored draft — and the status line confirms `restored from v3 · not sent`.
 
 It refuses, with the reason, when:
 
@@ -153,20 +144,22 @@ The `live` switch decides whether the agent hears anything before you press Revi
 
 Off (the default), the agent hears nothing until you press Revise. On, the agent is woken whenever the document settles — you keep editing and it keeps working, without a press. The switch's tooltip says which state you are in and what a click does about it.
 
-In live mode a **`⏸ hold`** button appears beside it. Holding keeps new arrivals out of the rail; they still land in the document, they just wait for a card. The button then reads `▶ release · 2` with the number waiting, and releasing announces them in one batch. Hold is a queue over what the rail shows, never a gate on the document.
+In live mode a **`⏸ hold`** button appears beside it. Holding keeps new arrivals from being announced; they still land in the document, they just wait. The button then reads `▶ release · 2` with the number waiting, and releasing announces them in one batch. Hold is a queue over what the page shows, never a gate on the document.
 
 ## Keyboard
 
 | Key | What it does |
 |---|---|
-| `Esc` | Closes whatever is open, topmost first: a refusal note, the mark bubble, the composer, the verdict menu, the instruction sheet, History's pinned change, then History itself, then the whole-document panel. With nothing open, it takes focus out of the text and hands it back to the page. |
+| `Esc` | Closes whatever is open, topmost first: a refusal note, the mark bubble, the composer, the verdict menu, the instruction sheet, then the version you are reading. With nothing open, it takes focus out of the text and hands it back to the page. |
 | `Enter` | In any galley text box, files what you typed. |
 | `Shift-Enter` | Breaks a line inside a galley text box instead of filing. |
 | `Enter` / `Space` | On a focused card, reveals what that card is about. |
 | `Cmd-Z` / `Cmd-Shift-Z` | Undo and redo your own edits. |
-| `j` / `k` | **Currently step nothing** — see the note below. Inert while History is open. |
+| `j` / `k` | Step down and up through the pinned instruction rows, revealing each. Inert while you are reading an earlier version. |
+| `←` / `→` | Step the timeline one version back and forward. |
+| `Esc` | (again) returns to now from any version you are reading. |
 
-Two notes on that table. The document itself is an ordinary editable surface, so `j` and `k` are letters while the caret is in the text — press Esc first to hand focus back to the page. And `j`/`k` (and the narrow bar's `↓ next`) currently walk a list that is empty in the rounds workflow: they step nothing. Reach instructions by clicking their cards, by Tab, or through `Instructions · N`.
+One note on that table: the document itself is an ordinary editable surface, so every one of these letters is a letter while the caret is in the text — press Esc first to hand focus back to the page.
 
 ## What galley will not accept in the document
 

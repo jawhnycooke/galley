@@ -155,6 +155,17 @@ export function roundCards(
 // reviewer counts exchanges. Computed on every paint from the list the server
 // delivered, never stored — an ordinal renumbers, and CLAUDE.md's rule that an
 // ordinal is not identity is exactly why nothing persists it.
+//
+// IT HAS NO PRODUCTION CALLER AND THAT IS RECORDED RATHER THAN HIDDEN. Both
+// were History's landing, which this branch deleted: the card's `ROUND n` head
+// and the deep link into a round. The timeline's keyframes are labelled by
+// version (`keyframesOf`, web/timeline.ts) and not by exchange, so nothing on
+// the page asks this question today. It is KEPT, with probe.mjs's four checks
+// on it, because the exchange-folding rule it encodes — an ask and its answer
+// are ONE thing to the reviewer — is the record's own grammar and `roundCards`
+// beside it is live; the ordinal is the half of that grammar the current
+// surface happens not to print. Delete it with `roundCards`, or with the next
+// surface that decides to number exchanges, and not before.
 export function ordinalOf(rounds: RoundView[], n: number): number {
   const cards = roundCards(rounds);
   for (let i = 0; i < cards.length; i += 1) {
