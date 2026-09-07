@@ -18,11 +18,11 @@ Branch: `feat/timeline-draft`. Decision 2026-09-06: re-value the existing `--gly
 | 10 | Wire: per-round `asks[].answered` (Go) | — | [x] 1185c69 |
 | 11 | Arrival inline: WAS strip, agent note, applied rows | 9, 10 | [x] c374e43 |
 | 12 | cannot banner | 7 | [x] 3b615ec |
-| 13 | Keys: ←/→, Esc, j/k over rows | 6, 9 | [ ] |
-| 14 | Delete retired surfaces | 6, 7, 9, 11, 13 | [ ] |
-| 15 | HTML page-mode pill | 7, 14 | [ ] |
-| 16 | Streaming polish (optional) | 9 | [ ] |
-| 18 | Rows for selection-anchored instructions (added) | 9, 13 | [ ] |
+| 13 | Keys: ←/→, Esc, j/k over rows | 6, 9 | [x] dd37bee |
+| 14 | Delete retired surfaces | 6, 7, 9, 11, 13 | [x] 0670ed4 |
+| 15 | HTML page-mode pill | 7, 14 | [x] d024308 |
+| 16 | Streaming polish (optional) | 9 | [x] d8c22d5 |
+| 18 | Rows for selection-anchored instructions (added) | 9, 13 | [x] 0da9572 |
 | 17 | Final verification (local only, no PR) | all | [ ] |
 
 Parallel-safe waves: {1} → {2, 3, 5, 8, 10} → {4} → {6} → {7} → {9, 12} → {11, 13} → {14} → {15, 16} → {17}.
