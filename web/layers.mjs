@@ -1492,13 +1492,16 @@ await page.waitForTimeout(300);
     'background-color',
     'box-shadow',
   );
-  const card = await rgb('--gly-card');
+  // THE CAPTURE IS THE SLOT'S DARK BAR NOW (spec §1, 2026-09-07): the app
+  // ground with the composer's halo, like the selection composer — not a card
+  // on card stock. Still in flow (the check above), still no z-index.
+  const bg = await rgb('--gly-bg');
   check(
-    'and it wears the card ground with no shadow — it is part of the map',
+    'and it wears the app ground with the composer halo — the same bar as the selection composer',
     captureGround &&
-      captureGround['background-color'] === card &&
-      captureGround['box-shadow'] === 'none',
-    { captureGround, card },
+      captureGround['background-color'] === bg &&
+      captureGround['box-shadow'] !== 'none',
+    { captureGround, bg },
   );
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
@@ -1537,16 +1540,20 @@ await page.waitForTimeout(300);
     'border-left-width',
     'border-top-width',
   );
+  // THE SLOT'S ROWS ARE PILLS (spec §1, 2026-09-07): panel ground, radius 8,
+  // NO border and NO kind edge — the rail's card anatomy is painted away
+  // (`.gly-docslot .gly-row-doc`). The DOM is still threadCard's; the paint is
+  // the pill's, and that is what these two now hold.
   check(
-    'the panel renders full cards, not a bare variant',
+    'the slot renders pills, not bordered cards',
     cards.length > 0 &&
-      cards.every((c) => parseFloat(c['border-top-width']) > 0),
+      cards.every((c) => parseFloat(c['border-top-width']) === 0),
     cards,
   );
   check(
-    'every panel card carries its 3px kind edge',
+    'and no pill carries the rail’s 3px kind edge',
     cards.length > 0 &&
-      cards.every((c) => parseFloat(c['border-left-width']) === 3),
+      cards.every((c) => parseFloat(c['border-left-width']) === 0),
     cards,
   );
 
@@ -1589,11 +1596,9 @@ await page.waitForTimeout(300);
   check(
     'the destroy weight renders in the panel too',
     dels.length > 0 &&
+      // The pill spaces its verb with the row's gap, not a margin on the verb.
       dels.every(
-        (d) =>
-          d['border-top-color'] === TRANSPARENT &&
-          d.color === muted &&
-          parseFloat(d['margin-left']) >= 32,
+        (d) => d['border-top-color'] === TRANSPARENT && d.color === muted,
       ),
     { dels, muted },
   );
@@ -1811,10 +1816,12 @@ for (const scheme of ['dark', 'light']) {
     cards.length > 0 && cards.every((c) => c['background-color'] === stock),
     { scheme, got: cards.map((c) => c['background-color']), want: stock },
   );
+  // The pill has no kind edge in either scheme (spec §1); what the two
+  // schemes must agree on is the ABSENCE, not a 3px coral stripe.
   check(
-    `every panel card keeps its 3px kind edge in ${scheme}`,
+    `no pill carries the rail’s kind edge in ${scheme}`,
     cards.length > 0 &&
-      cards.every((c) => parseFloat(c['border-left-width']) === 3),
+      cards.every((c) => parseFloat(c['border-left-width']) === 0),
     { scheme, cards },
   );
   check(
@@ -2809,11 +2816,9 @@ const blockRects = () =>
   check(
     'the destroy weight renders in the bubble too',
     dels.length > 0 &&
+      // The pill spaces its verb with the row's gap, not a margin on the verb.
       dels.every(
-        (d) =>
-          d['border-top-color'] === TRANSPARENT &&
-          d.color === muted &&
-          parseFloat(d['margin-left']) >= 32,
+        (d) => d['border-top-color'] === TRANSPARENT && d.color === muted,
       ),
     { dels, muted },
   );

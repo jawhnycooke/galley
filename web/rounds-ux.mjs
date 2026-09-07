@@ -835,9 +835,11 @@ try {
             s.borderLeftWidth !== '0px' &&
             s.borderTopStyle !== 'none',
           edge: s.borderLeftWidth,
-          verbs: [...c.querySelectorAll('.gly-card-actions button')].map(
-            (b) => (b.innerText || '').trim().split('\n')[0],
-          ),
+          // Rendered verbs only: the pill paints `edit` away (display: none),
+          // and innerText of an unrendered node falls back to its textContent.
+          verbs: [...c.querySelectorAll('.gly-card-actions button')]
+            .filter((b) => getComputedStyle(b).display !== 'none')
+            .map((b) => (b.innerText || '').trim().split('\n')[0]),
           box: [Math.round(r.left), Math.round(r.width)],
         };
       });
@@ -849,13 +851,16 @@ try {
   // instruction, which is still a card and still in the slot.
   const slotAnatomy = await readAnatomy('.gly-docslot .gly-card.gly-thread');
   const anatomy = slotAnatomy;
+  // THE SLOT'S ROW IS A PILL, NOT A CARD (spec §1, 2026-09-07): panel ground,
+  // no kind edge, no head line on screen, one verb — the rail's anatomy
+  // (3px edge, `edit`) is hidden by paint; the head stays in the DOM for the
+  // anchor's name, read below through textContent.
   const wellFormed = (a) =>
     a.heads === 1 &&
-    a.bordered &&
-    a.edge === '3px' &&
-    a.verbs.length === 2 &&
-    a.verbs[0] === 'edit' &&
-    a.verbs[1] === 'delete';
+    !a.bordered &&
+    a.edge === '0px' &&
+    a.verbs.filter(Boolean).length === 1 &&
+    a.verbs.filter(Boolean)[0] === 'delete';
   check(
     'the whole-document instruction card owns one head, its own border and its own verbs',
     slotAnatomy.length === 1 && anatomy.every(wellFormed),
@@ -915,10 +920,12 @@ try {
   // the passages; the whole-doc slot at the head of the sheet is where it is
   // written and where it is filed, and `.gly-row-doc` is the class `paintFrame`
   // counts to know the slot has something in it.
+  // textContent, not innerText: the head line is painted away in the pill
+  // and innerText is defined over what is rendered.
   const firstCard = await page
-    .locator('.gly-docslot .gly-card.gly-thread')
+    .locator('.gly-docslot .gly-card.gly-thread .gly-card-head')
     .first()
-    .innerText();
+    .evaluate((el) => el.textContent || '');
   check(
     'and the row wears the slot\u2019s own pill class',
     (await page.locator('.gly-docslot .gly-row-doc').count()) === 1,

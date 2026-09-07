@@ -4533,3 +4533,159 @@ body.gly-revising .gly-row-remove {
   outline: 2px solid rgba(255, 92, 57, 0.6);
   background: var(--gly-fence);
 }
+
+/* --- the whole-document composer, in the slot ---
+   The capture card kept its RAIL anatomy after it moved into the sheet's
+   slot — a coral card edge, the rail head's 34px reserved above it, a
+   two-row form whose textarea the rail's compact rule squeezed to 12px,
+   and the `+` door still open under it. Spec §1: one dark bar, `whole doc ↳`
+   in mono accent, the input beside it, `↵ pin` and `×`; the door closes
+   while the bar is open. Specificity is deliberate: these must beat
+   `.gly-overall-rail .gly-overall-input` (0,2,0) and `.gly-capture.gly-card`. */
+body.gly-doc-composing .gly-docslot-add,
+body.gly-doc-composing .gly-docslot-empty {
+  display: none;
+}
+.gly-docslot .gly-overall .gly-overall-head {
+  display: none;
+}
+.gly-docslot .gly-overall .gly-capture[hidden] {
+  display: none;
+}
+.gly-docslot .gly-overall .gly-capture {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--gly-bg);
+  border: 1px solid var(--gly-accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--gly-composer-shadow);
+  animation: rise 0.2s ease;
+  margin: 0 0 12px;
+}
+.gly-docslot .gly-overall .gly-overall-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.gly-docslot .gly-overall .gly-capture-head {
+  font: 11px var(--gly-mono);
+  color: var(--gly-accent);
+  white-space: nowrap;
+}
+.gly-docslot .gly-overall .gly-overall-input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  min-height: 1.5em;
+  max-height: 6em;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--gly-fg);
+  font: 16px/1.4 var(--gly-sans);
+  resize: none;
+  outline: none;
+  box-shadow: none;
+}
+.gly-docslot .gly-overall .gly-capture-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.gly-docslot .gly-overall .gly-capture-pin {
+  background: var(--gly-accent);
+  color: var(--gly-on-accent);
+  border: 0;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font: 600 11px var(--gly-mono);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gly-docslot .gly-overall .gly-capture-cancel {
+  background: none;
+  border: 0;
+  color: var(--gly-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.gly-docslot .gly-overall .gly-capture-cancel:hover {
+  color: var(--gly-coral);
+}
+.gly-docslot .gly-overall .gly-capture-esc {
+  display: none;
+}
+
+/* --- the pinned whole-document row ---
+   Spec §1: a panel-bg pill — `whole doc ↳` in mono, the words, `queued`, and
+   the remove verb — not the rail card's anatomy (a head line, a byline, an
+   edit verb). The card's DOM is kept (threadCard stays the one component,
+   and the two-face delete keeps its armed box for layers.mjs); this is paint. */
+.gly-docslot .gly-row-doc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--gly-panel-bg);
+  border: 0;
+  border-left: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 6px;
+  box-shadow: none;
+  font: 14px/1.4 var(--gly-sans);
+  color: var(--gly-fg);
+}
+.gly-docslot .gly-row-doc::before {
+  content: "whole doc ↳";
+  font: 11px var(--gly-mono);
+  color: var(--gly-coral);
+  white-space: nowrap;
+}
+.gly-docslot .gly-row-doc .gly-card-head,
+.gly-docslot .gly-row-doc .gly-thread-who,
+.gly-docslot .gly-row-doc .gly-thread-edit {
+  display: none;
+}
+.gly-docslot .gly-row-doc .gly-thread-entry {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.gly-docslot .gly-row-doc .gly-thread-entry p {
+  margin: 0;
+  font: inherit;
+}
+.gly-docslot .gly-row-doc .gly-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.gly-docslot .gly-row-doc .gly-card-actions::before {
+  content: "queued";
+  font: 11px var(--gly-mono);
+  color: var(--gly-coral);
+  white-space: nowrap;
+}
+.gly-docslot .gly-row-doc .gly-thread-delete {
+  font: 11px var(--gly-mono);
+  color: var(--gly-muted);
+  background: none;
+  border: 0;
+  /* Borderless means colourless too — layers.mjs reads border-top-color. */
+  border-color: transparent;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.gly-docslot .gly-row-doc .gly-thread-delete:hover {
+  color: var(--gly-coral);
+}

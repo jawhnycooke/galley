@@ -539,7 +539,10 @@ export const cardMethods = {
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'gly-capture-cancel';
-    cancel.textContent = 'cancel';
+    // `×`, like the pinned rows' remove: the bar is one line and the word
+    // `cancel` beside `↵ pin` made it two verbs of equal weight.
+    cancel.textContent = '×';
+    cancel.title = 'cancel';
     cancel.addEventListener('click', () => this.closeCapture());
     const esc = document.createElement('span');
     esc.className = 'gly-capture-esc';
