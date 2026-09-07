@@ -387,12 +387,17 @@ export function scrubTo(this: AppShell, t: number): void {
   // hidden surface. Both are RENDERS of `atHead()` (see it), written here and
   // nowhere else.
   if (s.atHead) {
+    // THE SCROLL IS RESTORED LAST. `hide()` ends in leaveHistory's
+    // `scrollTo(historyScroll)`; everything that changes the height of what
+    // sits ABOVE the paper — the slot returning, the eyebrow's words — has to
+    // be laid out before it, or the browser's scroll anchoring follows that
+    // growth and Esc lands the reviewer a slot's height below where they were.
+    document.body.classList.remove('gly-scrubbing');
+    this.paintFrame();
+    this.paintTimeline();
     if (this.versionsPanel.open) {
       this.versionsPanel.hide();
     }
-    document.body.classList.remove('gly-scrubbing');
-    this.paintTimeline();
-    this.paintFrame();
     return;
   }
   if (!this.versionsPanel.open) {

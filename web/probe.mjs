@@ -7525,10 +7525,16 @@ function bindsContentField(src) {
     // second column that had to agree with this one; it is deleted, so that
     // half of the check is retired and what remains is the number itself —
     // read off the BUILT stylesheet, because that is what the binary embeds.
+    // AND THE ROW IS NOW ZERO, DECLARED AS ZERO. The 40px it reserved was
+    // History's sub-bar, deleted; the sheet's eyebrow took the row's job
+    // (frame.ts) and needs no reserve, and the 40px of air above the sheet
+    // was the reviewer's first complaint of 2026-09-07. What is asserted is
+    // still that the number is a TOKEN the prose column hangs off, not a
+    // literal guessed in two places.
     check(
       'and the reserved row it is measured from is declared, not guessed',
       /--gly-rail-top:\s*calc\(var\(--gly-sub-h\)/.test(css) &&
-        /--gly-sub-h:\s*40px/.test(css),
+        /--gly-sub-h:\s*0px/.test(css),
     );
     // AND IT HAS NO DISCLOSURES LEFT TO FLOAT. `bottom: 100%` on
     // `.gly-settled-list` and `.gly-changed-list` is what grew them upward over

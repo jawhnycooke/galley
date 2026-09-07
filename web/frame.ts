@@ -141,15 +141,21 @@ export function paintFrame(this: AppShell): void {
     ? undefined
     : ageSaid(rounds[s.near - 1]?.at ?? '', Date.now());
   const phase = this.phase();
-  f.eyebrowL.textContent = eyebrowLeft(phase, round, max, {
-    atHead: s.atHead,
-    near: s.near,
-    at,
-  });
   const right = s.atHead
     ? eyebrowRight(phase, this.pendingCount, this.changes.length)
     : { text: 'READ ONLY', tone: 'muted' as const };
-  f.eyebrowR.textContent = right.text;
+  // THE EYEBROW SPEAKS ONLY WHEN THE BAR DOES NOT. At the head of a working
+  // draft the left cell said `WORKING DRAFT · ROUND 15` under a readout that
+  // already says `round 15 · draft`, and the right cell said `DRAFT` again —
+  // the reviewer read it as the same fact three times. So: the left cell is
+  // blank at the head in markup (the bar owns round and phase there), and
+  // the right cell is blank when all it has is `DRAFT`. Off the head, and in
+  // every other phase, both say something the bar does not.
+  const plainDraft = s.atHead && phase === 'markup';
+  f.eyebrowL.textContent = plainDraft
+    ? ''
+    : eyebrowLeft(phase, round, max, { atHead: s.atHead, near: s.near, at });
+  f.eyebrowR.textContent = right.text === 'DRAFT' ? '' : right.text;
   f.eyebrowR.dataset.tone = right.tone;
   // The restore verb names the version the scrubber is ON, so the panel's
   // selection follows the handle rather than a click that no longer exists.

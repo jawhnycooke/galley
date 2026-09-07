@@ -1216,7 +1216,11 @@ body {
      something useful to do there, which needs a product decision about what.
      Reserving costs the map nothing — the prose and the rail move down
      together, so no mark and no card change position relative to each other. */
-  --gly-sub-h: 40px;
+  /* 0 NOW: the History sub-bar the row was reserved for is deleted, and the
+     sheet's eyebrow (frame.ts) is the useful thing the note above asked for
+     in its place — it needs no reserve of its own. 40px of empty air above
+     the sheet was the reviewer's first complaint of the morning. */
+  --gly-sub-h: 0px;
   --gly-page-pad: 24px;
   --gly-rail-top: calc(var(--gly-sub-h) + var(--gly-page-pad));
 }
@@ -4103,7 +4107,9 @@ main {
    without the bar's stickiness doing it. */
 .gly-frame {
   max-width: 1040px;
-  margin: 36px auto 0;
+  /* 12px, not 36: with the eyebrow blank at a plain draft (frame.ts), 36px
+     plus main's own padding read as a hole between the bar and the sheet. */
+  margin: 12px auto 0;
 }
 .gly-eyebrow {
   display: flex;
@@ -4548,6 +4554,13 @@ body.gly-doc-composing .gly-docslot-empty {
 }
 .gly-docslot .gly-overall .gly-overall-head {
   display: none;
+}
+/* The rail panel's inner gutter has nothing to gutter from in the slot: the
+   pill and the bar sit on the slot's own edge, flush with the door under them. */
+.gly-docslot .gly-overall .gly-overall-inner,
+.gly-docslot .gly-overall .gly-overall-entries {
+  padding: 0;
+  margin: 0;
 }
 .gly-docslot .gly-overall .gly-capture[hidden] {
   display: none;
