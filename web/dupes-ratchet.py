@@ -49,19 +49,21 @@ covered by the harness argument above. Counted here rather than excused,
 because a bound that quietly folds a real finding into a justified population
 is how a number stops meaning anything.
 
-IT IS 52 AND NOT 54 BECAUSE DELETING HISTORY TOOK TWO GROUPS WITH IT. Task 14
-removed the History landing and its reading state from versions.ts and the
-blocks that drove them from rounds-ux.mjs, and a ratchet left above its own
-measurement is not a ratchet.
+IT IS 50 AND NOT 54 BECAUSE DELETING THE RETIRED SURFACES TOOK FOUR GROUPS WITH
+IT. Task 14 removed the History landing and its reading state from versions.ts
+and the blocks that drove them from rounds-ux.mjs (two groups), and its review
+pass removed the census strip's checks and the rail-card sections' helpers from
+probe.mjs and layers.mjs (two more). A ratchet left above its own measurement is
+not a ratchet.
 
 So the ceiling stops the number GROWING without demanding it shrink. A
-fifty-third group means duplication somewhere new, which is worth looking at
+fifty-first group means duplication somewhere new, which is worth looking at
 even if the answer turns out to be the same one.
 """
 import json
 import sys
 
-BOUND = 52
+BOUND = 50
 
 data = json.load(sys.stdin)
 groups = data["clone_groups"]

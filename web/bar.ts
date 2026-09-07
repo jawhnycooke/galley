@@ -319,12 +319,21 @@ export const barMethods = {
   // wide bar's census strip that used to carry the same number beside it is
   // deleted with the rest of the retired chrome; below the breakpoint this is
   // the only way to the sheet, so the count is still painted.
+  //
+  // AND THE FLAG IS DERIVED, NOT ASSERTED. `.gly-bar-count` is in SEALED_VERBS
+  // (see seal.ts for why the door to a list of dead verbs dies with them), and
+  // it is built ONCE in `makeBottomBar` — so an unconditional `false` here
+  // would be a second writer overruling the seal on the next poll, which is
+  // the pair-of-writers shape SEAL_ONLY_VERBS exists to keep to one. Reading
+  // `this.sealed` makes this painter the control's one owner in BOTH
+  // directions, which is why the button is not in SEAL_ONLY_VERBS: `applySeal`
+  // calls this function on the unseal edge and the flag comes back here.
   paintBarCount(this: AppShell) {
     if (!this.bar) {
       return;
     }
     this.bar.count.textContent = `Instructions · ${this.comments.length}`;
-    this.bar.count.disabled = false;
+    this.bar.count.disabled = this.sealed;
   },
 
   // --- which surfaces are on screen ---

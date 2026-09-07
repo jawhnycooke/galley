@@ -191,8 +191,6 @@ import {
   writeCollapsed,
   readOverallOpen,
   writeOverallOpen,
-  overallHandle,
-  OVERALL_TITLE,
   RAIL_GAP,
   RAIL_MIN_WIDTH,
 } from './rail.ts';
@@ -4747,27 +4745,15 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
     }) === REVISE_IDLE,
   );
 
-  // THE HANDLE'S THIRD STATE. `+ instruct document` meant "none" and "one, settled" at
-  // once — measured after a sweep, on a document still carrying
-  // `{>>@document …<<}` and still rendering SETTLED in its own prose.
-  check(
-    'the handle carries the verb only when there is genuinely nothing there',
-    overallHandle(0, 0) === '+ instruct document',
-  );
-  check(
-    'an open doc instruction is counted',
-    overallHandle(1, 0) === '1 doc instruction' &&
-      overallHandle(2, 0) === '2 doc instructions',
-  );
-  check(
-    'a SETTLED doc instruction is not an absent one — it reads settled, not empty',
-    overallHandle(0, 1) === '✓ 1 doc instruction' &&
-      overallHandle(0, 3) === '✓ 3 doc instructions',
-  );
-  check(
-    'and an open one outranks a settled one, since the open one needs answering',
-    overallHandle(1, 2) === '1 doc instruction',
-  );
+  // THE HANDLE'S SIX CHECKS ARE RETIRED WITH `overallHandle` ITSELF. They read
+  // its three states (`+ instruct document` / `1 doc instruction` / `✓ 3 doc
+  // instructions`), the trimmed preposition and the 24ch reserve `▾ ` had to
+  // fit inside. The bar has no whole-document handle to speak for: the door is
+  // the sheet's dashed full-width slot (`.gly-docslot-add`, asserted below),
+  // which says its own verb and reserves nothing. Nothing was left importing
+  // the function but these checks, and a function alive only in its own probe
+  // is the dead surface this pass exists to remove — so both went. The census
+  // count below is a LIVE claim about censusCounts and stays where it was.
   check(
     'the census reports the settled doc instructions the handle needs',
     censusCounts({
@@ -4776,18 +4762,6 @@ const delMark = (author, at) => schema.marks.del.create({ author, at });
         { key: 'md-1', anchor: 'range', resolved: true },
       ],
     }).docSettled === 1,
-  );
-  // The reserve is a BOUND stated against THIS trio — see .gly-census-overall.
-  check(
-    '24ch bounds the widest handle the trio can print, ▾ included',
-    `▾ ${overallHandle(0, 99)}`.length <= 24,
-  );
-  check(
-    'the whole-doc handle says what its press does — the one bar control with no title',
-    typeof OVERALL_TITLE === 'string' &&
-      OVERALL_TITLE.length > 0 &&
-      !/\d/.test(OVERALL_TITLE),
-    OVERALL_TITLE,
   );
 }
 
@@ -6517,14 +6491,18 @@ function bindsContentField(src) {
         !src.includes('gly-changed-list') &&
         !src.includes('gly-change-adrift'),
     );
-    // Instructions and History are peer document views now. The instruction
-    // count is on its own named control beside History, not hidden inside the
-    // verdict button's label.
+    // THE COUNT SURVIVES ITS NEIGHBOUR. This check read the instruction count
+    // as a named control BESIDE the History chip — the two doors were peers in
+    // the census strip. The chip and the strip are both deleted (the scrubber
+    // is the record's door), so what is left of the claim is the half that is
+    // still true and still worth defending: the count is its own labelled
+    // control, `.gly-bar-count`, and not a number hidden inside the verdict
+    // button's label. The History half is asserted absent.
     check(
-      'the built bundle carries the instruction count beside History',
+      'the built bundle carries the instruction count on its own control',
       src.includes('Instructions · ') &&
-        src.includes('gly-census-count') &&
-        src.includes('gly-versions-open'),
+        src.includes('gly-bar-count') &&
+        !src.includes('gly-versions-open'),
     );
 
     // THE SEAL. A binary embedding a pre-seal bundle serves a page that keeps
@@ -6590,20 +6568,20 @@ function bindsContentField(src) {
     // property is unchanged: this tail exists nowhere else in the bundle, so it
     // still tells a sealing build from one that merely has TipTap in it.
     //
-    // AND THE TAIL MOVED AGAIN, FOR THE ONE EXEMPTION THE LIST HAS.
-    // `.gly-census button` became `.gly-census button:not(.gly-versions-open)`
-    // when History stopped dying with the seal: the census strip is a group of
-    // VIEW DOORS, a door is not a verb, and a sealed review is exactly when
-    // somebody wants to read what happened. The `:not(...)` is asserted here
-    // rather than merely tolerated, because a build that dropped it would
-    // disable the door while leaving it on screen — shown, reachable and dead,
-    // which this codebase rates as worse than absent.
+    // AND THE TAIL MOVED A THIRD TIME, WHEN THE EXEMPTION'S SUBJECT WAS
+    // DELETED. `.gly-census button:not(.gly-versions-open)` carried the one
+    // exemption the list had — the census strip was a group of VIEW DOORS and
+    // History's led somewhere reading is the whole point. Both are gone (the
+    // scrubber is the record's door and it is not a verb), and an exemption
+    // whose subject is deleted must be deleted with it. `.gly-bar-count` is
+    // named in its place: the narrow bar's `Instructions · N`, the last door
+    // into a list whose every verb dies with the seal. Asserted here so a build
+    // that dropped it ships a live door onto dead cards.
     check(
       'the built bundle carries the sealed bar and its dead verbs',
       src.includes('gly-seal-off') &&
-        src.includes(
-          '.gly-overall-input, .gly-census button:not(.gly-versions-open)',
-        ),
+        src.includes('.gly-overall-input, .gly-bar-count') &&
+        !src.includes('.gly-census button'),
     );
     // AND THE BOX A COMMENT IS TYPED INTO, which is asserted separately because
     // it was added for a reason neither list's tail records: `submitOnEnter`
@@ -6624,31 +6602,23 @@ function bindsContentField(src) {
     // without this list is a bundle that kills those controls for the life of
     // the tab, and the head of the list is what tells the two apart.
     //
-    // `.gly-census-count` IS IN IT NOW, and it joined the moment it stopped
-    // being a `<span>`. It is the door to the review's whole list — the sheet,
-    // where the settled conversations live — it is built ONCE in `makeCensus`
-    // and never rebuilt, and `paintCensus` re-derives the `disabled` flag of
-    // `✓ all` and nothing else. Left out, the first seal would take the way
-    // back to `↺ reopen` away permanently and Reopen would hand back every verb
-    // on the page except the one that reaches the record. Run red against the
-    // tracked bundle it reports the old tail with no count in it.
-    //
-    // `.gly-census-overall` HAS LEFT IT, and the head of the list is
-    // `.gly-census-count` now. The whole-document handle was a bar control
+    // `.gly-census-overall` HAS LEFT IT, and so has the count that headed it.
+    // The whole-document handle was a bar control
     // opening a floating panel; then it was the first card of the instruction
     // rail, reached by `.gly-overall-toggle`; it is a bar control again
-    // (`.gly-capture-open`, one of `.gly-census button` and covered by that
-    // entry), and the box it opens floats over the rail as `.gly-capture`. The
-    // INPUT is the entry in this list that ever mattered, and it kept its class
-    // through both moves for exactly that reason. The count is still here for
-    // the reason it joined — it is built ONCE in `makeCensus` and never
-    // rebuilt, so a seal that did not release it would kill the door to the
-    // review's own list for the life of the tab.
+    // (`.gly-capture-open`, named directly in SEALED_VERBS now that the census
+    // strip it once rode inside is deleted), and the box it opens floats over
+    // the rail as `.gly-capture`. The INPUT is the entry in this list that ever
+    // mattered, and it kept its class through both moves for exactly that
+    // reason. `.gly-census-count` HAS LEFT THE LIST with the strip that built
+    // it: the count is `.gly-bar-count` now, whose flag `paintBarCount`
+    // re-derives from `this.sealed` on an edge `applySeal` runs — a painter,
+    // so SEALED_VERBS and not this list.
     check(
       'the built bundle carries the verbs the seal owns in both directions',
-      src.includes(
-        '.gly-census-count, .gly-overall-input, .gly-composer-send, ',
-      ) && src.includes('.gly-comment-button, .gly-composer-text'),
+      src.includes('.gly-overall-input, .gly-composer-send, ') &&
+        src.includes('.gly-comment-button, .gly-composer-text') &&
+        !src.includes('.gly-census-count, .gly-overall-input'),
     );
     // And the Strike button is GONE — with its class, its label and its
     // cross-block sentence. Deletion is the keyboard's; a bundle still
@@ -7131,51 +7101,10 @@ function bindsContentField(src) {
       }
       check('hostile storage cannot take the editor down', threw === false);
 
-      // THE HANDLE LEADS WITH THE VERB. Court went looking for a way to comment on
-      // the whole document and did not find it — it was there all along, reading
-      // `on trial.md · 1 note`: the only NOUN in a row of verbs (`✓ all`, the
-      // since-retired `✗ all`, `Revise`). A description of what exists never says
-      // you may add to it.
-      //
-      // The two requirements pull opposite ways at zero, so both are asserted:
-      // empty must carry a VERB (that is exactly when someone is hunting for it,
-      // and exactly when a count says nothing), and non-empty must still show the
-      // COUNT without opening the panel (a folded conversation that hid the fact
-      // of itself would be worse than the space it saves).
-      //
-      // "on the whole doc" trimmed to "doc": the handle sits in a strip whose
-      // width is part of the bar's fold arithmetic, and the long form's reserve
-      // held ~100px of preposition at every width — a third of why the bar folded
-      // at ordinary desktop widths. "doc" keeps the claim ("about the whole
-      // document, not a span of it"), and the panel's head still spells it out.
-      check(
-        'an empty overall thread invites a note rather than counting to zero',
-        overallHandle(0) === '+ instruct document',
-      );
-      check(
-        'and never merely describes what is not there',
-        /[+]|add|note on/.test(overallHandle(0)) &&
-          !overallHandle(0).includes('0'),
-      );
-      check(
-        'one note reads singular, and still scopes itself to the whole doc',
-        overallHandle(1) === '1 doc instruction',
-      );
-      check(
-        'several notes read plural',
-        overallHandle(3) === '3 doc instructions',
-      );
-      check(
-        'the count is visible without opening the panel, at every size',
-        [1, 2, 12].every((n) => overallHandle(n).startsWith(String(n))),
-      );
-      // The document's name is gone from the handle — that is the room the verb
-      // needed. The bar carries it a few inches to the left and the panel's own
-      // head still reads "on <doc> as a whole".
-      check(
-        'the handle no longer spends its width on the document name',
-        !overallHandle(2).includes('.md'),
-      );
+      // THE HANDLE'S OWN CHECKS ARE RETIRED WITH IT — see the block on
+      // censusCounts above for the reason. `overallHandle` spoke for the census
+      // strip's whole-document control, and the strip is deleted; the door is
+      // the sheet's dashed slot now.
     }
 
     check(
@@ -7384,13 +7313,15 @@ function bindsContentField(src) {
         src.includes('Instruction on this passage'),
     );
 
-    // THE CENSUS STRIP SURVIVES ITS SWEEP. `✓ all` is deleted — it POSTed
-    // /_galley/sweep, a 404, from a button `makeCensus` had already stopped
-    // appending — so what the strip carries is the count, and the count is the
-    // door to the sheet.
+    // THE CENSUS STRIP IS DELETED AND THIS CHECK IS ITS EPITAPH. It asserted
+    // the strip and its count were in the shipped bundle; nothing builds either
+    // any more (`Instructions · N` is the narrow bar's `.gly-bar-count`, and the
+    // sheet is the review's list at every width). Asserted ABSENT, the way the
+    // arrival strip's check below was inverted, so the strip cannot come back
+    // beside the surface that replaced it.
     check(
-      'the built bundle carries the census strip',
-      src.includes('gly-census') && src.includes('gly-census-count'),
+      'and the census strip is gone, not merely unbuilt',
+      !src.includes('gly-census-count') && !src.includes('gly-census'),
     );
     // AND NONE OF THE TWELVE WORKFLOW ENDPOINTS, asserted as one claim off the
     // one list. internal/serve/rounds_surface_test.go asserts every one of these

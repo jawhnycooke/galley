@@ -467,7 +467,13 @@ const browser = await chromium.launch(
 const page = await browser.newPage({ viewport: WIDE });
 page.on('pageerror', (e) => console.log(`      [page error] ${e.message}`));
 await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.gly-rail-band .gly-card', { timeout: 15000 });
+// THE FIXTURE'S OWN READY SIGNAL MOVED WITH THE SURFACE. This waited on the
+// first card in the rail band, which was how a filed instruction announced
+// itself; a mark-anchored instruction has a ROW under its block now and no card
+// at all, so the band is empty by construction and this wait could only ever
+// time out. `.ProseMirror .gly-row` is the same claim on the surface that
+// replaced it: the six fixture instructions have landed and been painted.
+await page.waitForSelector('.ProseMirror .gly-row', { timeout: 15000 });
 await page.waitForTimeout(1500);
 
 /** Every computed value this pass reads goes through here — one place that
@@ -518,62 +524,18 @@ const rgb = async (name) =>
     await token(name),
   );
 
-/** Reads a declared value straight off a matched CSSOM rule, not the painted
- *  pixel — the one place in this file that deliberately does NOT read the
- *  artifact.
- *
- *  It was added because `.gly-bar button`, edit.html's inline fallback, tied
- *  `.gly-census button` on specificity and won the cascade by sitting in a
- *  later stylesheet, so `getComputedStyle` on any census button answered "what
- *  does the shell say", not "what does the census's own rule say" — and the
- *  computed radius check passed with `.gly-census button` reverted to 999px.
- *  §1b below has since taken that rule out of the shell and given it to this
- *  stylesheet ABOVE `.gly-census button`, so the census now wins its own
- *  paint and the computed check discriminates on its own (verified by
- *  reverting the declaration to 999px and watching BOTH radius checks fail).
- *
- *  Kept, because the two questions are still different ones: the computed
- *  check reads what a user sees, and this reads what the census's own rule
- *  claims. A future rule that ties and out-orders `.gly-census button` would
- *  re-confound the first and leave this one standing.
- *
- *  Takes the LAST rule whose selectorText matches, the same tiebreak the
- *  cascade itself uses among rules of equal specificity. It walks TOP-LEVEL
- *  rules only — it does not recurse into `@media` or `@supports` bodies, so a
- *  declaration inside one is invisible to it. Nothing it is asked about today
- *  lives in an at-rule; if that changes, this has to grow a recursion rather
- *  than quietly answer null. */
-const ruleValue = (selectorText, prop) =>
-  page.evaluate(
-    ([sel, p]) => {
-      let found = null;
-      for (const sheet of document.styleSheets) {
-        let rules;
-        try {
-          rules = sheet.cssRules;
-        } catch {
-          continue;
-        }
-        for (const r of rules) {
-          // A GROUPED SELECTOR IS STILL THIS SELECTOR'S RULE, and matching
-          // `selectorText` whole could not see that. `.gly-census button`
-          // declared its own 6px until the stylesheet consolidation merged it
-          // with `.gly-verdict-menu button` — one rule, both members, the same
-          // declaration — and this read `null` and failed a check whose subject
-          // had not changed at all. The DECLARATION is what the check is about;
-          // whether it is reached through a lone selector or a grouped one is
-          // the stylesheet's business. Members are compared exactly, so this
-          // stays a question about a named selector rather than a prefix match.
-          const owns = (r.selectorText || '')
-            .split(',')
-            .some((one) => one.trim() === sel);
-          if (owns) found = r.style.getPropertyValue(p) || found;
-        }
-      }
-      return found;
-    },
-    [selectorText, prop],
-  );
+/* `ruleValue` IS DELETED WITH THE ONE CHECK THAT CALLED IT. It read a declared
+ * value straight off a matched CSSOM rule rather than off the painted pixel —
+ * the one place in this file that deliberately did not read the artifact — and
+ * it existed for a single confounding: `.gly-bar button`, edit.html's inline
+ * fallback, tied `.gly-census button` on specificity and won the cascade by
+ * sitting in a later stylesheet, so the computed radius check passed with
+ * `.gly-census button` reverted to 999px. The census strip and its rule are
+ * both deleted, no second rule declares a radius on a bar control, and a
+ * helper kept for a caller that no longer exists is the shape §1 below now
+ * retires rather than carries. Bring it back with the check, if a second rule
+ * ever ties `.gly-bar button` again — it walked TOP-LEVEL rules only and took
+ * the last matching one, which is the cascade's own tiebreak among equals. */
 
 /** The selectors declared in edit.html's inline <style> — the block that loads
  *  AFTER editor.css and so wins every specificity tie.
@@ -658,59 +620,21 @@ const shellSelectors = () =>
   );
 }
 
-// --- §1c · a disabled census verb reads at the bar's weight, not its own
-//           stale opacity -----------------------------------------------------
+// --- §1c · a disabled census verb — DELETED WITH THE CENSUS STRIP -----------
 //
-// The census's verbs are among the `.gly-bar button`s §1b already covers, and
-// `.gly-bar button[disabled]` (0,2,1) already gives every one of them
-// `opacity: 0.6`, the muted colour and `cursor: default`. `.gly-census
-// button[disabled]` used to tie it at the same specificity and win on source
-// order, painting the census's own verbs at 0.4 instead — 1.8:1 against the
-// page, on the one strip an empty document shows first.
+// §1c read a control INSIDE the census strip and asserted the bar's own
+// `.gly-bar button[disabled]` (0,2,1) painted it — 0.6, muted, `cursor:
+// default` — rather than the strip's stale `.gly-census button[disabled]`,
+// which tied on specificity and won on source order at 0.4, 1.8:1 against the
+// page. Both the strip and its rule are deleted, so the tie the check existed
+// to catch cannot be struck: there is no second rule over any bar button. The
+// surviving half of the claim — every control in the bar is painted by the
+// bar's rules — is §1b's, directly above, and it is unchanged.
 //
-// READ OFF `.gly-census-count`, WHICH IS THE CENSUS'S VERB NOW. It was `✓ all`,
-// the sweep — a control `makeCensus` still builds and no longer appends,
-// because there are no proposals to accept in bulk. The claim was never about
-// that particular button: it is that a control inside the census strip is
-// painted by the BAR's disabled rule and not by a stale one of the strip's own,
-// and `.gly-census-count` is a `<button>` in the same strip with the same two
-// rules over it. So it is re-pointed rather than deleted.
-//
-// This fixture's document has pending instructions, so the count renders
-// ENABLED — disabling it is the only way to measure the disabled state at all,
-// the same move Task 4 made reverting a rule to prove the destroy-weight check
-// discriminated. Forced with `.disabled = true` directly on the element and
-// restored immediately after reading it back, so nothing later in this file
-// inherits a dead door.
-{
-  // Confirmed against the live DOM, not the stylesheet: `closest` walks
-  // parentage as rendered, independent of anything either CSS rule claims.
-  const nested = await page.evaluate(
-    () => !!document.querySelector('.gly-census-count')?.closest('.gly-bar'),
-  );
-  check(
-    'the census root renders inside .gly-bar, so .gly-bar button[disabled] reaches it',
-    nested,
-    { nested },
-  );
-
-  const disabled = await page.evaluate(() => {
-    const btn = document.querySelector('.gly-census-count');
-    btn.disabled = true;
-    const cs = getComputedStyle(btn);
-    const out = { opacity: cs.opacity, color: cs.color, cursor: cs.cursor };
-    btn.disabled = false;
-    return out;
-  });
-  const muted = await rgb('--gly-muted');
-  check(
-    "a disabled census verb paints at .gly-bar button[disabled]'s 0.6 (not a stale 0.4)",
-    disabled.opacity === '0.6' &&
-      disabled.color === muted &&
-      disabled.cursor === 'default',
-    { disabled, want: { opacity: '0.6', color: muted, cursor: 'default' } },
-  );
-}
+// It is NOT repointed onto `.gly-bar-count`. That button is the BOTTOM bar's
+// (`.gly-bottombar`), a different container with different rules, and pointing
+// a check at an element it was never about is how a gate keeps a green tick
+// while measuring nothing.
 
 // --- §1d · the bar has ONE readout ------------------------------------------
 //
@@ -738,7 +662,14 @@ console.log('\n--- §1d · the bar has one readout ---');
     const bar = document.querySelector('.gly-bar');
     if (!bar) return null;
     const kids = Array.from(bar.children);
-    const from = kids.findIndex((el) => el.classList.contains('gly-census'));
+    // THE REGION'S LEFT EDGE MOVED WHEN THE CENSUS DID. It was the strip —
+    // the last thing in the bar before the readouts — and the strip is
+    // deleted. `.gly-doc-path` is what the bar's own order (edit.html:300)
+    // now puts immediately before `#gly-status`, so it is the same boundary
+    // read off the element that holds it. The claim is untouched: what sits
+    // between the last cell before the readouts and the flexible cell is
+    // exactly the readout region, and there must be ONE thing in it.
+    const from = kids.findIndex((el) => el.classList.contains('gly-doc-path'));
     const to = kids.findIndex((el) => el.classList.contains('gly-spacer'));
     if (from < 0 || to < 0) return null;
     return {
@@ -762,7 +693,7 @@ console.log('\n--- §1d · the bar has one readout ---');
     };
   });
   check(
-    'the bar orders itself census · readout · flexible cell, so the region is the region',
+    'the bar orders itself doc · readout · flexible cell, so the region is the region',
     !!region && region.to > region.from,
     region,
   );
@@ -830,13 +761,23 @@ console.log('\n--- §1d · the bar has one readout ---');
 // Three claims, and they fail together today for one reason: `.gly-card button`
 // beats `.gly-thread-delete` on specificity, so the borderless and the muted
 // are both discarded and delete renders as a pill of equal weight to resolve.
+//
+// READ OFF THE WHOLE-DOC SLOT, WHICH IS WHERE A THREAD CARD RENDERS NOW. This
+// block read `.gly-docslot .gly-thread-delete`, and the rail's population was the
+// mark-anchored card — an instruction with a place in the document has a ROW
+// and no card at all now, so that selector matches nothing and
+// `styleAll(...).every(...)` over an empty list is the pass-forever shape §4b
+// below refuses. `threadCard` is the one component every surface wears, so the
+// claim moves with the card and not one property of it changes: the
+// whole-document instructions are `.gly-docslot`'s entries (paintOverall), and
+// `dels.length > 0` is what keeps the move honest.
 
 {
   // styleAll, not style: "the destroy weight renders at rest" is a claim about
-  // every thread card in the rail, and reading only the first match is how a
+  // every thread card on the surface, and reading only the first match is how a
   // regression in the second or third card hides behind a passing gate.
   const dels = await styleAll(
-    '.gly-rail .gly-thread-delete',
+    '.gly-docslot .gly-thread-delete',
     'border-top-color',
     'color',
     'margin-left',
@@ -867,13 +808,13 @@ console.log('\n--- §1d · the bar has one readout ---');
 // getting that wrong is irreversible outside git.
 {
   const before = await page
-    .locator('.gly-rail .gly-thread-delete')
+    .locator('.gly-docslot .gly-thread-delete')
     .first()
     .boundingBox();
-  await page.locator('.gly-rail .gly-thread-delete').first().click();
+  await page.locator('.gly-docslot .gly-thread-delete').first().click();
   await page.waitForTimeout(400);
   const after = await page
-    .locator('.gly-rail .gly-thread-delete')
+    .locator('.gly-docslot .gly-thread-delete')
     .first()
     .boundingBox();
   check(
@@ -884,7 +825,10 @@ console.log('\n--- §1d · the bar has one readout ---');
       Math.abs(before.x - after.x) < 0.5,
     { before, after },
   );
-  const armed = await style('.gly-rail .gly-thread-delete.gly-armed', 'color');
+  const armed = await style(
+    '.gly-docslot .gly-thread-delete.gly-armed',
+    'color',
+  );
   check(
     'armed delete is the one resting-adjacent red',
     armed && armed.color === (await rgb('--gly-del')),
@@ -907,7 +851,7 @@ console.log('\n--- §1d · the bar has one readout ---');
   // believe.
   await page.waitForTimeout(4600);
   const disarmed = await page.evaluate(() => {
-    const b = document.querySelector('.gly-rail .gly-thread-delete');
+    const b = document.querySelector('.gly-docslot .gly-thread-delete');
     if (!b) return null;
     const shown = Array.from(b.querySelectorAll('span'))
       .filter((s) => !s.classList.contains('gly-reserved'))
@@ -1474,14 +1418,26 @@ await page.waitForTimeout(300);
   // AND NO CAPTURE CONTROL IS LEFT IN THE COLUMN. Stated as its own check, in
   // the place the old press stood, so putting a `+ add` back into the rail is a
   // red check rather than a rediscovery of the same two defects.
+  //
+  // THE DOOR HAS MOVED ONCE MORE, AND THE CHECK MOVES WITH IT. It was a bar
+  // control; it is the whole-doc slot's dashed last row now
+  // (`.gly-docslot-add`, history.ts) — the verb kept at the foot of the
+  // instructions already made. The half of this claim that is load-bearing is
+  // unchanged and is asserted the same way: the rail holds NONE of it. Where
+  // the door does live is asserted positively so this cannot pass on a page
+  // that has simply lost it.
   const railChrome = await page.evaluate(() => ({
     toggle: document.querySelectorAll('.gly-rail .gly-overall-toggle').length,
     door: document.querySelectorAll('.gly-rail .gly-capture-open').length,
     bar: document.querySelectorAll('.gly-bar .gly-capture-open').length,
+    slot: document.querySelectorAll('.gly-docslot .gly-capture-open').length,
   }));
   check(
-    'capture is chrome — the door is in the bar and the rail holds none of it',
-    railChrome.toggle === 0 && railChrome.door === 0 && railChrome.bar === 1,
+    'capture is chrome — the door is in the doc slot and the rail holds none of it',
+    railChrome.toggle === 0 &&
+      railChrome.door === 0 &&
+      railChrome.bar === 0 &&
+      railChrome.slot === 1,
     railChrome,
   );
 
@@ -1495,7 +1451,7 @@ await page.waitForTimeout(300);
   // is this file's own discipline. The slide an in-flow composer used to cause
   // is answered in the script (openCapture calls scheduleAnchors), which
   // rounds-ux.mjs measures; here it is the paint that is read.
-  await page.locator('.gly-bar .gly-capture-open').click();
+  await page.locator('.gly-docslot .gly-capture-open').click();
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(400);
   const capture = await style('.gly-capture', 'position', 'z-index');
@@ -1574,13 +1530,15 @@ await page.waitForTimeout(300);
   // Family, not a count — the same repair §4b's version already carries. "Mono
   // head" is a claim about the VOICE, and counting elements never reads a font:
   // the weak form passes on a head rendered in the document's own serif. The
-  // comparison is against `.gly-census`'s computed family, so the claim stays
-  // "the same voice as the chrome" rather than "this font list".
+  // comparison is against the CHROME's own computed family — it was the census
+  // strip's until the strip was deleted, and `.gly-bottombar` is the chrome
+  // element carrying the same `--gly-mono` voice — so the claim stays "the same
+  // voice as the chrome" rather than "this font list".
   const heads = await styleAll(
     '.gly-overall-entries .gly-card-head',
     'font-family',
   );
-  const chrome = await style('.gly-census', 'font-family');
+  const chrome = await style('.gly-bottombar', 'font-family');
   check(
     'every panel card carries its mono head',
     heads.length === cards.length &&
@@ -1654,29 +1612,16 @@ await page.waitForTimeout(300);
 // control is 6px. This is the cheapest signal in the system and the one that
 // tells a reviewer, without a word, which things converse and which count.
 //
-// TWO checks read the census's radius, on purpose, because they answer
-// different questions:
-//
-//   - the COMPUTED check answers "what does the user see". It used to be
-//     confounded: `.gly-bar button`, edit.html's inline fallback for the
-//     static #gly-revise button, tied `.gly-census button` at (0,1,1) and won
-//     on source order because it lived in a later stylesheet — and it also
-//     said `border-radius: 6px`, so this check passed with `.gly-census
-//     button` reverted to `999px`. §1b's fix moved that rule into this
-//     stylesheet ABOVE `.gly-census button`, so the census wins its own paint
-//     and this check now discriminates: reverting the declaration to 999px
-//     fails it. Verified that way, not assumed.
-//   - the RULE check (ruleValue, defined above with the reasoning in full)
-//     reads `.gly-census button`'s own declared `border-radius` off the
-//     CSSOM, independent of what wins the paint. It is no longer the only
-//     one that can tell 6px from 999px, and it stays because a future rule
-//     that ties and out-orders the census would re-confound the paint and
-//     leave this one standing.
+// TWO checks read the radius here once, and one of them is retired below: the
+// census strip carried a rule of its own (`.gly-census button`), so the CSSOM
+// had to be read directly to tell 6px from a reverted 999px that edit.html's
+// inline `.gly-bar button` fallback would have masked. The strip and its rule
+// are deleted; `.gly-bar button` is the only rule left declaring a radius on a
+// bar control, so the COMPUTED check reads it unconfounded and is the whole of
+// the caste mark.
 {
   // `.gly-bar button` for the COMPUTED check, because "every chrome control" is
-  // all six of them and the census strip is two. The RULE check below stays
-  // on `.gly-census button` — it is a question about that one rule's own
-  // declaration, not about what the bar paints.
+  // every control the bar renders.
   const chrome = await styleAll('.gly-bar button', 'border-radius');
   check(
     'every chrome control is 6px (computed)',
@@ -1684,12 +1629,15 @@ await page.waitForTimeout(300);
     chrome,
   );
 
-  const declared = await ruleValue('.gly-census button', 'border-radius');
-  check(
-    '.gly-census button declares 6px on its own rule (not the painted value)',
-    declared === '6px',
-    { declared },
-  );
+  // THE RULE CHECK IS RETIRED WITH THE RULE. It read `.gly-census button`'s
+  // own declared `border-radius` off the CSSOM, independent of what won the
+  // paint, because edit.html's inline `.gly-bar button` fallback tied it and
+  // could mask a reverted 999px. The census strip and its rule are both
+  // deleted, so `ruleValue` returns null forever and the tie it guarded
+  // against cannot be struck — no rule in either stylesheet declares a radius
+  // on a bar button but `.gly-bar button` itself. The computed check above is
+  // the whole of §1's caste mark now, and `card verbs stay pills` below is
+  // what keeps it discriminating.
 
   // READ OFF THE VERB THAT EXISTS. This asked `.gly-card-accept` and
   // `.gly-thread-resolve`, and neither is built any more — an instruction is
@@ -1700,7 +1648,10 @@ await page.waitForTimeout(300);
   // so this is exactly the tie `.gly-card button` (0,1,1) wins that this file
   // exists to catch — a chrome rule reaching a card verb would show up here as
   // 6px and nowhere else.
-  const verbs = await styleAll('.gly-rail .gly-thread-delete', 'border-radius');
+  const verbs = await styleAll(
+    '.gly-docslot .gly-thread-delete',
+    'border-radius',
+  );
   check(
     'card verbs stay pills',
     verbs.length > 0 &&
@@ -1814,8 +1765,8 @@ for (const scheme of ['dark', 'light']) {
   // FIGURES — the third prediction, and the one with no assertion anywhere in
   // this file until now. The `read-only` chip is the passive half of the
   // refusal voice and it is CHROME wherever it renders: the same mono voice as
-  // the census strip, the muted colour, the panel token behind it. Compared
-  // against the census's own computed font-family rather than against a string,
+  // the bottom bar, the muted colour, the panel token behind it. Compared
+  // against the chrome's own computed font-family rather than against a string,
   // because the claim is "the same voice as the chrome", not "this font list".
   const chip = await style(
     '.gly-figure > .gly-chip',
@@ -1823,7 +1774,7 @@ for (const scheme of ['dark', 'light']) {
     'color',
     'background-color',
   );
-  const chrome = await style('.gly-census', 'font-family');
+  const chrome = await style('.gly-bottombar', 'font-family');
   const muted = await rgb('--gly-muted');
   const panelBg = await rgb('--gly-panel-bg');
   check(
@@ -1909,12 +1860,13 @@ await page.emulateMedia({ colorScheme: 'light' });
   const WIDTHS = [
     1600, 1450, 1400, 1200, 1100, 1000, 992, 991, 900, 768, 600, 390,
   ];
-  // Every child of the bar, every item in the census strip inside it, and every
-  // button anywhere in it — the same landmark set motion.mjs snapshots, for the
-  // same reason: the claim is about the bar, not about one button in it.
+  // Every child of the bar and every button anywhere in it — the same landmark
+  // set motion.mjs snapshots, for the same reason: the claim is about the bar,
+  // not about one button in it.
   const barProbe = () =>
     page.evaluate(() => {
-      const sel = '.gly-bar > *, .gly-census > *, .gly-bar button';
+      // `.gly-census > *` was the third clause and is deleted with the strip.
+      const sel = '.gly-bar > *, .gly-bar button';
       const seen = new Set();
       const out = [];
       for (const el of document.querySelectorAll(sel)) {
@@ -2059,19 +2011,17 @@ await page.waitForTimeout(800);
     { rail, bottombar },
   );
 
-  // THE COUNT IS PRINTED ONCE. `5 pending · 3 threads` renders in the census
-  // strip at the head of the window and again in `.gly-bar-count` at its foot
-  // — same mono, same 12px, the same string from the same `paintCensus` line,
-  // ~850px apart on a phone. Below the breakpoint the foot's copy is the one
-  // that earns it: it is also the BUTTON that opens the sheet, and the sheet
-  // is the only list there is here.
-  //
-  // Stated as "exactly one is painted" rather than "the strip's is hidden",
-  // because the defect is the reviewer reading the same number twice — which
-  // of the two went is a design decision, and a check naming the loser would
-  // have to be rewritten to reverse it rather than simply re-run.
+  // THE COUNT IS PRINTED ONCE, AND THERE IS ONLY ONE PRINTER LEFT. The same
+  // string used to render in the census strip at the head of the window and
+  // again in `.gly-bar-count` at its foot, ~850px apart on a phone; the strip
+  // is deleted and the foot's copy is the one that earned it — it is also the
+  // BUTTON that opens the sheet, and the sheet is the only list there is here.
+  // The check is kept in its stronger form ("exactly one is painted") rather
+  // than reduced to "the bar has one", because a SECOND printer coming back
+  // anywhere in the window is the defect it names, and the query below is over
+  // the whole document.
   const counts = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.gly-census-count, .gly-bar-count'))
+    Array.from(document.querySelectorAll('.gly-bar-count'))
       .filter((el) => el.getBoundingClientRect().width > 0)
       .map((el) => ({
         what: el.className,
@@ -2200,7 +2150,8 @@ await page.waitForTimeout(800);
   );
 
   // Family, not a count. §4b established the stronger form — compare each
-  // head's computed `font-family` against `.gly-census`'s own, so the claim is
+  // head's computed `font-family` against the chrome's own (the census strip's
+  // until it was deleted; `.gly-bottombar` carries the same voice), so the claim is
   // "the same voice as the chrome" — and this surface was given the weaker one
   // AFTERWARDS. Counting elements never reads a font: a head rendered in the
   // document's serif satisfies it exactly as well as a mono one does.
@@ -2208,7 +2159,7 @@ await page.waitForTimeout(800);
     '.gly-sheet-body > .gly-card .gly-card-head',
     'font-family',
   );
-  const chrome = await style('.gly-census', 'font-family');
+  const chrome = await style('.gly-bottombar', 'font-family');
   check(
     'every sheet card carries its mono head',
     heads.length === cards.length &&
@@ -3550,7 +3501,7 @@ console.log('\n--- §9 · the rail speaks one card language ---');
   // rather than holding a box open, so the claim is made on the OPEN card,
   // where it is real rendered geometry and not a held-open ghost. Shut, it is
   // `display: none` and out of the query above; open, it must line up here.
-  await page.locator('.gly-bar .gly-capture-open').click();
+  await page.locator('.gly-docslot .gly-capture-open').click();
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(300);
   const captureEdge = await page.evaluate(() => {
@@ -5634,7 +5585,9 @@ const placeComposer = (nth = 0) =>
   // check above fails, and it no longer reports `ok` as though it had proved
   // something.
   const retired = await page.evaluate(() =>
-    ['#gly-revise', '.gly-mode', '.gly-hold', '.gly-census'].map((sel) => {
+    // `.gly-census` was the fourth and is deleted; a dead selector here would
+    // report `absent`, which this check is sharpened to refuse.
+    ['#gly-revise', '.gly-mode', '.gly-hold'].map((sel) => {
       const el = document.querySelector(sel);
       return { sel, display: el ? getComputedStyle(el).display : 'absent' };
     }),
@@ -5750,7 +5703,7 @@ const placeComposer = (nth = 0) =>
   const dead = await page.evaluate(() =>
     Array.from(
       document.querySelectorAll(
-        '.gly-rail .gly-thread-edit, .gly-rail .gly-thread-delete, ' +
+        '.gly-rail .gly-thread-edit, .gly-docslot .gly-thread-delete, ' +
           '.gly-sheet .gly-thread-edit, .gly-sheet .gly-thread-delete',
       ),
     ).map((el) => ({

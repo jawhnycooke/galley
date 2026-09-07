@@ -1130,8 +1130,8 @@ export function proposalThread(
  * settledHandle is what the settled region's header says — in the SHEET, which
  * is the one surface that region lives on now.
  *
- * It LEADS WITH THE COUNT and names the state, for the same reason
- * overallHandle leads with its verb: the header is the only thing on screen
+ * It LEADS WITH THE COUNT and names the state, for the same reason the retired
+ * whole-doc handle led with its verb: the header is the only thing on screen
  * when the region is closed, so it has to answer "is there anything in here"
  * without being opened. Zero is not a state this renders at all — the region is
  * absent, because a header saying "0 settled" is a permanent line of chrome
@@ -1277,80 +1277,18 @@ export function writeOverallOpen(
   }
 }
 
-/**
- * overallHandle is what the strip's handle says, and it LEADS WITH THE VERB.
- *
- * Court went looking for a way to comment on the whole document and did not
- * find it. It was there the whole time — this handle, which expands a panel
- * with an always-visible input — and the diagnosis is that it was the only
- * NOUN in a row of verbs. Its neighbours are `✓ all` and `Revise` (and, at
- * the time of the diagnosis, the since-retired `✗ all`):
- * things you do. `on trial.md · 1 note` describes what exists and never says
- * you can add one, so someone hunting for "where do I put a comment about the
- * whole thing" reads straight past it.
- *
- * Two requirements, and they pull in opposite directions at zero:
- *
- *   EMPTY MUST CARRY A VERB. The empty state is precisely when someone is
- *   hunting for the control and precisely when a count says nothing at all.
- *
- *   NON-EMPTY MUST STILL SHOW THE COUNT, without opening the panel. A folded
- *   conversation that hid the fact of itself would be worse than the space it
- *   saves — that is why the handle carried a count in the first place.
- *
- * The document's NAME is gone, and that is what buys the room for the verb:
- * the bar already shows it a few inches to the left, and the panel's own head
- * still reads "on <doc> as a whole", so nothing is unsaid.
- *
- * "on the whole doc" went the same way the name did, and for the same reason
- * priced in pixels: the handle sits in a strip whose width is part of the
- * bar's fold arithmetic, and those fourteen characters of preposition cost
- * ~100px at EVERY width — measured, the bar sat within 10px of its fold
- * threshold at 1400 with a nine-character document name, flipping between
- * flat and folded from one page load to the next. "doc" carries the same
- * claim ("this note is about the whole document, not a span of it"), the
- * panel's head still spells it out, and the ▸/▾ affordance is untouched.
- * editor.css's .gly-census-overall reserve is a BOUND stated against THIS
- * label pair's widest state — retune it if these strings change.
- *
- * THIS IS A HYPOTHESIS, NOT A DIAGNOSIS — we are testing whether wording was
- * the barrier. If it is still not found, the answer is placement and this
- * moves, so nothing else may come to depend on the string.
- *
- * THERE ARE THREE STATES, NOT TWO, AND THE MISSING ONE WAS A LIE. `+ doc note`
- * meant both "there is no note on this document" and "the only note on this
- * document is settled" — measured after a sweep on a document that still
- * carried `{>>@document …<<}` in the file and still rendered `SETTLED · …` in
- * its own prose, while the bar advertised it as having none. A settled
- * conversation is not an absent one; it is the state `settledHandle` already
- * spells `✓ n settled` two sections down the rail, so this borrows that tick
- * rather than inventing a fourth vocabulary. The verb only returns when there
- * is genuinely nothing there — which is the state the verb was FOR.
- *
- * @param open unresolved document-anchored threads
- * @param settled resolved ones, which are still in the file
- */
-export function overallHandle(open: number, settled?: number): string {
-  if (open) {
-    return open === 1 ? '1 doc instruction' : `${open} doc instructions`;
-  }
-  if (settled) {
-    return settled === 1
-      ? '✓ 1 doc instruction'
-      : `✓ ${settled} doc instructions`;
-  }
-  return '+ instruct document';
-}
-
-/**
- * overallTitle is the handle's tooltip — the only control in the bar that had
- * none, measured.
- *
- * It says what the press DOES rather than restating the count the label already
- * carries, which is the rule every other title in the bar follows.
- */
-export const OVERALL_TITLE =
-  'instructions on the whole document — open the panel to read or add one';
+/* `overallHandle` AND `OVERALL_TITLE` ARE DELETED WITH THE HANDLE THEY SPOKE
+ * FOR. They were the census strip's whole-document control — `+ instruct
+ * document` / `1 doc instruction` / `✓ 3 doc instructions`, and the tooltip
+ * that said what its press did — reserving 24ch in a bar that no longer has a
+ * strip to hold it. The whole-document instruction is the sheet's dashed slot
+ * now (`.gly-docslot-add`), which is full width, says its own verb and reserves
+ * nothing, so the label arithmetic those two functions carried has no surface
+ * to be arithmetic about. They outlived the handle by one round because their
+ * only remaining caller was web/probe.mjs — a function kept alive by its own
+ * checks reads as coverage and is not — and the six checks are retired with
+ * them. `settledHandle` above is a different label on a live surface (the
+ * sheet's settled region) and stays. */
 
 export function collapseKey(docName: string | null | undefined): string {
   return `galley:rail-collapsed:${docName || 'untitled'}`;

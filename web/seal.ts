@@ -170,9 +170,7 @@ export function sealLine(
  *
  * The seven selectors that were already here all match real elements: accept
  * and reject come from `decideButton`, resolve and delete and the reply box
- * from the thread card, and both `.gly-census button` and `.gly-composer button`
- * have live children (the retired `✗ all` was a button, not a class, so its
- * removal left nothing dangling).
+ * from the thread card, and `.gly-composer button` has live children.
  *
  * THE SETTLED CARDS MOVED SURFACES AND NOT ONE SELECTOR MOVED WITH THEM, and
  * that is the design working rather than luck. `.gly-thread-resolve`,
@@ -185,11 +183,11 @@ export function sealLine(
  * revision receipt's deletion made one entry up, arriving a second time, which
  * is why it is written down rather than re-derived.
  *
- * `.gly-census button` also gained a member in the same change: the census
- * count is a `<button>` now (it opens the sheet). A sealed review hides the
- * whole strip, so covering it here is belt to that braces — but it is built
- * once and never rebuilt, so it needs the OTHER half of the invariant. See
- * SEAL_ONLY_VERBS.
+ * The census strip's own entry died the same way, one round later: the strip is
+ * deleted, and `.gly-bar-count` — the narrow bar's `Instructions · N`, the one
+ * door left to that list — is named directly in its place. A group selector
+ * whose container has been deleted is coverage that disappears with the move
+ * and takes no check with it.
  *
  * THE INVARIANT EVERY ENTRY IN THIS LIST OWES, and the one thing to know
  * before adding another: EVERY SELECTOR HERE EITHER HAS A PAINTER THE UNSEAL
@@ -244,22 +242,28 @@ export function sealLine(
 // accident; §8's rule is what would have caught them if they had been left
 // named here.
 //
-// AND `.gly-census button` IS NARROWED BY ONE, WHICH IS THE ONE EXEMPTION THIS
-// LIST HAS. The census strip is a group of VIEW DOORS, and a door is not a
-// verb — it was only ever in here because the count beside it is a door to a
-// list of cards whose every verb dies with the seal. History's door leads
-// somewhere READING is the whole point, and reading is all a sealed review has
-// left. `:not(.gly-versions-open)` says that in the selector rather than in a
-// second sweep that would fight this one.
+// AND `.gly-census button:not(.gly-versions-open)` HAS LEFT THIS LIST WITH THE
+// STRIP IT NAMED. It carried the one exemption this list ever had — the census
+// was a group of VIEW DOORS and History's door led somewhere reading is the
+// whole point, so the narrowing said that in the selector rather than in a
+// second sweep. The strip and the History chip are both deleted (the scrubber
+// is the record's only door now, and it is a keyframe track and not a verb), so
+// the entry and its exemption go together: an exemption whose subject is
+// deleted must be deleted with it, and a selector matching nothing is a dead
+// entry §8 in web/layers.mjs is built to name.
 //
-// Measured before the exemption: the door was shown, on screen and reachable by
-// `elementFromPoint`, and `disabled` — the exact combination that reads as a
-// broken control rather than an absent one, which this codebase already rates
-// as the worse of the two.
+// `.gly-bar-count` IS WHAT REPLACES IT, AND IT IS THE COUNT'S HALF, NOT THE
+// DOOR'S. The narrow bar's `Instructions · N` is the one surviving way into the
+// review's list (`openInstructions`), and on a sealed page every verb on every
+// one of those cards is dead — which is the exact argument that put
+// `.gly-census-count` here when the census still existed. It is NOT in
+// SEAL_ONLY_VERBS: `paintBarCount` re-derives the flag from `this.sealed`, and
+// `applySeal`'s unseal branch already runs it, so it has a painter this edge
+// runs — the first clause of the invariant below rather than the second.
 export const SEALED_VERBS =
   '.gly-thread-delete, ' +
   '.gly-thread-edit, .gly-thread-edit-text, .gly-thread-edit-save, ' +
-  '.gly-overall-input, .gly-census button:not(.gly-versions-open), ' +
+  '.gly-overall-input, .gly-bar-count, ' +
   '.gly-composer button, ' +
   '.gly-composer-text, .gly-capture button, .gly-capture-open';
 
@@ -331,17 +335,18 @@ export const SEALED_VERBS =
  * `sendComment`'s in-flight `settled`, which now defers to the seal for the same
  * reason `fileNote` does.
  *
- * `.gly-census-count` IS THE SIXTH, AND IT JOINED THE MOMENT IT STOPPED BEING A
- * READOUT. It was a `<span>` — nothing to disable, nothing to re-enable — and
- * it is a button now, because the sheet is the review's whole list at every
- * width and this is how it is opened. Like `.gly-census-overall` beside it, it
- * is built ONCE in `makeCensus` and never rebuilt: `paintCensus` writes its
- * TEXT on every poll and re-derives the `disabled` flag of `✓ all` and nothing
- * else. Left out of this list, the first seal would take the way into the
- * settled conversations away for the life of the tab, and Reopen would hand
- * back every verb on the page except the one that reaches the record. It is
- * caught by §8's own rule and not by a fresh one — every selector in
- * SEALED_VERBS either has a painter the unseal edge runs, or is here.
+ * `.gly-census-count` WAS THE SIXTH AND IT IS DELETED, WITH THE STRIP THAT
+ * BUILT IT. It joined the moment it stopped being a readout: built ONCE in
+ * `makeCensus` and never rebuilt, so the seal was the only writer of its flag
+ * in either direction. The census is gone and the count it carried is
+ * `.gly-bar-count`, built once in `makeBottomBar` — but that one is NOT this
+ * list's case, because `paintBarCount` re-derives its flag from `this.sealed`
+ * on every poll and `applySeal`'s unseal branch runs it. It belongs in
+ * SEALED_VERBS with a painter, and a seal-only entry for it would be this list
+ * claiming an owner it does not have — the same distinction `.gly-capture-open`
+ * is held to below. Keeping the dead entry here would have been worse than an
+ * absence: §8b requires every selector this list owns to match something and
+ * be killed, and a selector matching nothing satisfies "killed" vacuously.
  *
  * `.gly-composer-cancel` IS THE SEVENTH AND IT JOINED WITH ITS OWN BIRTH. It
  * is built once in `makeComposer` beside `.gly-composer-send`, appended to the
@@ -387,7 +392,7 @@ export const SEALED_VERBS =
  * requires every selector in it to match something, so a dead entry is a named
  * failure instead of a silent subtraction from a group query. */
 export const SEAL_ONLY_VERBS =
-  '.gly-census-count, .gly-overall-input, .gly-composer-send, ' +
+  '.gly-overall-input, .gly-composer-send, ' +
   '.gly-composer-cancel, .gly-comment-button, .gly-composer-text, ' +
   '.gly-capture-cancel';
 
