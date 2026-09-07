@@ -1807,6 +1807,82 @@ git commit -m "Step the timeline with arrows and walk pinned rows with j/k"
 
 ---
 
+### Task 18: Rows for selection-anchored instructions
+
+(Added 2026-09-07 after Task 13 found the gap.) Task 9's `paintRows` only makes a row for a thread with `anchorKey` (block/fence/figure anchors). The ordinary instruction — select words, type — has no `anchorKey`; it is a `highlight` mark in the prose (`suggestions.ts:544`, class `gly-hl`) whose `run` attribute equals the thread's `run` (`InstructionView.run`, `docmodel.RunAttr`). The spec §1 pins **every** instruction under its block. This task derives the block index from the mark.
+
+**Files:**
+- Modify: `web/rows.ts` (`paintRows`, ~:275-320; add pure `runBlockIndex`)
+- Test: `web/probe.mjs`
+
+**Depends on:** Tasks 9, 13.
+
+**Interfaces:**
+- Produces: `export function runBlockIndex(doc: { childCount: number; child(i: number): { descendants(cb: (n: { marks: readonly { attrs: Record<string, unknown> }[] }) => boolean | void): void } }, run: string): number` — index of the top-level child containing a mark whose `attrs.run === run`, else `-1`.
+- Consumes: `Thread.run`, `Thread.anchorKey`, `this.blocks` (unchanged).
+
+- [ ] **Step 1: Failing probe** (append before `process.exit`):
+
+```js
+// --- rows.ts: rows for selection-anchored instructions ---
+{
+  const { runBlockIndex } = await import('./rows.ts');
+  const mk = (run) => ({ marks: run ? [{ attrs: { run } }] : [] });
+  const block = (...runs) => ({ descendants(cb) { for (const r of runs) { if (cb(mk(r)) === false) return; } } });
+  const doc = { childCount: 3, child: (i) => [block(null), block('r-1', 'r-2'), block('r-3')][i] };
+  check('runBlockIndex finds the block holding the run mark', runBlockIndex(doc, 'r-2') === 1 && runBlockIndex(doc, 'r-3') === 2);
+  check('runBlockIndex is -1 when no mark carries the run', runBlockIndex(doc, 'r-9') === -1);
+}
+```
+
+- [ ] **Step 2: Run** `cd web && node probe.mjs | grep runBlockIndex` → FAIL (not exported).
+
+- [ ] **Step 3: Implement** in `web/rows.ts`:
+
+```ts
+export function runBlockIndex(
+  doc: { childCount: number; child(i: number): { descendants(cb: (n: { marks: readonly { attrs: Record<string, unknown> }[] }) => boolean | void): void } },
+  run: string,
+): number {
+  for (let i = 0; i < doc.childCount; i++) {
+    let hit = false;
+    doc.child(i).descendants((n) => {
+      if (n.marks.some((m) => m.attrs.run === run)) { hit = true; return false; }
+      return undefined;
+    });
+    if (hit) return i;
+  }
+  return -1;
+}
+```
+
+Then in `paintRows`, replace the `if (!t.anchorKey || t.resolved) continue;` + `this.blocks.find(...)` pair with:
+
+```ts
+      if (t.resolved) continue;
+      let index = -1;
+      if (t.anchorKey) {
+        const block = this.blocks.find((b) => b.key === t.anchorKey);
+        if (block) index = block.index;
+      } else if (t.run) {
+        index = runBlockIndex(this.editor.state.doc, t.run);
+      }
+      if (index < 0) continue;          // unplaced: stays in the whole-doc slot's unplaced group
+```
+
+and use `index` where `block.index` was used below (row `index`, `marked.push`). Keep everything else in `paintRows` unchanged. Check the mark's attribute name by grepping `RunAttr\|attrs.run\|run:` in `web/suggestions.ts` (~:746, :1138) — if the highlight mark stores it under a different attr name (e.g. `data-run` only in `renderHTML` and `run` in `attrs`), use the `attrs` name.
+
+- [ ] **Step 4: Gates** — `just assets && just types && just rounds-ux && just codeblock`. In a browser (or the headless Chromium the earlier tasks scripted): select words in `learn-anything.md`, pin an instruction → a coral row appears under that paragraph and the paragraph tints coral; `j`/`k` reach it; `×` removes it.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/rows.ts web/probe.mjs internal/serve/assets
+git commit -m "Pin selection-anchored instructions under their block too"
+```
+
+---
+
 ### Task 14: Delete the retired surfaces
 
 **Files:**
