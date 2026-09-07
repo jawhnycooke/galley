@@ -132,6 +132,7 @@ import type { growthWatch } from './card.ts';
 import type { ThemeChoice } from './theme.ts';
 import type { Phase } from './phase.ts';
 import type { TimelineUI } from './timeline.ts';
+import type { FrameUI } from './frame.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -390,6 +391,13 @@ export interface AppState {
   // Constructor: `this.scrubT = 1; this.timeline = null;`.
   scrubT: number;
   timeline: TimelineUI | null;
+
+  // --- the frame around the sheet (web/frame.ts) ---
+  // The eyebrow row, the whole-doc slot, the could-not banner and the `?`
+  // sheet. Null until makeFrame runs — it needs `.ProseMirror`, which the
+  // editor builds — and null forever on a shell that has no document.
+  // Constructor: `this.frame = null;`.
+  frame: FrameUI | null;
   // The verdict menu — built on the first press that needs it
   // (`this.verdictMenu = null;` is the constructor's own direct,
   // unconditional line; `openVerdictMenu` fills it in later).
@@ -662,10 +670,9 @@ export interface AppMethods {
   scrubTo(t: number): void;
   scrubStep(delta: -1 | 1): void;
   scrubHome(): void;
-  // OPTIONAL UNTIL TASK 7 BUILDS IT. The scrubber repaints the frame around
-  // the sheet after every move; until that frame exists there is nothing to
-  // repaint, and `?.` at the two call sites is the honest way to say so.
-  paintFrame?(): void;
+  // --- the frame around the sheet (web/frame.ts) ---
+  makeFrame(): void;
+  paintFrame(): void;
 
   // --- the keyboard (web/keys.ts) ---
   onKey(event: KeyboardEvent): void;

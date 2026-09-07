@@ -168,18 +168,18 @@ async function addRangeInstruction(page, text) {
   );
 }
 
-// THE HANDLE IS THE BAR'S NOW, AND IT DOES NOT TOGGLE. It used to be the rail's
-// own `+ instruction on the whole document`, and it toggled — so a second
-// unconditional click on an already-open form shut it and the fill that
-// followed landed on a hidden textarea, which is why every site that files one
-// goes through here. The control moved to the bar (`.gly-capture-open`, read
-// off the app's own CAPTURE_LABEL rather than a copy of the string) and it only
-// ever OPENS: the way out is `cancel` or Esc, so pressing it twice is idempotent
-// rather than destructive. The visibility guard is kept as a guard against
-// pressing a control that is already doing its job, not against undoing it.
+// THE HANDLE IS THE SHEET'S OWN SLOT NOW, AND IT DOES NOT TOGGLE. It was the
+// rail's first card and it toggled — so a second unconditional click on an
+// already-open form shut it and the fill that followed landed on a hidden
+// textarea, which is why every site that files one goes through here. It went
+// to the bar, and then (Task 7) to `.gly-docslot-add`, the dashed row at the
+// head of the sheet; through all three placements it only ever OPENS, so
+// pressing it twice is idempotent rather than destructive. The visibility guard
+// is kept as a guard against pressing a control that is already doing its job,
+// not against undoing it.
 async function addOverallInstruction(page, text, want) {
   if (!(await page.locator('.gly-capture').isVisible())) {
-    await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+    await page.click('.gly-docslot-add');
   }
   await page.fill('.gly-overall-input', text);
   await page.locator('.gly-overall-input').press('Enter');
@@ -315,38 +315,71 @@ try {
     primaryPaint.bg === primaryPaint.want && primaryPaint.radius === '8px',
     JSON.stringify(primaryPaint),
   );
-  // --- WHERE CAPTURE LIVES, AND IT IS THE BAR ---
+  // --- WHERE CAPTURE LIVES, AND IT IS THE SHEET'S OWN HEAD ---
   //
-  // THIS CHECK IS INVERTED RATHER THAN DELETED, AND THE INVERSION IS THE
-  // RULING. It read `the whole-document affordance is in the instruction rail`
-  // and it was green over both of the defects Court reported from live use: the
-  // affordance scrolled out of reach, and opening it slid every anchored card
-  // 39.29px off its mark. The rail holds live work only — *here is what needs
-  // you, beside the text it is about* — and a `+ add` button needs nothing and
-  // is beside nothing, so the old claim was asserting the placement that caused
-  // both. It says the opposite now, in the same shape and in the same place, so
-  // a future re-rail is a red check rather than a discovery.
+  // THIS CHECK HAS BEEN INVERTED TWICE AND EACH INVERSION IS A RULING. It read
+  // `the whole-document affordance is in the instruction rail` and was green
+  // over both of the defects Court reported: the affordance scrolled out of
+  // reach, and opening it slid every anchored card 39.29px off its mark. It
+  // then read `the door is in the bar, beside History`, which fixed both by
+  // making capture chrome. Task 7's frame gives the third and last answer: a
+  // dashed full-width row in `.gly-docslot`, ABOVE THE PAPER, where the
+  // instructions it makes are also filed — document-level and beside the thing
+  // it is about at the same time, which neither of the first two placements
+  // was. It says that now, in the same shape and in the same place, so a
+  // regression to either earlier placement is a red check rather than a
+  // discovery.
+  const slotDoor = await page.evaluate(() => {
+    const b = document.querySelector('.gly-docslot-add');
+    if (!b) return null;
+    const paper = document.querySelector('.ProseMirror');
+    return {
+      label: b.textContent,
+      inSlot: !!b.closest('.gly-frame .gly-docslot'),
+      inBar: !!b.closest('.gly-bar'),
+      abovePaper:
+        b.getBoundingClientRect().bottom <= paper.getBoundingClientRect().top,
+    };
+  });
   check(
-    'capture is CHROME — the door is in the bar, beside History',
-    await page.isVisible(`.gly-bar button:text-is("${CAPTURE_LABEL}")`),
+    'capture is the sheet’s own head — a dashed row in the whole-doc slot, above the paper',
+    !!slotDoor &&
+      slotDoor.label === CAPTURE_LABEL &&
+      slotDoor.inSlot &&
+      !slotDoor.inBar &&
+      slotDoor.abovePaper,
+    JSON.stringify(slotDoor),
   );
   check(
-    'and the rail carries no capture control at all',
+    'and neither the rail nor the bar carries a capture control at all',
     (await page.locator('.gly-rail .gly-overall-toggle').count()) === 0 &&
-      (await page.locator('.gly-rail .gly-capture-open').count()) === 0,
+      (await page.locator('.gly-rail .gly-capture-open').count()) === 0 &&
+      (await page.locator('.gly-bar .gly-capture-open').count()) === 0,
   );
-  // AND IT IS REACHABLE AT ANY SCROLL POSITION, which is note §13 stated as a
-  // check. The bar is sticky, so this is a claim about the bar the control was
-  // moved INTO rather than about the control — which is exactly why the move
-  // fixes it and no arithmetic here does.
+  // AND AT THE FOOT OF THE DOCUMENT IT IS THE RIGHT-CLICK THAT ANSWERS. §13's
+  // "reachable at any scroll position" was a claim about the BAR, which is
+  // sticky; the slot is not, and asserting it visible from the bottom of a long
+  // document would be asserting something false. The gesture that is available
+  // everywhere is the context menu (web/menu.ts), so that is what is checked
+  // from down there — and the slot itself is checked to come back with the
+  // document rather than to follow the viewport.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(200);
+  await page.click('.ProseMirror p', { button: 'right' });
+  await page.waitForSelector('.gly-menu:not([hidden])');
   check(
-    'the capture door is on screen at the foot of the document',
-    await page.isVisible(`.gly-bar button:text-is("${CAPTURE_LABEL}")`),
+    'at the foot of the document the right-click still offers the whole-file instruction',
+    await page.isVisible(
+      '.gly-menu-item:has-text("Instruction on the whole document")',
+    ),
   );
+  await page.keyboard.press('Escape');
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(200);
+  check(
+    'and the slot comes back with the document',
+    await page.isVisible('.gly-docslot-add'),
+  );
 
   // THE EMPTY RAIL TEACHES, AND THE NOTICE IT REPLACED SAID SOMETHING THE BAR
   // WAS ALREADY SAYING. `nothing pending — the document is settled` was a
@@ -746,46 +779,55 @@ try {
       await waitForDisk(/Open with the decision, not the background\./)
     ).includes('Open with the decision, not the background.'),
   );
-  const anatomy = await page.evaluate(() => {
-    const cards = [
-      ...document.querySelectorAll('.gly-rail .gly-card.gly-thread'),
-    ];
-    return cards.map((c) => {
-      const s = getComputedStyle(c);
-      const r = c.getBoundingClientRect();
-      return {
-        heads: c.querySelectorAll('.gly-card-head').length,
-        head: (c.querySelector('.gly-card-head') || {}).innerText || '',
-        bordered:
-          s.borderTopWidth !== '0px' &&
-          s.borderLeftWidth !== '0px' &&
-          s.borderTopStyle !== 'none',
-        edge: s.borderLeftWidth,
-        verbs: [...c.querySelectorAll('.gly-card-actions button')].map(
-          (b) => (b.innerText || '').trim().split('\n')[0],
-        ),
-        box: [Math.round(r.left), Math.round(r.width)],
-      };
-    });
-  });
+  // TWO SURFACES, ONE ANATOMY (Task 7). The whole-document instructions are
+  // filed in the frame's `.gly-docslot` now — above the paper, beside the verb
+  // that makes them — and the rail holds the instructions that are ANCHORED to
+  // a passage. So the cards are read from both and the anatomy is required of
+  // both; the per-surface box checks stay per-surface, because the slot is the
+  // sheet's measure and the rail is the rail's, and requiring one width across
+  // both would be asserting a layout neither surface has.
+  const readAnatomy = (root) =>
+    page.evaluate((sel) => {
+      const cards = [...document.querySelectorAll(sel)];
+      return cards.map((c) => {
+        const s = getComputedStyle(c);
+        const r = c.getBoundingClientRect();
+        return {
+          heads: c.querySelectorAll('.gly-card-head').length,
+          head: (c.querySelector('.gly-card-head') || {}).innerText || '',
+          bordered:
+            s.borderTopWidth !== '0px' &&
+            s.borderLeftWidth !== '0px' &&
+            s.borderTopStyle !== 'none',
+          edge: s.borderLeftWidth,
+          verbs: [...c.querySelectorAll('.gly-card-actions button')].map(
+            (b) => (b.innerText || '').trim().split('\n')[0],
+          ),
+          box: [Math.round(r.left), Math.round(r.width)],
+        };
+      });
+    }, root);
+  const railAnatomy = await readAnatomy('.gly-rail .gly-card.gly-thread');
+  const slotAnatomy = await readAnatomy('.gly-docslot .gly-card.gly-thread');
+  const anatomy = [...railAnatomy, ...slotAnatomy];
+  const wellFormed = (a) =>
+    a.heads === 1 &&
+    a.bordered &&
+    a.edge === '3px' &&
+    a.verbs.length === 2 &&
+    a.verbs[0] === 'edit' &&
+    a.verbs[1] === 'delete';
   check(
     'every instruction card owns exactly one head, its own border and its own verbs',
-    anatomy.length === 2 &&
-      anatomy.every(
-        (a) =>
-          a.heads === 1 &&
-          a.bordered &&
-          a.edge === '3px' &&
-          a.verbs.length === 2 &&
-          a.verbs[0] === 'edit' &&
-          a.verbs[1] === 'delete',
-      ),
+    railAnatomy.length === 1 &&
+      slotAnatomy.length === 1 &&
+      anatomy.every(wellFormed),
     JSON.stringify(anatomy),
   );
   check(
     'and one rail speaks one language — every card at one left edge and one width',
-    new Set(anatomy.map((a) => JSON.stringify(a.box))).size === 1,
-    JSON.stringify(anatomy.map((a) => a.box)),
+    new Set(railAnatomy.map((a) => JSON.stringify(a.box))).size === 1,
+    JSON.stringify(railAnatomy.map((a) => a.box)),
   );
 
   // §2.2 — IT APPEARS IN THE RAIL AND NOWHERE ELSE. It used to render three
@@ -814,22 +856,31 @@ try {
     inProse.present === 1 && inProse.painted === 0 && inProse.area === 0,
     JSON.stringify(inProse),
   );
+  // AND IT IS THE SLOT'S FIRST ROW (Task 7), not the rail's first card. A note
+  // about the whole file has no coordinates, so it never belonged in a map of
+  // the passages; the whole-doc slot at the head of the sheet is where it is
+  // written and where it is filed, and `.gly-row-doc` is the class `paintFrame`
+  // counts to know the slot has something in it.
   const firstCard = await page
-    .locator('.gly-rail .gly-card.gly-thread')
+    .locator('.gly-docslot .gly-card.gly-thread')
     .first()
     .innerText();
   check(
-    'it is the rail\u2019s first card, and its head names the anchor',
+    'and the row wears the slot\u2019s own pill class',
+    (await page.locator('.gly-docslot .gly-row.gly-row-doc').count()) === 1,
+  );
+  check(
+    'it is the whole-doc slot\u2019s first row, and its head names the anchor',
     /INSTRUCTION · WHOLE DOCUMENT ·/i.test(firstCard),
     firstCard,
   );
-  // THE FILED WORK IS STILL IN THE RAIL'S OWN FLOW, and this is the half of the
-  // old check that survived the ruling unchanged. `.gly-overall` is the list of
-  // whole-document instructions already written; it is live work, it belongs in
-  // the rail, and `position: static` is what says it is IN the map rather than
-  // floating over it. What left is the button and the box, not the cards.
+  // THE FILED WORK IS IN ITS SURFACE'S OWN FLOW, and this is the half of the
+  // old check that survived both rulings unchanged. `.gly-overall` is the list
+  // of whole-document instructions already written, and `position: static` is
+  // what says it is IN the surface rather than floating over it. What moved is
+  // WHICH surface: the rail's map, and now the sheet's own head.
   check(
-    'the filed whole-document instructions are in the rail, not floating over it',
+    'the filed whole-document instructions are in the slot’s flow, not floating over it',
     (await page.evaluate(
       () => getComputedStyle(document.querySelector('.gly-overall')).position,
     )) === 'static',
@@ -866,7 +917,7 @@ try {
       Math.round(c.getBoundingClientRect().top),
     ),
   );
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(400);
   const openState = await page.evaluate(() => {
@@ -919,7 +970,7 @@ try {
   await page.keyboard.press('Escape');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(200);
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.waitForTimeout(300);
   const deepBox = await page.evaluate(() => {
@@ -1324,7 +1375,7 @@ try {
   // nowhere to go once the round is sent — only FILED instructions travel. Open
   // it with a draft now; the check after the send below is that Revise closed
   // and discarded it. See verdict.ts postVerdict and cards.ts closeCapture.
-  await page.click(`.gly-bar button:text-is("${CAPTURE_LABEL}")`);
+  await page.click('.gly-docslot-add');
   await page.waitForSelector('.gly-capture:not([hidden])');
   await page.fill('.gly-overall-input', 'an unsent draft');
   check(
@@ -1345,7 +1396,9 @@ try {
     [...document.querySelectorAll('.gly-verdict-menu .gly-verdict-title')].map(
       (t) => {
         const tag = t.querySelector('.gly-verdict-tag');
-        return (tag ? t.textContent.slice(0, -tag.textContent.length) : t.textContent).trim();
+        return (
+          tag ? t.textContent.slice(0, -tag.textContent.length) : t.textContent
+        ).trim();
       },
     ),
   );
@@ -1923,13 +1976,20 @@ try {
     };
   });
   check(
-    'the rail does not move when the mode does — one top and one head height, draft and History alike',
+    // THE TOP IS STILL THE WHOLE CLAIM; THE HEAD IS HISTORY'S ALONE NOW.
+    // The draft rail's `.gly-rail-head` was `.gly-overall-head` — the
+    // whole-document panel's own — and Task 7 moved that panel to the sheet's
+    // whole-doc slot, so the draft rail has no head to compare. What the check
+    // exists for is unchanged and still asserted: the rail's TOP is one number
+    // in all three states, so switching mode never slides the map. History's
+    // two stages still have to agree with each other, which is where the 64px
+    // this was written red against actually lived.
+    'the rail does not move when the mode does — one top in all three, one head height across History',
     railTops.draft.rail === railTops.landing.rail &&
       railTops.draft.rail === railTops.reading.rail &&
-      railTops.draft.head === railTops.landing.head &&
-      railTops.draft.head === railTops.reading.head &&
-      railTops.draft.headH === railTops.landing.headH &&
-      railTops.draft.headH === railTops.reading.headH,
+      railTops.draft.head === null &&
+      railTops.landing.head === railTops.reading.head &&
+      railTops.landing.headH === railTops.reading.headH,
     JSON.stringify(railTops),
   );
   const view = await page.evaluate(

@@ -6469,13 +6469,22 @@ function bindsContentField(src) {
     // returning and a check that only looked for the new string would not see
     // it. `gly-overall-rail` stays: the instructions already FILED are still
     // the rail's, which is the half that never had to move.
+    // AND THEN INVERTED AGAIN, ONE STEP FURTHER ALONG THE SAME ARGUMENT
+    // (Task 7). The verb was `+ Instruction` in the BAR, because the bar was
+    // the only surface that was both document-level and reachable at any
+    // scroll position. The frame gives a third answer: the whole-doc SLOT, a
+    // dashed full-width row directly above the paper, which is document-level
+    // AND beside the thing it is about AND scrolls with it. So the string this
+    // asserted absent is the string it asserts present — the old rail HANDLE is
+    // still gone (`.gly-overall-toggle`, asserted absent), and what is here now
+    // is the slot's own row.
     check(
-      'capture is chrome, and the rail carries no handle of its own',
+      'capture is the sheet’s own slot, and the rail carries no handle of its own',
       src.includes('gly-capture') &&
-        src.includes('+ Instruction') &&
-        src.includes('gly-overall-rail') &&
+        src.includes('gly-docslot-add') &&
+        src.includes('+ instruction on the whole document') &&
         src.includes('add an instruction on the whole doc') &&
-        !src.includes('+ instruction on the whole document'),
+        !src.includes('gly-overall-toggle'),
     );
 
     // The trail: the ghost and the highlight. Written red-first against the
@@ -7305,8 +7314,8 @@ function bindsContentField(src) {
     // absent above. The verb carries no count, because the count is on the
     // primary and the cards are directly underneath it.
     check(
-      'the built bundle offers the whole-document instruction from the BAR',
-      src.includes('+ Instruction') &&
+      'the built bundle offers the whole-document instruction from the SLOT',
+      src.includes('gly-docslot-add') &&
         !src.includes('Whole-document instruction · '),
     );
     // §2.3: an instruction is editable. Both the verb and the endpoint it
@@ -7452,8 +7461,8 @@ function bindsContentField(src) {
     // left a check on that string green. What only this menu puts in the
     // bundle is its own rows and their classes, so those are what is read.
     check(
-      'the built bundle offers capture from the bar AND from a right-click',
-      src.includes('+ Instruction') &&
+      'the built bundle offers capture from the slot AND from a right-click',
+      src.includes('gly-docslot-add') &&
         src.includes('gly-menu-item') &&
         src.includes('gly-menu-detail') &&
         src.includes('Instruction on the whole document') &&
@@ -8333,85 +8342,295 @@ function bindsContentField(src) {
 
 // --- timeline.ts (pure) ---
 {
-  const { keyframesOf, scrubState, scrubLabel, appearOpacity } = await import('./timeline.ts');
-  const r = (n, reason, extra = {}) => ({ n, at: '2026-09-06T08:00:00Z', authors: 'you', reason, instruction: '', answers: 0, asked: '', changed: 0, ...extra });
-  const rounds = [r(1, 'opened'), r(2, 'revise'), r(3, 'landed', { answers: 1 }), r(4, 'could-not'), r(5, 'landed', { answers: 2 })];
+  const { keyframesOf, scrubState, scrubLabel, appearOpacity } =
+    await import('./timeline.ts');
+  const r = (n, reason, extra = {}) => ({
+    n,
+    at: '2026-09-06T08:00:00Z',
+    authors: 'you',
+    reason,
+    instruction: '',
+    answers: 0,
+    asked: '',
+    changed: 0,
+    ...extra,
+  });
+  const rounds = [
+    r(1, 'opened'),
+    r(2, 'revise'),
+    r(3, 'landed', { answers: 1 }),
+    r(4, 'could-not'),
+    r(5, 'landed', { answers: 2 }),
+  ];
   const k = keyframesOf(rounds, false);
-  check('keyframes: one per round, evenly spaced', k.length === 5 && k[0].left === 0 && k[2].left === 50 && k[4].left === 100, k);
-  check('keyframes: labels R1..Rn, head draft is hollow accent', k[0].label === 'R1' && k[4].label === 'R5 draft' && k[4].fill === 'none' && k[4].tone === 'accent', k[4]);
-  check('keyframes: a could-not round is hollow coral', k[3].fill === 'none' && k[3].tone === 'coral' && k[3].label === 'R4 · cannot', k[3]);
-  check('keyframes: sealed head fills', keyframesOf(rounds, true)[4].fill === 'accent' && keyframesOf(rounds, true)[4].label === 'R5');
-  check('keyframes: a single round sits at 0 and is the head', keyframesOf([r(1, 'opened')], false)[0].left === 0);
+  check(
+    'keyframes: one per round, evenly spaced',
+    k.length === 5 && k[0].left === 0 && k[2].left === 50 && k[4].left === 100,
+    k,
+  );
+  check(
+    'keyframes: labels R1..Rn, head draft is hollow accent',
+    k[0].label === 'R1' &&
+      k[4].label === 'R5 draft' &&
+      k[4].fill === 'none' &&
+      k[4].tone === 'accent',
+    k[4],
+  );
+  check(
+    'keyframes: a could-not round is hollow coral',
+    k[3].fill === 'none' &&
+      k[3].tone === 'coral' &&
+      k[3].label === 'R4 · cannot',
+    k[3],
+  );
+  check(
+    'keyframes: sealed head fills',
+    keyframesOf(rounds, true)[4].fill === 'accent' &&
+      keyframesOf(rounds, true)[4].label === 'R5',
+  );
+  check(
+    'keyframes: a single round sits at 0 and is the head',
+    keyframesOf([r(1, 'opened')], false)[0].left === 0,
+  );
   const s = scrubState(2.5, 5);
-  check('scrub: mid-way is fully faded', (s.near === 2 || s.near === 3) && s.frac === 0.5 && s.opacity === 0 && s.blur === 3 && !s.atHead, s);
+  check(
+    'scrub: mid-way is fully faded',
+    (s.near === 2 || s.near === 3) &&
+      s.frac === 0.5 &&
+      s.opacity === 0 &&
+      s.blur === 3 &&
+      !s.atHead,
+    s,
+  );
   const q = scrubState(2.1, 5);
-  check('scrub: a tenth off is 80% opaque, 0.6px blur', q.near === 2 && Math.abs(q.opacity - 0.8) < 1e-9 && Math.abs(q.blur - 0.6) < 1e-9, q);
-  check('scrub: the head is atHead and crisp', scrubState(5, 5).atHead && scrubState(5, 5).opacity === 1 && scrubState(4.995, 5).atHead);
-  check('scrub: t is clamped', scrubState(0, 5).near === 1 && scrubState(9, 5).near === 5);
-  check('label: head without revision', scrubLabel(4, 4, false) === 'v4 → draft');
-  check('label: head with revision', scrubLabel(5, 5, true) === 'v5 · agent revised');
+  check(
+    'scrub: a tenth off is 80% opaque, 0.6px blur',
+    q.near === 2 &&
+      Math.abs(q.opacity - 0.8) < 1e-9 &&
+      Math.abs(q.blur - 0.6) < 1e-9,
+    q,
+  );
+  check(
+    'scrub: the head is atHead and crisp',
+    scrubState(5, 5).atHead &&
+      scrubState(5, 5).opacity === 1 &&
+      scrubState(4.995, 5).atHead,
+  );
+  check(
+    'scrub: t is clamped',
+    scrubState(0, 5).near === 1 && scrubState(9, 5).near === 5,
+  );
+  check(
+    'label: head without revision',
+    scrubLabel(4, 4, false) === 'v4 → draft',
+  );
+  check(
+    'label: head with revision',
+    scrubLabel(5, 5, true) === 'v5 · agent revised',
+  );
   check('label: on a keyframe', scrubLabel(3, 5, true) === 'v3');
   check('label: between', scrubLabel(2.4, 5, true) === 'v2 → v3');
-  check('appear: a block born in v3 fades in over t∈[2,3]', appearOpacity(1, 3) === 0 && appearOpacity(2.5, 3) === 0.5 && appearOpacity(4, 3) === 1);
+  check(
+    'appear: a block born in v3 fades in over t∈[2,3]',
+    appearOpacity(1, 3) === 0 &&
+      appearOpacity(2.5, 3) === 0.5 &&
+      appearOpacity(4, 3) === 1,
+  );
 }
 
 // --- theme.ts ---
 {
-  const { readTheme, nextTheme, resolveTheme, themeLabel } = await import('./theme.ts');
-  check('readTheme: unknown/null falls back to system', readTheme(null) === 'system' && readTheme('bogus') === 'system');
-  check('readTheme: light and dark pass through', readTheme('light') === 'light' && readTheme('dark') === 'dark');
-  check('nextTheme cycles system → light → dark → system',
-    nextTheme('system') === 'light' && nextTheme('light') === 'dark' && nextTheme('dark') === 'system');
-  check('resolveTheme: system follows the browser', resolveTheme('system', true) === 'dark' && resolveTheme('system', false) === 'light');
-  check('resolveTheme: explicit choice ignores the browser', resolveTheme('light', true) === 'light' && resolveTheme('dark', false) === 'dark');
-  check('themeLabel: system reads auto', themeLabel('system') === 'auto' && themeLabel('dark') === 'dark');
+  const { readTheme, nextTheme, resolveTheme, themeLabel } =
+    await import('./theme.ts');
+  check(
+    'readTheme: unknown/null falls back to system',
+    readTheme(null) === 'system' && readTheme('bogus') === 'system',
+  );
+  check(
+    'readTheme: light and dark pass through',
+    readTheme('light') === 'light' && readTheme('dark') === 'dark',
+  );
+  check(
+    'nextTheme cycles system → light → dark → system',
+    nextTheme('system') === 'light' &&
+      nextTheme('light') === 'dark' &&
+      nextTheme('dark') === 'system',
+  );
+  check(
+    'resolveTheme: system follows the browser',
+    resolveTheme('system', true) === 'dark' &&
+      resolveTheme('system', false) === 'light',
+  );
+  check(
+    'resolveTheme: explicit choice ignores the browser',
+    resolveTheme('light', true) === 'light' &&
+      resolveTheme('dark', false) === 'dark',
+  );
+  check(
+    'themeLabel: system reads auto',
+    themeLabel('system') === 'auto' && themeLabel('dark') === 'dark',
+  );
 }
 
 // --- tokens: editor.css and edit.html declare the same :root, and the two light blocks agree ---
 {
   const fs = await import('node:fs');
   const css = fs.readFileSync(new URL('./editor.css', import.meta.url), 'utf8');
-  const html = fs.readFileSync(new URL('../internal/serve/edit.html', import.meta.url), 'utf8');
-  const tokens = (s) => [...s.matchAll(/--gly-[a-z0-9-]+(?=\s*:)/g)].map((m) => m[0]);
-  const rootOf = (s) => { const m = s.match(/:root\s*\{([\s\S]*?)\n\}/); return m ? m[1] : ''; };
-  const a = new Set(tokens(rootOf(css))), b = new Set(tokens(rootOf(html)));
-  const missing = [...a].filter((t) => !b.has(t)), extra = [...b].filter((t) => !a.has(t));
-  check('edit.html :root declares every editor.css :root token', missing.length === 0 && extra.length === 0, { missing, extra });
-  const light = (s) => { const m = s.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/); return m ? m[1].replace(/\s+/g, ' ').trim() : null; };
-  const auto = (s) => { const m = s.match(/@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-theme="dark"\]\)\s*\{([\s\S]*?)\n\s*\}/); return m ? m[1].replace(/\s+/g, ' ').trim() : null; };
-  check('the two light blocks in editor.css agree', light(css) !== null && light(css) === auto(css), { light: light(css), auto: auto(css) });
+  const html = fs.readFileSync(
+    new URL('../internal/serve/edit.html', import.meta.url),
+    'utf8',
+  );
+  const tokens = (s) =>
+    [...s.matchAll(/--gly-[a-z0-9-]+(?=\s*:)/g)].map((m) => m[0]);
+  const rootOf = (s) => {
+    const m = s.match(/:root\s*\{([\s\S]*?)\n\}/);
+    return m ? m[1] : '';
+  };
+  const a = new Set(tokens(rootOf(css))),
+    b = new Set(tokens(rootOf(html)));
+  const missing = [...a].filter((t) => !b.has(t)),
+    extra = [...b].filter((t) => !a.has(t));
+  check(
+    'edit.html :root declares every editor.css :root token',
+    missing.length === 0 && extra.length === 0,
+    { missing, extra },
+  );
+  const light = (s) => {
+    const m = s.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/);
+    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
+  };
+  const auto = (s) => {
+    const m = s.match(
+      /@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-theme="dark"\]\)\s*\{([\s\S]*?)\n\s*\}/,
+    );
+    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
+  };
+  check(
+    'the two light blocks in editor.css agree',
+    light(css) !== null && light(css) === auto(css),
+    { light: light(css), auto: auto(css) },
+  );
 }
 
 // --- phase.ts ---
 {
-  const { phaseOf, dotFor, trailSaid, eyebrowRight } = await import('./phase.ts');
-  const base = { sealed: false, running: false, waiting: false, handoff: false, cannot: '', landed: 0, pendingCount: 0, edits: 0 };
-  check('phase: sealed wins', phaseOf({ ...base, sealed: true, running: true }) === 'approved');
-  check('phase: running or waiting is revising', phaseOf({ ...base, running: true }) === 'revising' && phaseOf({ ...base, waiting: true }) === 'revising');
-  check('phase: cannot beats review', phaseOf({ ...base, cannot: 'no such file', landed: 3 }) === 'cannot');
-  check('phase: a landed round with nothing pending is review', phaseOf({ ...base, landed: 3 }) === 'review');
-  check('phase: a landed round with new instructions is markup again', phaseOf({ ...base, landed: 3, pendingCount: 1 }) === 'markup');
+  const { phaseOf, dotFor, trailSaid, eyebrowRight } =
+    await import('./phase.ts');
+  const base = {
+    sealed: false,
+    running: false,
+    waiting: false,
+    handoff: false,
+    cannot: '',
+    landed: 0,
+    pendingCount: 0,
+    edits: 0,
+  };
+  check(
+    'phase: sealed wins',
+    phaseOf({ ...base, sealed: true, running: true }) === 'approved',
+  );
+  check(
+    'phase: running or waiting is revising',
+    phaseOf({ ...base, running: true }) === 'revising' &&
+      phaseOf({ ...base, waiting: true }) === 'revising',
+  );
+  check(
+    'phase: cannot beats review',
+    phaseOf({ ...base, cannot: 'no such file', landed: 3 }) === 'cannot',
+  );
+  check(
+    'phase: a landed round with nothing pending is review',
+    phaseOf({ ...base, landed: 3 }) === 'review',
+  );
+  check(
+    'phase: a landed round with new instructions is markup again',
+    phaseOf({ ...base, landed: 3, pendingCount: 1 }) === 'markup',
+  );
   check('phase: default is markup', phaseOf(base) === 'markup');
-  check('dot: green idle, coral pending, accent for the agent', dotFor('markup', 0) === 'green' && dotFor('markup', 2) === 'coral' && dotFor('revising', 2) === 'accent' && dotFor('review', 0) === 'accent' && dotFor('cannot', 1) === 'coral' && dotFor('approved', 0) === 'accent');
+  check(
+    'dot: green idle, coral pending, accent for the agent',
+    dotFor('markup', 0) === 'green' &&
+      dotFor('markup', 2) === 'coral' &&
+      dotFor('revising', 2) === 'accent' &&
+      dotFor('review', 0) === 'accent' &&
+      dotFor('cannot', 1) === 'coral' &&
+      dotFor('approved', 0) === 'accent',
+  );
   check('trail: empty when nothing pending', trailSaid(0, 0) === '');
-  check('trail: singular and plural', trailSaid(1, 3) === '1 edit, 3 instructions →' && trailSaid(2, 1) === '2 edits, 1 instruction →');
-  check('eyebrow: draft, marked up, needs approval', eyebrowRight('markup', 0, 0).text === 'DRAFT' && eyebrowRight('markup', 1, 0).text === 'DRAFT · MARKED UP' && eyebrowRight('markup', 1, 0).tone === 'coral' && eyebrowRight('review', 0, 0).text === 'NEEDS YOUR APPROVAL' && eyebrowRight('revising', 1, 0).text === 'WITH THE AGENT' && eyebrowRight('cannot', 1, 0).text === 'UNCHANGED' && eyebrowRight('approved', 0, 0).text === 'SETTLED');
+  check(
+    'trail: singular and plural',
+    trailSaid(1, 3) === '1 edit, 3 instructions →' &&
+      trailSaid(2, 1) === '2 edits, 1 instruction →',
+  );
+  check(
+    'eyebrow: draft, marked up, needs approval',
+    eyebrowRight('markup', 0, 0).text === 'DRAFT' &&
+      eyebrowRight('markup', 1, 0).text === 'DRAFT · MARKED UP' &&
+      eyebrowRight('markup', 1, 0).tone === 'coral' &&
+      eyebrowRight('review', 0, 0).text === 'NEEDS YOUR APPROVAL' &&
+      eyebrowRight('revising', 1, 0).text === 'WITH THE AGENT' &&
+      eyebrowRight('cannot', 1, 0).text === 'UNCHANGED' &&
+      eyebrowRight('approved', 0, 0).text === 'SETTLED',
+  );
+}
+
+// --- frame.ts ---
+{
+  const { eyebrowLeft, WHOLE_DOC_LABEL, HELP_LINES } =
+    await import('./frame.ts');
+  check(
+    'eyebrow: working draft at head',
+    eyebrowLeft('markup', 5, 4, { atHead: true, near: 4 }) ===
+      'WORKING DRAFT · ROUND 5',
+  );
+  check(
+    'eyebrow: review at head',
+    eyebrowLeft('review', 5, 5, { atHead: true, near: 5 }) === 'ROUND 5 · V5',
+  );
+  check(
+    'eyebrow: viewing an old version',
+    eyebrowLeft('markup', 5, 4, { atHead: false, near: 2, at: 'yesterday' }) ===
+      'VIEWING V2 · YESTERDAY',
+  );
+  check(
+    "whole-doc label is the spec's",
+    WHOLE_DOC_LABEL === '+ instruction on the whole document',
+  );
+  check('help has the five gestures', HELP_LINES.length === 5);
 }
 
 // --- composer chips ---
 {
-  const { SUGGESTIONS, chipPrefill, headComposer } = await import('./composer.ts');
-  check('four suggestion chips', SUGGESTIONS.join('|') === 'tighter|more concrete|shorter|plainer language');
-  check('a chip prefills capitalised with an em dash', chipPrefill('plainer language') === 'Plainer language — ');
-  check('composer eyebrow quotes the selection', headComposer('a long, structured research document').startsWith('INSTRUCTION · ON "'));
+  const { SUGGESTIONS, chipPrefill, headComposer } =
+    await import('./composer.ts');
+  check(
+    'four suggestion chips',
+    SUGGESTIONS.join('|') === 'tighter|more concrete|shorter|plainer language',
+  );
+  check(
+    'a chip prefills capitalised with an em dash',
+    chipPrefill('plainer language') === 'Plainer language — ',
+  );
+  check(
+    'composer eyebrow quotes the selection',
+    headComposer('a long, structured research document').startsWith(
+      'INSTRUCTION · ON "',
+    ),
+  );
 }
 
 // --- verdict menu copy ---
 {
   const v = await import('./verdict.ts');
-  check('menu copy is the spec\'s', v.MENU_REVISE_EXPLAIN === 'Hand the document to the agent with everything pending.'
-    && v.MENU_TRUST_EXPLAIN === 'Approve only after the agent successfully applies them. Stays open on cannot.'
-    && v.MENU_TRUST_TAG === 'conditional');
+  check(
+    "menu copy is the spec's",
+    v.MENU_REVISE_EXPLAIN ===
+      'Hand the document to the agent with everything pending.' &&
+      v.MENU_TRUST_EXPLAIN ===
+        'Approve only after the agent successfully applies them. Stays open on cannot.' &&
+      v.MENU_TRUST_TAG === 'conditional',
+  );
 }
 
 process.exit(failures === 0 ? 0 : 1);

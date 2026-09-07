@@ -632,7 +632,11 @@ export const verdictMethods = {
     el.className = 'gly-verdict-menu';
     el.hidden = true;
     el.setAttribute('role', 'menu');
-    const revise = menuItem('gly-verdict-revise', MENU_REVISE, MENU_REVISE_EXPLAIN);
+    const revise = menuItem(
+      'gly-verdict-revise',
+      MENU_REVISE,
+      MENU_REVISE_EXPLAIN,
+    );
     revise.addEventListener('click', () => {
       this.closeVerdictMenu();
       this.postVerdict({}, false);
@@ -812,6 +816,10 @@ export const verdictMethods = {
           ? trailSaid(this.changes.length, this.pendingCount)
           : '';
     }
+    // THE EYEBROW READS THE SAME PHASE THIS METHOD JUST PAINTED THE PRIMARY
+    // FROM. Repainting it here rather than leaving it to the next poll is what
+    // keeps the two from disagreeing for a second about where the round is.
+    this.paintFrame();
   },
 
   // --- hold and release ---

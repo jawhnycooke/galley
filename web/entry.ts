@@ -144,6 +144,8 @@ import * as theme from './theme.ts';
 import { phase } from './phase.ts';
 import * as timeline from './timeline.ts';
 import type { TimelineUI } from './timeline.ts';
+import * as frame from './frame.ts';
+import type { FrameUI } from './frame.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
@@ -836,6 +838,7 @@ class App implements AppState {
   reviseTrail: HTMLSpanElement | null;
   scrubT: number;
   timeline: TimelineUI | null;
+  frame: FrameUI | null;
   verdictMenu: HTMLElement | null;
   reviseRunning: boolean;
   approveNotBefore: number;
@@ -1064,8 +1067,11 @@ class App implements AppState {
       },
     });
     this.versionsButton = this.makeVersionsButton();
-    // AFTER History, so the bar reads Instructions · History · + Instruction:
-    // the two doors to what already exists, and then the verb that makes one.
+    // THE FRAME BEFORE THE VERB THAT LIVES IN IT. makeFrame builds the eyebrow
+    // row, the whole-doc slot and the `?` sheet around the paper; the capture
+    // door is appended INTO that slot, so the slot has to exist first.
+    this.frame = null;
+    this.makeFrame();
     this.captureBtn = this.makeCaptureButton();
     // Paint the peer control's count on first load without opening History.
     // Fire-and-forget: this is the constructor, nothing is awaiting a
@@ -2459,6 +2465,14 @@ Object.assign(App.prototype, {
   scrubTo: timeline.scrubTo,
   scrubStep: timeline.scrubStep,
   scrubHome: timeline.scrubHome,
+});
+// The frame around the sheet — the eyebrow, the whole-doc slot, the could-not
+// banner and the `?` help — is its own module too — see web/frame.ts — mixed
+// in for the same reason. Only the DOM half; the pure `eyebrowLeft` above it
+// in that file is imported by name where needed.
+Object.assign(App.prototype, {
+  makeFrame: frame.makeFrame,
+  paintFrame: frame.paintFrame,
 });
 // The one derived phase — see web/phase.ts's own header for why it is never
 // stored.

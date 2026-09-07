@@ -174,6 +174,10 @@ export const pendingMethods = {
         if (arrived.length) {
           this.noticeArrivals(arrived);
         }
+        // LAST, BECAUSE IT COUNTS WHAT THE RAIL JUST DREW. The eyebrow's right
+        // half is the pending count and the slot's empty line is asked whether
+        // any whole-doc row exists — both are answers about the paint above.
+        this.paintFrame();
       })
       .catch(() => {});
   },

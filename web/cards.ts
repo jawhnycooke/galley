@@ -42,6 +42,7 @@ import {
   changeLine,
   AUTHOR,
 } from './rail.ts';
+import { WHOLE_DOC_PLACEHOLDER } from './frame.ts';
 import type { AppShell, Thread, ThreadEntry, Placement } from './appshell.ts';
 import type { ReviewerChange } from './wire';
 import type { EditorView } from '@tiptap/pm/view';
@@ -432,10 +433,22 @@ export const cardMethods = {
   // The document-anchored threads are its entries and are taken out of the
   // rail's own list (see railThreads) — a note about the whole file rendered in
   // both places is R9's two-objects complaint arriving through a new surface.
+  // AND THE FILED THREADS LEFT THE RAIL TOO, WHICH IS THE OTHER HALF OF THE
+  // SAME MOVE. The verb went to the frame's whole-doc slot (history.ts); a
+  // list of instructions about the document is about the document, so it goes
+  // where the verb that makes it is — directly above the paper, in the slot,
+  // with the dashed `+` row kept last so the way to make another is always at
+  // the foot of the ones already made.
   paintOverall(this: AppShell) {
     if (!this.overall) {
       this.overall = this.makeOverallCard();
-      this.rail.root.insertBefore(this.overall.root, this.rail.band);
+    }
+    const slot = this.frame?.slot;
+    if (slot && this.overall.root.parentElement !== slot) {
+      slot.appendChild(this.overall.root);
+      if (this.captureBtn) {
+        slot.appendChild(this.captureBtn);
+      }
     }
     // Captured once, so the rest of this method reads a narrowed local
     // rather than re-reading the optional `this.overall` field after the
@@ -472,13 +485,15 @@ export const cardMethods = {
       // is the one thread that genuinely has no coordinates, so it gets no
       // light — there is nothing for a note about the whole file to light, and
       // the panel is not beside the prose in the first place.
-      list.appendChild(
-        this.threadCard(thread, {
-          where: 'anchorless',
-          index: -1,
-          region: null,
-        }),
-      );
+      const row = this.threadCard(thread, {
+        where: 'anchorless',
+        index: -1,
+        region: null,
+      });
+      // `.gly-row-doc` is the slot's own pill, and `paintFrame` counts these
+      // to decide whether the slot still needs its empty line.
+      row.classList.add('gly-row', 'gly-row-doc');
+      list.appendChild(row);
     }
   },
 
@@ -552,13 +567,11 @@ export const cardMethods = {
     if (overall && capture.root.parentElement !== overall.inner) {
       overall.inner.insertBefore(capture.root, overall.entries);
     }
-    // The rail is the surface this card lives on, and `paintSurfaces` hides the
-    // rail below the breakpoint and while History is open. Opening a card into
-    // a hidden column would be a control that reports success and shows
-    // nothing; the bar's own button is disabled in the same states (see
-    // paintCaptureVerb) so this is the second half of one rule rather than a
-    // silent return.
-    if (this.rail.root.hidden) {
+    // The frame's whole-doc slot is the surface this card lives on now. A
+    // shell that built no frame (no `.ProseMirror`) has nowhere to open it,
+    // and a control that reports success and shows nothing is the defect the
+    // rail-hidden guard this replaces existed to prevent.
+    if (!this.frame) {
       return;
     }
     capture.note.textContent = '';
@@ -568,6 +581,11 @@ export const cardMethods = {
     // the height the LAST instruction grew it to. See growOnInput.
     capture.input.dispatchEvent(new Event('input'));
     capture.root.hidden = false;
+    // WHILE SOMEBODY IS WRITING ABOUT THE WHOLE DOCUMENT, THE DOCUMENT RECEDES.
+    // The selection composer dims every block but the one it is about; this
+    // instruction is about all of them, so it dims all of them. Paint only —
+    // opacity takes no space, so nothing under the cursor moves.
+    document.body.classList.toggle('gly-doc-composing', true);
     // The card just entered the flow and pushed the band down; the anchored
     // cards have to re-floor on their marks. paintAnchors re-reads the band's
     // top per pass, so one repaint is the whole of it — the repaint the old
@@ -577,6 +595,10 @@ export const cardMethods = {
   },
 
   closeCapture(this: AppShell) {
+    // The class is cleared whether or not the card was ever built: closeCapture
+    // is reached from Esc, from entering History and from a landed verdict, and
+    // a dimmed document with no composer over it is unreadable.
+    document.body.classList.toggle('gly-doc-composing', false);
     if (!this.capture) {
       return;
     }
@@ -601,12 +623,16 @@ export const cardMethods = {
     root.className = 'gly-capture gly-card';
     root.hidden = true;
 
-    // The same head the card that appears a moment later will wear, so the
-    // thing being made and the thing that appears are recognisably one object —
-    // the rule `headComposer` already follows on the passage composer.
-    const head = document.createElement('div');
-    head.className = 'gly-card-head gly-capture-head';
-    head.textContent = 'INSTRUCTION · WHOLE DOCUMENT';
+    // THE PREFIX THE PINNED ROW WEARS, so the thing being made and the thing
+    // that appears are recognisably one object — the rule `headComposer`
+    // already follows on the passage composer. It said `INSTRUCTION · WHOLE
+    // DOCUMENT` on its own line while this was a card in the rail among cards
+    // that each had to name their own scope; in the whole-doc slot the scope
+    // is the slot, so it is `whole doc ↳` in front of the box instead — the
+    // same mark the filed rows carry.
+    const head = document.createElement('span');
+    head.className = 'gly-capture-head';
+    head.textContent = 'whole doc ↳';
 
     const form = document.createElement('form');
     form.className = 'gly-overall-form';
@@ -623,8 +649,8 @@ export const cardMethods = {
     const input = document.createElement('textarea');
     input.className = 'gly-overall-input';
     input.rows = 2;
-    // §11 fixes this string verbatim.
-    input.placeholder = 'add an instruction on the whole doc…';
+    // §11 fixes this string verbatim; it is the slot's own constant now.
+    input.placeholder = WHOLE_DOC_PLACEHOLDER;
     growOnInput(input);
     // The card is in the whole-document panel's flow now, so its height is the
     // band's top: every keystroke that grows or shrinks it moves the anchored
@@ -632,7 +658,7 @@ export const cardMethods = {
     // the same `input`; scheduleAnchors is coalesced, so pairing them here is
     // one repaint per frame, not one per character. See openCapture.
     input.addEventListener('input', () => this.scheduleAnchors());
-    form.appendChild(input);
+    form.append(head, input);
 
     const note = document.createElement('div');
     note.className = 'gly-card-note';
@@ -682,7 +708,12 @@ export const cardMethods = {
       // genuinely unwritable and vanishingly rare, it earns a refusal, not a
       // silent rewrite.
       const text = input.value.replace(/\s*\n\s*/g, ' ').trim();
+      // AN EMPTY PIN IS A CANCEL, not a no-op. The box used to swallow the
+      // press and sit there, which reads as a control that did not work; the
+      // reviewer who pins nothing has decided not to write one, and the slot
+      // takes that as the answer it is.
       if (!text) {
+        this.closeCapture();
         return;
       }
       input.disabled = true;
@@ -732,12 +763,25 @@ export const cardMethods = {
         });
     };
     submitOnEnter(input, fileNote);
+    // THE KEY IS ON THE BUTTON'S FACE. Enter has filed this box since it was a
+    // rail card and still does; what it never did was say so, and a surface
+    // whose only way out is a key nobody was told about is the argument
+    // `cancel` above already makes. `↵ pin` is one control naming the gesture
+    // and offering itself, and it is built after `fileNote` because it is the
+    // second way in to that one write rather than a second write.
+    const pin = document.createElement('button');
+    pin.type = 'button';
+    pin.className = 'gly-capture-pin';
+    pin.textContent = '↵ pin';
+    pin.addEventListener('click', () => fileNote());
+    actions.prepend(pin);
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       fileNote();
     });
 
-    root.append(head, form, actions, note);
+    // `head` is inside the form now — it is the box's prefix, not a card head.
+    root.append(form, actions, note);
     return { root, head, form, input, note, cancel };
   },
 

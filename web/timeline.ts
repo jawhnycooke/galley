@@ -3,8 +3,20 @@
 // The pure half is here and probed; the mixin (Task 6) owns the DOM.
 import type { RoundView } from './wire.d.ts';
 
-export interface Keyframe { n: number; left: number; label: string; fill: 'none' | 'accent' | 'grey'; tone: 'muted' | 'accent' | 'coral' }
-export interface Scrub { near: number; frac: number; opacity: number; blur: number; atHead: boolean }
+export interface Keyframe {
+  n: number;
+  left: number;
+  label: string;
+  fill: 'none' | 'accent' | 'grey';
+  tone: 'muted' | 'accent' | 'coral';
+}
+export interface Scrub {
+  near: number;
+  frac: number;
+  opacity: number;
+  blur: number;
+  atHead: boolean;
+}
 
 export const REASON_COULD_NOT = 'could-not';
 export const REASON_LANDED = 'landed';
@@ -20,9 +32,25 @@ export function keyframesOf(rounds: RoundView[], sealed: boolean): Keyframe[] {
     let label = `R${r.n}`;
     if (cannot) label += ' · cannot';
     else if (head && revised && !sealed) label += ' draft';
-    const tone: Keyframe['tone'] = cannot ? 'coral' : head && (revised || sealed) ? 'accent' : 'muted';
-    const fill: Keyframe['fill'] = cannot ? 'none' : head && revised && !sealed ? 'none' : head && sealed ? 'accent' : 'grey';
-    return { n, left: max === 1 ? 0 : ((n - 1) / (max - 1)) * 100, label, fill, tone };
+    const tone: Keyframe['tone'] = cannot
+      ? 'coral'
+      : head && (revised || sealed)
+        ? 'accent'
+        : 'muted';
+    const fill: Keyframe['fill'] = cannot
+      ? 'none'
+      : head && revised && !sealed
+        ? 'none'
+        : head && sealed
+          ? 'accent'
+          : 'grey';
+    return {
+      n,
+      left: max === 1 ? 0 : ((n - 1) / (max - 1)) * 100,
+      label,
+      fill,
+      tone,
+    };
   });
 }
 
@@ -31,12 +59,23 @@ export function scrubState(t: number, max: number): Scrub {
   const near = Math.round(c);
   const frac = Math.abs(c - near);
   const opacity = 1 - Math.min(frac * 2, 1);
-  return { near, frac, opacity, blur: (1 - opacity) * 3, atHead: c >= max - HEAD_EPS };
+  return {
+    near,
+    frac,
+    opacity,
+    blur: (1 - opacity) * 3,
+    atHead: c >= max - HEAD_EPS,
+  };
 }
 
-export function scrubLabel(t: number, max: number, headRevised: boolean): string {
+export function scrubLabel(
+  t: number,
+  max: number,
+  headRevised: boolean,
+): string {
   const s = scrubState(t, max);
-  if (s.atHead) return headRevised ? `v${max} · agent revised` : `v${max} → draft`;
+  if (s.atHead)
+    return headRevised ? `v${max} · agent revised` : `v${max} → draft`;
   if (s.frac < 0.02) return `v${s.near}`;
   return `v${Math.floor(t)} → v${Math.ceil(t)}`;
 }
@@ -243,7 +282,7 @@ export function scrubTo(this: AppShell, t: number): void {
     }
     document.body.classList.remove('gly-scrubbing');
     this.paintTimeline();
-    this.paintFrame?.();
+    this.paintFrame();
     return;
   }
   if (!this.versionsPanel.open) {
@@ -292,7 +331,7 @@ export function scrubTo(this: AppShell, t: number): void {
   pb.style.filter = `blur(${((1 - f) * 3).toFixed(1)}px)`;
   pb.hidden = hi === lo;
   this.paintTimeline();
-  this.paintFrame?.();
+  this.paintFrame();
 }
 
 export function scrubStep(this: AppShell, delta: -1 | 1): void {

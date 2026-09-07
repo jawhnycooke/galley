@@ -34,17 +34,19 @@ import {
   VERSIONS_NAME,
 } from './versions.ts';
 import type { AppShell, ReviseView } from './appshell.ts';
-import { forgetVersionHTML } from './timeline.ts';
+import { forgetVersionHTML, scrubState } from './timeline.ts';
+import { WHOLE_DOC_LABEL } from './frame.ts';
 
-// CAPTURE_LABEL is the bar's visible door to writing an instruction about the
-// document as a whole. It names the object galley makes — `Instruction`, the
-// same noun the card says and the composer's own button says — with a `+` for
-// the one thing the noun cannot say by itself, which is that pressing this
-// makes a new one.
+// CAPTURE_LABEL is the visible door to writing an instruction about the
+// document as a whole. It said `+ Instruction` while the door was a chip in
+// the bar and had a bar's width to live inside; the door is the dashed
+// full-width row at the head of the sheet now (the whole-doc slot), which has
+// the room to name its scope outright — so the label IS the slot's label, one
+// string, imported rather than copied.
 //
 // It never changes on its own click — see makeCaptureButton — so it cannot
 // slide its neighbours out from under the cursor that pressed it.
-export const CAPTURE_LABEL = '+ Instruction';
+export const CAPTURE_LABEL = WHOLE_DOC_LABEL;
 
 export const historyMethods = {
   // --- the rounds ---
@@ -108,33 +110,28 @@ export const historyMethods = {
   // second thing in a region whose whole claim is that it holds one thing, and
   // the gate said so in four checks at once.
   //
-  // So it is a control among the controls, upstream of every readout. That is
-  // also what protects it: the readout after it changes width whenever the
-  // server says something — `revision requested` was measured sliding three
-  // controls 140.89px — and everything before it is out of that arithmetic.
-  // Placing it after the spacer, beside Revise, would have been downstream of
-  // exactly that, and Revise's own label counts seconds.
+  // AND THEN IT LEFT THE BAR ALTOGETHER, WHICH IS THE SAME ARGUMENT ARRIVING
+  // AT ITS END. Everything above is about where in the bar a verb about the
+  // WHOLE DOCUMENT could stand without moving its neighbours; the answer the
+  // frame gives is that it does not belong in a strip of chrome at all. It is
+  // the head of the sheet now — a dashed full-width row in `.gly-docslot`,
+  // directly above the paper it is about, where the instructions it makes are
+  // also filed. Reachability is the frame's (the slot scrolls with the sheet
+  // the reviewer is reading), and the bar's motion arithmetic no longer has
+  // this control in it at all, which is stronger than placing it carefully
+  // inside that arithmetic.
   makeCaptureButton(this: AppShell): HTMLButtonElement {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'gly-capture-open';
+    b.className = 'gly-capture-open gly-docslot-add';
     b.textContent = CAPTURE_LABEL;
     b.setAttribute('aria-label', 'add an instruction on the whole document');
     b.addEventListener('click', () => this.openCapture());
-    const bar = document.querySelector('.gly-bar');
-    // The strip itself is the anchor, so the verb and the doors are ordered by
-    // one fact rather than by which constructor happened to run first. Falling
-    // back to the readout keeps it upstream of the flexible cell on a shell
-    // that somehow has no census.
-    const anchor =
-      document.querySelector('.gly-census') ||
-      document.getElementById('gly-status') ||
-      document.querySelector('.gly-spacer');
-    if (bar && anchor) {
-      bar.insertBefore(b, anchor);
-    } else if (bar) {
-      bar.appendChild(b);
-    }
+    // makeFrame runs before this in init(), so the slot is there. A shell with
+    // no `.ProseMirror` builds no frame; the button is still made and wired,
+    // it simply has nowhere to hang — the same tolerance every other surface
+    // here has for a page that never got a document.
+    this.frame?.slot.appendChild(b);
     return b;
   },
 
@@ -143,18 +140,22 @@ export const historyMethods = {
   // neighbour, which is the defect this bar records more than any other. The
   // space is reserved and the control is dimmed in place.
   //
-  // The states it is dead in are the states its card has nowhere to land — the
-  // capture card is the rail's, and `paintSurfaces` hides the rail below the
-  // breakpoint and while History is open. `menuItems` omits the matching row in
-  // exactly the same states; the two are one rule, asked twice.
+  // THE STATES IT IS DEAD IN ARE THE STATES THE DOCUMENT CANNOT BE WRITTEN ON.
+  // It used to be `this.rail.root.hidden` — the card lived in the rail, so the
+  // verb followed the rail's own visibility. The card is in the frame's
+  // whole-doc slot now, which is on screen at every width, so that test says
+  // nothing about this control any more. What is left is the two states where
+  // there is no instruction to make: a sealed review, and reading an earlier
+  // version off the scrubber, where the page is a record rather than a draft.
   paintCaptureVerb(this: AppShell) {
     if (!this.captureBtn) {
       return;
     }
-    const dead = this.rail.root.hidden || !!this.sealed;
+    const dead =
+      !!this.sealed || !scrubState(this.scrubT, this.scrubMax()).atHead;
     this.captureBtn.disabled = dead;
     this.captureBtn.title = dead
-      ? 'instructions are written in the rail — it is not on screen here'
+      ? 'this is a version being read, not the draft being written'
       : 'write an instruction about the document as a whole';
   },
 

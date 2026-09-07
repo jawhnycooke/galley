@@ -4151,3 +4151,29 @@ main { padding-bottom: 220px; }
 .gly-verdict-tag { color: var(--gly-accent); font: 11px var(--gly-mono); }
 .gly-verdict-explain { display: block; color: var(--gly-muted); font-size: 12.5px; margin-top: 2px; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* --- the frame around the sheet (web/frame.ts) ---
+
+   The eyebrow row that says where the round stands, the whole-document slot,
+   the could-not banner and the `?` help sheet. It is INSERTED BEFORE THE PAPER
+   inside #editor, so it takes the paper's own column and scrolls with it —
+   which is what makes the whole-doc verb reachable at any scroll position
+   without the bar's stickiness doing it. */
+.gly-frame { max-width: 760px; margin: 36px auto 0; }
+.gly-eyebrow { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; font: 11px var(--gly-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--gly-muted); }
+.gly-eyebrow > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gly-eyebrow > span[data-tone="coral"] { color: var(--gly-coral); }
+.gly-eyebrow > span[data-tone="accent"] { color: var(--gly-accent); }
+.gly-help-open { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gly-line); background: transparent; color: var(--gly-muted); font: 11px var(--gly-mono); cursor: pointer; }
+.gly-help { background: var(--gly-panel-bg); border: 1px solid var(--gly-line); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font: 13px/1.5 var(--gly-sans); color: var(--gly-muted2); }
+.gly-help p { margin: 0 0 4px; }
+.gly-docslot { margin-bottom: 12px; }
+.gly-docslot.is-off { display: none; }
+.gly-docslot-empty { font: 13px/1.5 var(--gly-sans); color: var(--gly-muted); margin-bottom: 8px; }
+.gly-docslot-add { display: block; width: 100%; text-align: left; background: transparent; border: 1px dashed var(--gly-line); color: var(--gly-muted); border-radius: 8px; padding: 8px 12px; font: 13px var(--gly-sans); cursor: pointer; }
+.gly-docslot-add:hover { border-color: var(--gly-accent); color: var(--gly-accent); }
+.gly-row-doc { display: flex; align-items: center; gap: 10px; font: 14px var(--gly-sans); color: var(--gly-fg); background: var(--gly-panel-bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; animation: rise .25s ease; }
+/* An instruction about the whole document is about all of it, so all of it
+   recedes while one is being written — the selection composer's own dimming,
+   asked on the other scope. Paint only: opacity takes no space. */
+body.gly-doc-composing .ProseMirror > * { opacity: .35; transition: opacity .3s; }
