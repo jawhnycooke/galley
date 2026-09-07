@@ -38,19 +38,16 @@ import {
   railThreads,
   threadPlacement,
   unplacedSaid,
-  changesSaid,
-  changeLine,
   AUTHOR,
 } from './rail.ts';
 import { WHOLE_DOC_PLACEHOLDER } from './frame.ts';
 import type { AppShell, Thread, ThreadEntry, Placement } from './appshell.ts';
-import type { ReviewerChange } from './wire';
 import type { EditorView } from '@tiptap/pm/view';
 
 // A BLOCK-ANCHORED INSTRUCTION IS PINNED UNDER ITS BLOCK, NOT BESIDE IT — see
 // web/rows.ts, where the same thread is drawn as a widget decoration after the
 // block it is about. The rail keeps the ANCHORLESS ones and the MARK-anchored
-// ones (and the reviewer's own edits): a row carries the instruction's text and
+// ones: a row carries the instruction's text and
 // one verb, `×`, and a mark-anchored instruction is the one a reviewer revises
 // in place — `edit` at settle weight, `delete` at destroy weight — which only
 // the card offers.
@@ -64,12 +61,6 @@ const DELETE_ARM_MS = 4000;
 // path clears it only if it is still this sentence — an error message written
 // there in the meantime is the reviewer's business, not ours to wipe.
 const DELETE_ARM_NOTE = 'this removes the comment and its mark — click again';
-// REVERT DISCARDS WORK, so it arms like the two other verbs that do — delete
-// and restore. It is the same primitive and the same reserved cell, because a
-// button whose label changes on its own click slides its neighbours out from
-// under the cursor that pressed it.
-const REVERT_ARM_NOTE =
-  'this puts the words back and drops your undo history — click again';
 
 // makeOverallCard's return shape — the whole-document instructions already
 // filed. Named and exported here (its owning file) so appshell.ts can type
@@ -137,37 +128,15 @@ function heldArrivalsNotice(held: number): HTMLElement {
   return holding;
 }
 
-// changeCard is one edit the REVIEWER made by hand, as it will reach the agent.
-//
-// It is not a thread and must not become one — `threadCard` reads
-// `thread.resolved`/`run`/`outcome` and builds the edit and delete verbs, and a
-// change is none of those. What is shared is the ANATOMY (`cardShell`,
-// `cardBody`), which is the split this codebase already draws between the two.
-//
-// THE QUOTE IS DRAWN IN THE REMOVAL VOCABULARY THE PROSE ALREADY USES: removed
-// text is `--gly-del`, DOTTED and with no wash, which is the outgoing-and-not-
-// yet-sent shape the ghosts carry. A settled diff in History is the same colour
-// SOLID on the del wash. Colour says what happened to the text; shape says
-// whether it has happened yet, and this has not been sent.
-// changesSection is the reviewer's own edits, in the rail, under one heading.
-//
-// THEY ARE NOT ANCHORED BESIDE THEIR TEXT YET, and that is a stated limit
-// rather than an oversight. An added or changed passage could be found in the
-// prose and pointed at; a REMOVED one has no place by construction — the words
-// are gone, which is the whole reason the ghost is a widget decoration rather
-// than a mark. Anchoring the two halves differently is a second placement rule,
-// and the rail already paid for one of those. Until they are placed, they sit
-// together at the foot of the map, which is where this rail already puts
-// everything with nowhere to be.
-function changesSection(cards: HTMLElement[]): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'gly-rail-changes';
-  const head = document.createElement('div');
-  head.className = 'gly-rail-changes-head';
-  head.textContent = changesSaid(cards.length);
-  section.append(head, ...cards);
-  return section;
-}
+// changeCard AND changesSection ARE DELETED, and with them the rail's
+// `.gly-rail-changes` list of the reviewer's own edits. A HAND EDIT HAS NO CARD:
+// 02-states-and-behavior.md §1 gives it page-only ghost and insertion marks,
+// cleared on send, and ONE count — the footer trail's `{E} edit(s), {I}
+// instruction(s) →` (verdict.ts, trailSaid). A second surface listing the same
+// edits beside the prose that already shows them is the "one instruction, two
+// surfaces" defect this branch spent Task 9 removing, in the other direction.
+// Targeted revert survives where the spec puts it: `× revert` on the ghost
+// itself (pending.ts, makeRevertFloat) through the same `revertChange` below.
 
 function unplacedSection(unplaced: HTMLElement[]): HTMLElement {
   const section = document.createElement('section');
@@ -224,10 +193,11 @@ function lostAnchorLine(heading: string): HTMLElement {
 }
 
 // revertChange asks the server to put one reviewer edit back. It is a free
-// function and not a method because it has TWO callers that are not the same
-// surface — revertButton's armed pill in the rail (below) and the floating
-// `× revert` over a deletion ghost (pending.ts) — and the server's refusal
-// sentence must read the same from both. One rule, one place.
+// function and not a method because it is called from another file: the
+// floating `× revert` over a deletion ghost (pending.ts), which is the one
+// surface a hand edit has now that the rail's change card is gone. It stays a
+// free function so that surface, and any later one, share the server's refusal
+// sentence rather than each keeping a copy of it.
 export function revertChange(app: AppShell, key: string): Promise<void> {
   return postJSON('/_galley/revert', { key }).then((res) => {
     if (res.ok) {
@@ -856,13 +826,13 @@ export const cardMethods = {
     // The empty state offers the teach card — *select any words to ask for a
     // change* — which is the right thing to say to a reviewer who has done
     // nothing, and the wrong thing to say to one who has just deleted a
-    // paragraph: their edit IS in the round, it IS what Revise will send, and
-    // the rail would have answered by telling them how to begin.
-    const changeCards = this.changes.map((c) => this.changeCard(c));
+    // paragraph: their edit IS in the round and it IS what Revise will send.
+    // The edits have no cards any more (see changeCard's epitaph above) and the
+    // count is still read from the round, not from the rail's contents.
     if (
       census.pending === 0 &&
       census.threads === 0 &&
-      changeCards.length === 0
+      this.changes.length === 0
     ) {
       // AND IT IS ALREADY IN CARD SPACE, WHICH IS WHY IT IS NOT MOVED INTO THE
       // BAND. It reads like a third band stacked above the map — head, band,
@@ -902,16 +872,6 @@ export const cardMethods = {
 
     if (unplaced.length > 0) {
       notice.appendChild(unplacedSection(unplaced));
-    }
-
-    // THE OTHER HALF OF THE ROUND. The rail is the list of what pressing Revise
-    // will send, and the reviewer's own edits are sent — that is what the
-    // round's `changes` carry, and without them an agent rewrites the
-    // reviewer's deletions back into the document. They had no surface at all;
-    // a second list was proposed and rejected, because the first one was simply
-    // missing half its contents.
-    if (changeCards.length > 0) {
-      notice.appendChild(changesSection(changeCards));
     }
   },
 
@@ -984,115 +944,6 @@ export const cardMethods = {
   //
   // The overall card passes 'anchorless' too: its threads are about the whole file,
   // which is the one anchor with no coordinates at all.
-  // changeCard is one edit the REVIEWER made by hand, as it will reach the
-  // agent, with the one verb that makes sense on it.
-  //
-  // It is not a thread and must not become one — `threadCard` reads
-  // `thread.resolved`/`run`/`outcome` and builds the edit and delete verbs, and
-  // a change is none of those. What is shared is the ANATOMY (`cardShell`,
-  // `cardBody`), which is the split this codebase already draws.
-  //
-  // THE QUOTE IS DRAWN IN THE REMOVAL VOCABULARY THE PROSE ALREADY USES:
-  // removed text in `--gly-del`, DOTTED and with no wash, which is the
-  // outgoing-and-not-yet-sent shape the ghosts carry. A settled diff in History
-  // is the same colour SOLID on the del wash. Colour says what happened to the
-  // text; shape says whether it has happened yet, and this has not been sent.
-  changeCard(this: AppShell, change: ReviewerChange): HTMLElement {
-    const { el, head } = cardShell('gly-change');
-    el.dataset.kind = change.kind;
-    el.dataset.key = change.key || '';
-    head.textContent = changeLine(change.kind);
-    const body = cardBody(el);
-    if (change.before) {
-      const gone = document.createElement('span');
-      gone.className = 'gly-change-before';
-      gone.textContent = change.before;
-      body.appendChild(gone);
-    }
-    if (change.before && change.after) {
-      body.appendChild(document.createTextNode(' '));
-    }
-    if (change.after) {
-      const now = document.createElement('span');
-      now.className = 'gly-change-after';
-      now.textContent = change.after;
-      body.appendChild(now);
-    }
-    const note = document.createElement('div');
-    note.className = 'gly-card-note';
-    el.appendChild(note);
-    if (change.key) {
-      const verbs = document.createElement('div');
-      verbs.className = 'gly-card-verbs';
-      verbs.appendChild(this.revertButton(change, note));
-      el.appendChild(verbs);
-    }
-    return el;
-  },
-
-  // revertButton is TARGETED UNDO, and that is why it exists beside a working
-  // Cmd-Z. Undo is SEQUENTIAL — it walks back through what you did, most recent
-  // first. This puts back the paragraph you deleted three edits ago and keeps
-  // the two you made after it, which is what Word's Reject does and what undo
-  // cannot do at any price.
-  //
-  // It arms in two steps like delete and restore, because it discards work, and
-  // both labels live in one reserved cell so pressing it cannot slide its
-  // neighbours. The armed flag is on the APP keyed by the change's stable key,
-  // not in this closure: `paintRail` destroys and rebuilds every card, so the
-  // button this handler holds is detached by the time a real mouse click runs
-  // it — a real click blurs the editor first, and that blur repaints the rail.
-  revertButton(
-    this: AppShell,
-    change: ReviewerChange,
-    note: HTMLElement,
-  ): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'gly-change-revert';
-    const rest = document.createElement('span');
-    rest.textContent = 'revert';
-    const armedLabel = document.createElement('span');
-    armedLabel.textContent = 'revert?';
-    b.append(rest, armedLabel);
-    b.title = 'put these words back as they were in the last round';
-    const key = change.key || '';
-    const paintLabel = (armed: boolean) => {
-      rest.classList.toggle('gly-reserved', armed);
-      armedLabel.classList.toggle('gly-reserved', !armed);
-    };
-    const armedNow = () =>
-      this.armedRevert === key &&
-      Date.now() - this.armedRevertAt < DELETE_ARM_MS;
-    paintLabel(armedNow());
-    if (armedNow()) {
-      b.classList.add('gly-armed');
-      note.textContent = REVERT_ARM_NOTE;
-    }
-    b.addEventListener('click', () => {
-      if (!armedNow()) {
-        this.armedRevert = key;
-        this.armedRevertAt = Date.now();
-        const at = this.armedRevertAt;
-        // Repainted from app state and unconditionally — see deleteButton,
-        // where a repaint guarded on the state it was expiring was dead code
-        // and left a button reading `delete?` that did not delete.
-        window.setTimeout(() => {
-          if (this.armedRevert !== key || this.armedRevertAt !== at) {
-            return;
-          }
-          this.armedRevert = null;
-          this.paintRail();
-        }, DELETE_ARM_MS);
-        this.paintRail();
-        return;
-      }
-      this.armedRevert = null;
-      void revertChange(this, key);
-    });
-    return b;
-  },
-
   threadCard(this: AppShell, thread: Thread, place: Placement): HTMLElement {
     // `place || {...}` is a dead fallback now — `Placement` is never
     // null/undefined per this method's own signature, and every call site

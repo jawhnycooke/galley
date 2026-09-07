@@ -1130,25 +1130,23 @@ console.log('\n--- §1d · the bar has one readout ---');
     sheetChanged: document.querySelectorAll(
       '.gly-sheet-changed, .gly-changed-list',
     ).length,
-    // THE LOG'S OWN ROWS, AND `.gly-change` IS NO LONGER ONE OF THEM.
+    // THE LOG'S OWN ROWS, AND `.gly-change` IS STILL ONE OF THEM.
     //
-    // This counted `.gly-change` as well, and it read 1. That element is not
-    // the deleted log: `changeCard` (cards.ts:1000) draws ONE EDIT THE REVIEWER
-    // MADE BY HAND as it will reach the agent, and `paintRailCards` files those
-    // under `.gly-rail-changes` — the other half of the ROUND, added
-    // deliberately (a second list was proposed and rejected, because the
-    // round's contents were simply missing the reviewer's own edits; without
-    // them an agent rewrites the reviewer's deletions back into the document).
-    // A round is an outgoing message about what is to be done; a log is a
-    // history of what already happened, and the history is what this check
-    // asserts gone. So the class the round reused comes out of the count and
-    // the log's own names are what is read. `.gly-change-adrift` stays: nothing
-    // builds it, it is the one of these the log alone ever wrote, and it is
-    // what would come back with the rows.
-    rows: document.querySelectorAll('.gly-change-adrift').length,
+    // This read 1 for a pass, and the fix taken then was to stop counting
+    // `.gly-change` — `changeCard` drew ONE EDIT THE REVIEWER MADE BY HAND and
+    // `paintRailCards` filed those under `.gly-rail-changes`, so the class was
+    // held to belong to the ROUND rather than to the log. That narrowed the
+    // check to cover the surface that was there instead of the surface the spec
+    // has, which is a weakened assertion however the element got built:
+    // 02-states-and-behavior.md §1 gives a hand edit page-only ghost and
+    // insertion marks, cleared on send, and ONE count — the footer trail. It is
+    // not a card on any surface. Both builders are deleted (cards.ts) and the
+    // selector is back to what it measured: every element that says the
+    // reviewer's hand was recorded in a LIST beside the prose.
+    rows: document.querySelectorAll('.gly-change, .gly-change-adrift').length,
   }));
   check(
-    'and the reviewer\u2019s hand is recorded in the prose and the round — no log, on any surface',
+    'and the reviewer\u2019s hand is recorded in the prose alone — no log, no list, on any surface',
     logged.railChanged === 0 && logged.sheetChanged === 0 && logged.rows === 0,
     logged,
   );

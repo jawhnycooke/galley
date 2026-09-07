@@ -1320,49 +1320,8 @@ export function writeCollapsed(
   }
 }
 
-/**
- * changesSaid heads the rail's section of the reviewer's OWN edits.
- *
- * ONE SURFACE, ALL OF IT. Court: "the list on the right rail is the list of
- * instructions going to be revised… one surface. all of the instructions."
- * The rail held instruction threads only, which is half of what a round
- * carries — the reviewer's hand edits are sent too, and until now there was no
- * surface for them anywhere. The answer previously proposed was a SECOND list
- * reachable from the Revise button; the answer taken is that there is one list
- * and it was missing half its contents.
- *
- * It counts, unlike `unplacedSaid`, because the number is the thing a reviewer
- * checks before pressing send: how much of this round is mine.
- */
-export function changesSaid(n: number | string | null | undefined): string {
-  const count = Number(n) || 0;
-  if (count < 1) {
-    return '';
-  }
-  return count === 1 ? 'your edit \u00b7 1' : `your edits \u00b7 ${count}`;
-}
-
-/**
- * changeLine is what one edit card says it did, in the vocabulary the product
- * already uses for removal and arrival.
- *
- * A REWORD CAN ARRIVE AS TWO ENTRIES, and that is stated rather than smoothed
- * over: `summarise` reports the diff's own ops, and the diff pairs a delete
- * with an insert into one "changed" only when its units align. Measured on a
- * real edit — "Gamma three here." to "Gamma three, reworded." — it came back as
- * an `added` and a `removed` rather than one `changed`. Rendering them as two
- * cards is honest about what the agent is being told; inventing a pairing here
- * would be a second opinion about a diff this codebase computes in one place.
- */
-export function changeLine(kind: string): string {
-  switch (kind) {
-    case 'removed':
-      return 'removed';
-    case 'added':
-      return 'added';
-    case 'changed':
-      return 'changed';
-    default:
-      return kind;
-  }
-}
+// changesSaid AND changeLine ARE DELETED with the rail's change cards. A hand
+// edit is counted once, in the footer trail (`{E} edit(s), {I} instruction(s)
+// →`, phase.ts trailSaid) — 02-states-and-behavior.md §1 gives it page-only
+// marks and no card, so there is no section head to write and no card line to
+// name a diff op in.

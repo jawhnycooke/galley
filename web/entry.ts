@@ -765,8 +765,6 @@ class App implements AppState {
   prevSuggestions: SuggestionLike[] | null;
   comments: Thread[];
   changes: ReviewerChange[];
-  armedRevert: string | null;
-  armedRevertAt: number;
   blocks: BlockRef[];
   pendingCount: number;
   verdict: string;
@@ -940,8 +938,6 @@ class App implements AppState {
     this.suggestions = [];
     this.comments = [];
     this.changes = [];
-    this.armedRevert = null;
-    this.armedRevertAt = 0;
     // WHAT THE PRESS WILL SEND, as the server counted it. It is read off the
     // /_galley/pending payload beside the verdict itself (refreshPending) and
     // never off this page's own rail, for the reason the verdict is: a count

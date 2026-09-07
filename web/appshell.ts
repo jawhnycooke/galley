@@ -312,12 +312,6 @@ export interface AppState {
   // (`this.armedDelete = null; this.armedAt = 0;`).
   armedDelete: string | null;
   armedAt: number;
-  // armedRevert is the same two-step arming for the change cards' one verb,
-  // kept SEPARATE from armedDelete so arming a delete cannot disarm a revert
-  // (or the other way round) — two verbs sharing one timer is a control
-  // disarmed by a press somewhere else on the screen.
-  armedRevert: string | null;
-  armedRevertAt: number;
   // Which instruction is open for editing, keyed by the thread's stable
   // key — same rule and same constructor line as armedDelete.
   editingThread: string | null;
@@ -546,8 +540,6 @@ export interface AppMethods {
   setSettledOpen(open: boolean): void;
   applySettledOpen(): void;
   threadCard(thread: Thread, place: Placement): HTMLElement;
-  changeCard(change: ReviewerChange): HTMLElement;
-  revertButton(change: ReviewerChange, note: HTMLElement): HTMLButtonElement;
 
   // --- Revise, the verdict menu, and hold/release (web/verdict.ts) ---
   askRevise(): void;

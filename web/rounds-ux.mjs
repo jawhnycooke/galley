@@ -2138,26 +2138,32 @@ try {
     JSON.stringify(refusedRound),
   );
 
-  // §6.4 — THE REVIEWER'S OWN EDITS ARE IN THE RAIL.
+  // §6.4 — A HAND EDIT IS COUNTED ONCE, IN THE FOOTER TRAIL, AND HAS NO CARD.
   //
-  // The rail is the list of what pressing Revise will send, and it showed half
-  // of it: an instruction is sent, and so is every edit the reviewer made by
-  // hand — that is what the round's `changes` carry, and without them an agent
-  // rewrites the reviewer's deletions back. There was no surface for that half
-  // anywhere, and the answer previously proposed was a SECOND list reachable
-  // from the Revise button. Court: "we don't need a second list or surface…
-  // one surface. all of the instructions."
+  // RETIRED, AND REPLACED RATHER THAN NARROWED. This section used to assert the
+  // opposite: that `paintRailCards` filed one `.gly-change` per reviewer edit
+  // under a `.gly-rail-changes` heading ("an edit the reviewer made by hand
+  // appears in the rail"), with `revert`'s two-click arm on the card. That
+  // surface is deleted. 02-states-and-behavior.md §1 gives a hand edit
+  // page-only marks — coral line-through ghosts, the lime insertion wash —
+  // cleared on send, and ONE count: the footer trail's `{E} edit(s), {I}
+  // instruction(s) →`. A second list of the same edits beside the prose that
+  // already shows them is the one-instruction-two-surfaces defect this branch
+  // removed everywhere else. Targeted revert survives where the spec puts it,
+  // over the ghost itself (`.gly-revert-float`, pending.ts) — the card's armed
+  // pill was the second copy of it and went with the card.
   //
-  // READ OFF THE SERVER'S LIST, not the browser's live trail: the trail runs
-  // ahead of the server by one save debounce and is not yet anything the agent
-  // could be told, so a rail painted from it would show work nobody has been
-  // sent.
   // A PARAGRAPH, NOT THE HEADING, and the difference is not cosmetic. Emptying
   // a heading leaves "#" behind, which is a `changed` whose new text appears in
   // every other heading — genuinely ambiguous, and the server refuses it by
   // design rather than reverting one at random. Deleting a paragraph is both
-  // the gesture a reviewer actually makes and the one shape revert can answer
-  // exactly: a whole block, put back where it was.
+  // the gesture a reviewer actually makes and the one shape the round can carry
+  // exactly: a whole block, gone from where it was.
+  //
+  // READ OFF THE SERVER'S LIST, not the browser's live trail: `paintRevise`
+  // counts `this.changes`, which is the round as the agent would receive it,
+  // and the save debounce means the number arrives a beat after the keystroke —
+  // hence the poll rather than one read.
   await page.evaluate(() => {
     const editor = window.galleyEdit.editor;
     const paras = [];
@@ -2175,84 +2181,60 @@ try {
     editor.commands.focus();
     editor.view.dispatch(editor.state.tr.delete(last.from, last.to));
   });
-  let railEdits = { cards: 0, head: '' };
-  for (let i = 0; i < 24 && railEdits.cards === 0; i++) {
+  let handEdit = { trail: '', cards: 0 };
+  for (let i = 0; i < 24 && !/edit/.test(handEdit.trail); i++) {
     await page.waitForTimeout(500);
-    railEdits = await page.evaluate(() => ({
-      cards: document.querySelectorAll('.gly-rail-changes .gly-change').length,
-      head:
-        document
-          .querySelector('.gly-rail-changes-head')
-          ?.innerText.trim()
-          .toLowerCase() || '',
-      quoted:
-        document.querySelector('.gly-change-before')?.innerText.trim() || '',
+    handEdit = await page.evaluate(() => ({
+      trail: (
+        document.querySelector('.gly-revise-trail')?.innerText || ''
+      ).trim(),
+      // Every name the deleted list ever wore, on every surface — the rail, the
+      // sheet, the bubble. The count is the assertion: a hand edit that grew a
+      // card back anywhere fails here, not only in the rail.
+      cards: document.querySelectorAll(
+        '.gly-change, .gly-rail-changes, .gly-rail-changes-head, .gly-change-revert',
+      ).length,
+      // A ghost the reviewer can hover to revert — the surface the spec DOES
+      // give a hand edit. Presence only: the float is positioned on hover.
+      ghosts: document.querySelectorAll('.gly-trail-ghost').length,
     }));
   }
   check(
-    'an edit the reviewer made by hand appears in the rail',
-    railEdits.cards > 0,
-    JSON.stringify(railEdits),
+    'a hand edit is counted in the footer trail',
+    /\b1 edit\b/.test(handEdit.trail),
+    JSON.stringify(handEdit),
   );
   check(
-    'and the section counts them, because that is what is checked before sending',
-    /your edit/.test(railEdits.head),
-    JSON.stringify(railEdits),
+    'and it has no card, on any surface — the marks in the prose are the surface',
+    handEdit.cards === 0,
+    JSON.stringify(handEdit),
   );
 
-  // REVERT IS TARGETED UNDO, and the two-step is the same primitive delete and
-  // restore already wear, because it discards work. The first press ARMS and
-  // must not act; only the second puts the words back. A one-press revert on a
-  // card the reviewer is reading is exactly the misfire the arming exists for.
-  const beforeRevert = await page.evaluate(() =>
-    document.querySelector('.ProseMirror').innerText.trim(),
-  );
-  const revertArmed = await page.evaluate(() => {
-    const b = document.querySelector('.gly-change-revert');
-    if (!b) {
+  // §6.4a — THE BAND RESERVES HEIGHT ONLY FOR CARDS IT HOLDS.
+  //
+  // `paintAnchors` writes `.gly-rail-band`'s height from the stacker's bottom,
+  // and the stacker's adrift tail sums the height of every card whose anchor it
+  // could not measure. So a card that is in `this.cards` but NOT in the band —
+  // an anchorless one, appended in flow to the notice — would be counted into a
+  // height the band then draws as a column of empty air above the sections at
+  // the rail's end. `threadCard` returns before recording those (its
+  // `if (!anchored)` early return) and `paintAnchors` writes 0 when the list is
+  // empty; this is the invariant those two lines exist for, stated as an
+  // implication so it holds at any moment of the run, whatever the rail holds.
+  const band = await page.evaluate(() => {
+    const el = document.querySelector('.gly-rail-band');
+    if (!el) {
       return null;
     }
-    b.click();
-    const now = document.querySelector('.gly-change-revert');
     return {
-      armed: !!now && now.classList.contains('gly-armed'),
-      said: now ? now.innerText.trim() : '',
+      children: el.children.length,
+      height: Math.round(el.getBoundingClientRect().height),
     };
   });
   check(
-    'the first press on revert arms it and changes nothing',
-    revertArmed !== null &&
-      revertArmed.armed === true &&
-      (await page.evaluate(
-        (was) =>
-          document.querySelector('.ProseMirror').innerText.trim() === was,
-        beforeRevert,
-      )),
-    JSON.stringify(revertArmed),
-  );
-  await page.click('.gly-change-revert');
-  let reverted = beforeRevert;
-  for (let i = 0; i < 20 && reverted === beforeRevert; i++) {
-    await page.waitForTimeout(300);
-    reverted = await page.evaluate(() =>
-      document.querySelector('.ProseMirror').innerText.trim(),
-    );
-  }
-  check(
-    'and the second press puts the words back',
-    reverted !== beforeRevert,
-    JSON.stringify({
-      before: beforeRevert.slice(0, 60),
-      after: reverted.slice(0, 60),
-    }),
-  );
-  const clearedRail = await page.evaluate(
-    () => document.querySelectorAll('.gly-rail-changes .gly-change').length,
-  );
-  check(
-    'and the edit leaves the rail, because it is no longer in the round',
-    clearedRail === 0,
-    String(clearedRail),
+    'a band that holds no cards reserves no height',
+    band !== null && (band.children > 0 || band.height === 0),
+    JSON.stringify(band),
   );
 
   // §6.5 — A SELECTION THAT CROSSES A BLOCK BOUNDARY CAN BE COMMENTED ON.

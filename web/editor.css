@@ -3640,77 +3640,13 @@ body.gly-revising .gly-dot {
   display: none;
 }
 
-/* THE REVIEWER'S OWN EDITS, IN THE RAIL. One surface: the rail is the list of
-   what pressing Revise will send, and a hand edit is half of that. The other
-   half had no surface anywhere, and the answer proposed for it was a SECOND
-   list — which is the two-things-doing-one-job shape this product fixes by
-   deletion rather than by adding a panel.
-
-   The heading matches `.gly-rail-unplaced-head` exactly rather than inventing a
-   second section voice: two headings in one column that differ for no reason
-   are two languages on one surface. */
-.gly-rail-changes {
-  display: grid;
-  gap: var(--gly-rail-gap);
-}
-.gly-rail-changes-head {
-  margin-left: var(--gly-rail-gutter);
-  color: var(--gly-muted);
-  font-family: var(--gly-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-/* REMOVED TEXT IS `--gly-del`, DOTTED, WITH NO WASH — the outgoing-and-not-yet
-   -sent shape, which is exactly what `.gly-trail-ghost` wears in the prose for
-   the same population. A settled diff in History is the same colour SOLID on
-   the del wash. Colour says what happened to the text; SHAPE says whether it
-   has happened yet, and none of this has been sent. */
-.gly-change-before {
-  color: var(--gly-del);
-  text-decoration: line-through dotted;
-  text-decoration-thickness: 1px;
-}
-.gly-change-after {
-  color: var(--gly-ins);
-  text-decoration: underline dotted;
-  text-decoration-thickness: 1px;
-}
-
-/* REVERT IS THE CHANGE CARD'S ONE VERB, and it wears the destroy weight the
-   other two work-discarding verbs already wear: muted at rest, del-red on
-   hover, and BOTH LABELS IN ONE GRID CELL so `revert` becoming `revert?` on its
-   own click cannot move the button out from under the cursor that pressed it.
-   That is the third form of the no-motion defect this file records, and it is
-   the same primitive `.gly-thread-delete` uses rather than a second spelling of
-   it — the container's `.gly-card button` rule supplies border, radius, colour
-   and type, and this declares only what differs.
-
-   The selector matches the container's specificity (0,2,1) deliberately: a bare
-   `.gly-change-revert` is (0,1,0) and would LOSE to `.gly-card button`, which
-   is the trap this stylesheet records four instances of — a rule that reads as
-   though it were in force and is not. */
-.gly-card button.gly-change-revert {
-  border-color: transparent;
-  color: var(--gly-muted);
-  opacity: 0.75;
-  display: inline-grid;
-  grid-template-areas: "label";
-  place-items: center;
-}
-.gly-card .gly-change-revert > span {
-  grid-area: label;
-}
-.gly-card .gly-change-revert:hover:not([disabled]) {
-  border-color: var(--gly-del);
-  color: var(--gly-del);
-  opacity: 1;
-}
-.gly-card .gly-change-revert.gly-armed {
-  border-color: var(--gly-del);
-  color: var(--gly-del);
-  opacity: 1;
-}
+/* `.gly-rail-changes`, `.gly-rail-changes-head`, `.gly-change-before`,
+   `.gly-change-after` and `.gly-change-revert` ARE DELETED with the rail's
+   change cards (cards.ts). A hand edit is drawn on the PAGE — the coral
+   line-through ghost and the lime insertion wash, cleared on send — and counted
+   once in the footer trail; 02-states-and-behavior.md §1 gives it no card, so
+   there is no card stock, no section head and no card-borne verb to paint. The
+   `× revert` that survives is `.gly-revert-float`, over the ghost itself. */
 
 /* ============================================================================
    PAGE MODE: THE SPLIT-PANE LIVE PREVIEW
