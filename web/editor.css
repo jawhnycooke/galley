@@ -1705,6 +1705,11 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    deleted here — the point of one rule is that a difference has to be SPELLED
    as a difference, on its own line, where a reader can see it is one.
 
+   The composer's own head drifts too, for the reason its rule below gives —
+   it quotes an anchor and has to be readable running full-size: 10.5px
+   instead of 0.62rem, 0.12em instead of 0.1em, and full opacity instead of
+   0.62. That is the third recorded difference, not a fourth copy.
+
    ONE RULE AND NOT ONE CLASS, because the class would have to be added by four
    different builders in three script files and this pass owns the stylesheet.
    A shared rule is the same claim with the same failure mode closed: a change
@@ -1735,10 +1740,11 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   text-transform: uppercase;
   opacity: 0.62;
 }
-/* The two recorded differences, each on its own line rather than inside its
+/* The three recorded differences, each on its own line rather than inside its
    own copy of the voice. */
 .gly-bubble-head { font-size: 0.66rem; }
 .gly-thread-who { opacity: 0.55; }
+.gly-composer-head { font-size: 10.5px; letter-spacing: 0.12em; opacity: 1; }
 .gly-card-body { margin-top: 0.3rem; overflow-wrap: anywhere; }
 .gly-card-actions { display: flex; gap: 0.4rem; margin-top: 0.45rem; }
 .gly-card-note { margin-top: 0.3rem; font-size: 11px; opacity: 0.62; }
@@ -1793,10 +1799,7 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 10.5px var(--gly-mono);
-  letter-spacing: 0.12em;
   color: var(--gly-muted);
-  opacity: 1;
   margin: 0 0 6px 2px;
 }
 /* --- THE BOX THE REVIEWER TYPES IN, ONCE ---
