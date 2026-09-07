@@ -13,7 +13,7 @@
     "dupes": "fallow dupes",
     "complexity": "fallow health",
     "build:editor-js": "esbuild entry.ts --bundle --minify --format=iife --target=es2019 --charset=utf8 --outfile=../internal/serve/assets/editor.js",
-    "build:editor-css": "esbuild editor.css --bundle --minify --charset=utf8 --outfile=../internal/serve/assets/editor.css",
+    "build:editor-css": "esbuild editor.css --bundle --minify --charset=utf8 --external:/_galley/* --outfile=../internal/serve/assets/editor.css",
     "build:mermaid": "esbuild mermaid-entry.ts --bundle --minify --format=iife --global-name=galleyMermaid --target=es2019 --charset=utf8 --outfile=../internal/serve/assets/mermaid.js",
     "probe": "node probe.mjs",
     "build": "npm run --silent build:editor-js && npm run --silent build:editor-css && npm run --silent build:mermaid && npm run --silent probe"
@@ -37,6 +37,8 @@
     "yjs": "13.6.32"
   },
   "devDependencies": {
+    "@fontsource/instrument-sans": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "esbuild": "0.28.1",
     "eslint": "9.39.5",
     "fallow": "2.74.0",

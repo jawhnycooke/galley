@@ -963,6 +963,19 @@ func (s *EditServer) handleMode(w http.ResponseWriter, r *http.Request) {
 // load-bearing, why every read goes through an os.Root rather than through
 // string arithmetic on the URL, and why a figure that is a SYMLINK is refused
 // even when it points inside the directory.
+// fontFiles are the faces web/editor.css names. Each is its own route, like
+// editor.js and mermaid.js, because edit mode serves an allowlist and never a
+// directory — see editassets.go.
+var fontFiles = []string{
+	"instrument-sans-latin-400-normal.woff2",
+	"instrument-sans-latin-400-italic.woff2",
+	"instrument-sans-latin-500-normal.woff2",
+	"instrument-sans-latin-600-normal.woff2",
+	"jetbrains-mono-latin-400-normal.woff2",
+	"jetbrains-mono-latin-500-normal.woff2",
+	"jetbrains-mono-latin-600-normal.woff2",
+}
+
 func (s *EditServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/yjs/{room}", s.onlyThisRoom(s.yjs))
@@ -976,6 +989,10 @@ func (s *EditServer) Handler() http.Handler {
 	// justfile's assets target.
 	mux.HandleFunc("/_galley/mermaid.js", serveAssetHint("assets/mermaid.js",
 		"application/javascript; charset=utf-8", "`just assets`, which builds the editor bundle"))
+	for _, f := range fontFiles {
+		mux.HandleFunc("/_galley/fonts/"+f, serveAssetHint("assets/fonts/"+f,
+			"font/woff2", "a checkout that includes internal/serve/assets/fonts"))
+	}
 	// The caret, committed rather than built — unlike the three routes above,
 	// this one never 404s on a fresh checkout.
 	mux.HandleFunc("/_galley/favicon.svg", serveAsset("assets/favicon.svg", "image/svg+xml"))
