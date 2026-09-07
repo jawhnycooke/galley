@@ -75,7 +75,7 @@ var md = goldmark.New(
 // See frontmatter.go for why it is SCANNED rather than parsed, and docmodel's
 // FrontMatter for why it is a block rather than a field.
 func Parse(src []byte) (docmodel.Doc, []InlineComment, error) {
-	front, rest := splitFrontMatter(src)
+	front, rest := SplitFrontMatter(src)
 	root := md.Parser().Parse(text.NewReader(rest))
 	// The refusal machinery names a SOURCE line, so the lines goldmark never
 	// saw still have to be counted. Without this a document with four lines of

@@ -57,7 +57,7 @@ func Serialize(d docmodel.Doc) []byte {
 // with no keystroke. The closer need not even be another rule: a "---" inside a
 // code fence is a line like any other to a scanner that walks lines.
 //
-// The empty-body rule in splitFrontMatter already covers the common shape (two
+// The empty-body rule in SplitFrontMatter already covers the common shape (two
 // leading rules, nothing between them). This covers the rest, and it asks the
 // question of the BYTES rather than reasoning about which documents can reach
 // it — the reasoning is what left the fence case out of the first draft.
@@ -68,7 +68,7 @@ func Serialize(d docmodel.Doc) []byte {
 // hand-built paragraph spelling "+++", which Parse cannot produce): markdown
 // ignores a blank first line, and front matter must start at byte 0.
 func frontMatterHazard(out string) string {
-	if raw, _ := splitFrontMatter([]byte(out + "\n")); raw == nil {
+	if raw, _ := SplitFrontMatter([]byte(out + "\n")); raw == nil {
 		return out
 	}
 	if strings.HasPrefix(out, yamlFence+"\n") {

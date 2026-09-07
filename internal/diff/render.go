@@ -474,7 +474,7 @@ func wrapBlock(b renderBlock) string {
 		return `<h` + strconv.Itoa(headingLevel(b.body)) + ` class="gly-diff-h">` +
 			reHeadHash.ReplaceAllString(b.body, "") +
 			`</h` + strconv.Itoa(headingLevel(b.body)) + `>`
-	case KindCode, KindTable, KindMath:
+	case KindCode, KindTable, KindMath, KindFrontM:
 		return `<pre class="gly-diff-atomic">` + b.body + `</pre>`
 	case KindListItem:
 		return `<ul class="gly-diff-list"><li>` + b.body + `</li></ul>`

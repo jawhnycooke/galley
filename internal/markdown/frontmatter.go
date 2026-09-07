@@ -31,7 +31,7 @@ const (
 	tomlFence = "+++"
 )
 
-// splitFrontMatter returns the file's front matter block, verbatim, and the
+// SplitFrontMatter returns the file's front matter block, verbatim, and the
 // rest of the source. raw is nil when the file has none, in which case rest is
 // src unchanged.
 //
@@ -50,7 +50,7 @@ const (
 //     front matter block and two blocks would be gone. Serialize guards the
 //     non-empty case (see frontMatterHazard); this rule is what makes the
 //     common case need no guard at all.
-func splitFrontMatter(src []byte) (raw, rest []byte) {
+func SplitFrontMatter(src []byte) (raw, rest []byte) {
 	fence := openingFence(src)
 	if fence == "" {
 		return nil, src

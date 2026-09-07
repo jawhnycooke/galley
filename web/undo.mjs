@@ -31,7 +31,7 @@
 // arrive close together into ONE undo step, so typing three words with no gap
 // is one level and the control could not tell one level from three.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
@@ -59,9 +59,21 @@ const GALLEY = process.env.GALLEY || 'bin/galley';
 const PORT = 8291;
 const dir = mkdtempSync(join(tmpdir(), 'galley-undo-'));
 const doc = join(dir, 'undo-probe.md');
+// THE FIXTURE OPENS WITH FRONT MATTER, AND THAT IS A REGRESSION AND NOT
+// DECORATION. `revertChange` rebuilds the whole document by joining
+// `diff.Blocks`, and the splitter had no front matter case: the opening `---`
+// matched the thematic-rule pattern and the YAML under it was swept into a
+// paragraph, line breaks flattened to spaces and the closing `---` swallowed as
+// that paragraph's last word. One press of a revert float — over a change
+// nowhere near the block — rewrote the author's metadata into prose, on disk,
+// silently. It is asserted HERE because this is the one gate that posts
+// `/_galley/revert` against a real server.
+const FRONT_MATTER =
+  '---\nname: undo-probe\ndescription: kept verbatim, never re-rendered.\n---\n';
 writeFileSync(
   doc,
-  '# Undo\n\nAlpha one here.\n\nBeta two here.\n\nGamma three here.\n',
+  FRONT_MATTER +
+    '\n# Undo\n\nAlpha one here.\n\nBeta two here.\n\nGamma three here.\n',
 );
 
 // `stdio: 'ignore'` rather than the gates' drain-and-keep-the-tail. This probe
@@ -280,6 +292,24 @@ check(
   wrote.found === true && wrote.status === 200 && /Beta two here/.test(moved),
   JSON.stringify({ ...wrote, moved: moved !== beforeServerWrite }),
 );
+// THE FILE, NOT THE WIRE, AND IT IS WAITED FOR. The corruption this guards
+// against was only ever visible in the bytes the author's editor would open,
+// and the projection is debounced — a straight read here passed against a
+// deliberately broken splitter because the mangled bytes had not landed yet.
+// So the wait is for the revert's OWN result to reach the file, which is the
+// moment the front matter has either survived that write or not.
+let onDisk = '';
+for (let i = 0; i < 40; i++) {
+  onDisk = readFileSync(doc, 'utf8');
+  if (/Beta two here/.test(onDisk) && !/Beta three here/.test(onDisk)) break;
+  await page.waitForTimeout(200);
+}
+check(
+  'and the front matter the revert never touched is still verbatim on disk',
+  onDisk.startsWith(FRONT_MATTER),
+  JSON.stringify(onDisk.split('\n').slice(0, 4)),
+);
+
 for (let i = 0; i < 3; i++) await step(UNDO);
 const afterTextUndo = await text();
 check(
