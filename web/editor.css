@@ -4313,6 +4313,25 @@ body.gly-revising .ProseMirror > .gly-marked {
   background: var(--gly-accent-fill-16);
   outline: 1.5px dashed var(--gly-dashed);
 }
+body.gly-revising .ProseMirror > .gly-marked::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--gly-accent);
+  vertical-align: -3px;
+  margin-left: 2px;
+  animation: caret 0.7s infinite;
+}
+@keyframes caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
 .ProseMirror > .gly-revised {
   background: var(--gly-accent-fill-18);
   border-radius: 6px;

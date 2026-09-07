@@ -160,6 +160,12 @@ export const pendingMethods = {
     // tab that has since been closed, so the counter is read on every poll
     // rather than only after this page's own button was pressed.
     this.readRevise();
+    // While the agent is writing, the reviewer wants to see it land as it
+    // happens rather than at the normal cadence — so tick reschedules itself
+    // sooner instead of waiting for the outer setInterval's next beat.
+    if (this.reviseRunning) {
+      window.setTimeout(() => this.tick(), 500);
+    }
     getJSON<SavedView>('/_galley/saved')
       .then((d) => {
         if (d && d.saved && d.saved !== this.savedMs) {
