@@ -172,7 +172,7 @@ export function reviseLabel(waiting: boolean, ms: number): string {
  * SHORTER than `Approve`, and the one-grid-cell reserve in makeRevise is what
  * makes that a non-event — no width reservation beyond the cell mechanism. */
 export const APPROVE_IDLE = 'Approve';
-const APPROVE_DONE = 'approved';
+export const APPROVE_DONE = 'approved';
 
 // reviseFace — pure computation of the revise/approve verdict button's face:
 // which case it is in (approve vs. revise), whether it is disabled, and its
@@ -211,7 +211,7 @@ function reviseFace(
   // DISCLOSES now (see askRevise), so its title says that rather than
   // promising a post the press no longer makes.
   const title = history
-    ? 'leave History and go back to the draft — nothing here changed it'
+    ? 'return to the draft as it stands now — reading an older version changed nothing'
     : reviseWaiting
       ? 'asked, and nothing has landed yet — the counter stops when the document moves'
       : approve
@@ -471,7 +471,7 @@ export const verdictMethods = {
     // before the `approved` one deliberately: an approved review still has a
     // History to read, and a way out of it that did nothing would strand the
     // reviewer on a page whose only exit is the browser's back button.
-    if (this.versionsPanel && this.versionsPanel.open) {
+    if (!this.atHead()) {
       this.scrubHome();
       return;
     }
@@ -538,7 +538,6 @@ export const verdictMethods = {
           // Cleared here rather than on the next paint because the paints are
           // on a poll and the reviewer just pressed the button.
           this.arrivalWas = null;
-          this.appliedKeys = null;
           this.paintRows();
           if (approving) {
             // The past tense is EARNED: the label reads `approved` only after
@@ -749,10 +748,17 @@ export const verdictMethods = {
         // so the seconds keep climbing between polls without this page having
         // to trust its own clock against the server's.
         this.reviseStartedAt = Date.now() - (d.sinceMs || 0);
-        this.paintRevise();
+        // THE READERS RUN FIRST, AND THE PAINT LAST. `seenCannot`, `sealed`
+        // and `handoff` are three of `phaseOf`'s five inputs (web/phase.ts),
+        // and all three are set by the three calls below — so a paint above
+        // them painted the phase this page held a tick ago. Self-correcting on
+        // the next poll, which is exactly why it survived: a second of the
+        // wrong body class, the wrong rows and the wrong eyebrow, once per
+        // state change, is a defect nobody can reproduce on purpose.
         this.readArrival(d);
         this.readSeal(d);
         this.readHandoff(d);
+        this.paintRevise();
       })
       .catch(() => {});
   },
@@ -799,7 +805,7 @@ export const verdictMethods = {
     if (this.reviseCount) {
       this.reviseCount.textContent = reviseCountClause(this.pendingCount);
     }
-    const history = !!(this.versionsPanel && this.versionsPanel.open);
+    const history = !this.atHead();
     const { approve, disabled, title } = reviseFace(
       history,
       this.reviseWaiting,
@@ -822,14 +828,22 @@ export const verdictMethods = {
     revise.disabled = disabled;
     revise.classList.toggle('gly-on', this.reviseWaiting);
     revise.title = title;
+    // THE FG-ON-BG APPROVE IS THE COLD-OPEN FACE, AND ONLY THAT. It is the
+    // press on a document nobody has marked up — no round, nothing pending —
+    // where the quietest possible primary is right, because approving is a
+    // formality rather than a judgement. After a round LANDS the phase is
+    // `review` and the pending list is empty for a different reason: the
+    // reviewer has just read what the agent wrote and is deciding. Spec §3 gives
+    // that press the accent fill and its glow, which is what the base
+    // `#gly-revise.gly-revise` already paints — so the test is the phase, not
+    // the count, which the two states share.
     revise.classList.toggle(
       'gly-approve-zero',
-      approve && this.pendingCount === 0 && !history,
+      approve && phase === 'markup' && this.pendingCount === 0 && !history,
     );
     revise.classList.toggle('gly-busy', !history && this.reviseWaiting);
     revise.classList.toggle('gly-done', !history && this.approved);
     if (this.reviseTrail) {
-      const phase = this.phase();
       this.reviseTrail.textContent =
         phase === 'markup' || phase === 'cannot'
           ? trailSaid(this.changes.length, this.pendingCount)

@@ -257,7 +257,7 @@ export const barMethods = {
     // the DRAFT, and every one of those clauses is false of a reading mode:
     // nothing here is being saved, and `round N · draft` under a page showing
     // v2 of a document is the readout arguing with the paper.
-    if (this.versionsPanel && this.versionsPanel.open) {
+    if (!this.atHead()) {
       // THE COUNT IS THE EXCHANGES, NOT THE ROWS. `historyCount` is every row
       // the store holds — v1, which is the file as galley opened it and not a
       // round anybody had, and both halves of every exchange — so counting it
@@ -360,7 +360,7 @@ export const barMethods = {
 
   paintSurfaces(this: AppShell) {
     const s = this.surfaces();
-    const history = !!(this.versionsPanel && this.versionsPanel.open);
+    const history = !this.atHead();
     this.rail.root.hidden = history || !s.rail;
     this.bar.root.hidden = history || !s.bar;
     this.sheet.root.hidden = history || !s.sheet;

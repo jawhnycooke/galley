@@ -23,8 +23,8 @@ import { arrivalSaid } from './versions.ts';
 import type { AppShell, ReviseView } from './appshell.ts';
 import type { DiffView } from './wire';
 import { getJSON } from './net.ts';
-import { matchBlocks } from './rows.ts';
-import { forgetVersionHTML, scrubState } from './timeline.ts';
+import { matchBlocks, dedupeWas } from './rows.ts';
+import { forgetVersionHTML } from './timeline.ts';
 import { WHOLE_DOC_LABEL } from './frame.ts';
 
 // CAPTURE_LABEL is the visible door to writing an instruction about the
@@ -98,7 +98,7 @@ export const historyMethods = {
       return;
     }
     const dead =
-      !!this.sealed || !scrubState(this.scrubT, this.scrubMax()).atHead;
+      !!this.sealed || !this.atHead();
     this.captureBtn.disabled = dead;
     this.captureBtn.title = dead
       ? 'this is a version being read, not the draft being written'
@@ -297,16 +297,32 @@ export const historyMethods = {
         (b) => b.textContent ?? '',
       );
       const at = matchBlocks(changes, blocks);
-      this.arrivalWas = changes.flatMap((c, i) => {
-        const index = at[i];
-        return index === null || !c.del
-          ? []
-          : [{ index, was: c.del, note: diff.changes?.[c.k]?.note }];
-      });
       const round = this.versionsPanel.rounds?.find((r) => r.n === n);
-      this.appliedKeys = new Set(
-        (round?.asks ?? []).filter((a) => a.answered).map((a) => a.key),
+      // THE ROUND'S OWN SENTENCE IS THE FALLBACK NOTE. `ChangeView.note` is the
+      // agent's per-change remark and it is usually absent — most agents answer
+      // a round with one sentence, not one per edit — which left every WAS strip
+      // on the page silent about WHY. `RoundView.instruction` is that sentence
+      // (the ack), so it stands in, ONCE per landed round: repeated under three
+      // strips it would read as three separate remarks about three separate
+      // changes, which is the opposite of what it is. `answers > 0` is the test
+      // because a round the agent answered nothing in has no sentence to lend.
+      const ack = round && round.answers > 0 ? round.instruction : '';
+      let lent = false;
+      const was = dedupeWas(
+        changes.flatMap((c, i) => {
+          const index = at[i];
+          return index === null || !c.del
+            ? []
+            : [{ index, was: c.del, note: diff.changes?.[c.k]?.note }];
+        }),
       );
+      for (const w of was) {
+        if (!w.note && ack && !lent) {
+          w.note = ack;
+          lent = true;
+        }
+      }
+      this.arrivalWas = was;
       this.paintRows();
       this.paintFrame();
     });

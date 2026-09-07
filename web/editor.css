@@ -2779,11 +2779,22 @@ body.gly-revising .gly-dot {
    open, because a button hidden in CSS is still a button to the keyboard.
    Container-specified (`.gly-bar .gly-handoff-cancel`) so it actually wins
    against `.gly-bar button` — a bare class here is a rule that does not
-   apply. */
-.gly-bar .gly-handoff-cancel {
+   apply.
+
+   AND `.gly-timeline` IS THE SECOND CONTAINER, for the same reason the seal's
+   own hide rule grew one: seal.ts inserts this button `beforebegin` of
+   `#gly-revise`, and the primary is in `.gly-timeline-right` now. Scoped to
+   `.gly-bar` alone the reserve stopped matching, `.gly-handoff-cancel[disabled]
+   { display: none }` at the bottom of this file decided instead, and a handoff
+   opening inserted a ~90px button into a `gap: 10px` flex row — sliding the
+   primary the reviewer had just pressed. That `display` rule is gone; this is
+   the whole mechanism. */
+.gly-bar .gly-handoff-cancel,
+.gly-timeline .gly-handoff-cancel {
   white-space: nowrap;
 }
-.gly-bar .gly-handoff-cancel.gly-cancel-hidden {
+.gly-bar .gly-handoff-cancel.gly-cancel-hidden,
+.gly-timeline .gly-handoff-cancel.gly-cancel-hidden {
   visibility: hidden;
 }
 
@@ -2820,54 +2831,17 @@ body.gly-revising .gly-dot {
   text-align: left;
 }
 
-/* THE ONE FILLED BOX ON THE PAGE, AND THAT IS WHAT MAKES IT THE PRIMARY.
-   Nothing else in this stylesheet is filled with --gly-signal, so a reviewer
-   who has never seen this editor can find the press by looking for the one
-   thing that is not outlined chrome.
-
-   CONTAINER-SPECIFIED, and that is not a habit. `.gly-bar button` is (0,1,1)
-   and declares `background`, `border` and `color`; a bare `.gly-revise` is
-   (0,1,0) and would lose every one of them while appearing to set them — the
-   dead-declaration shape this file records under `.gly-settled-card`. The
-   plain `.gly-revise` block above survives only because that rule deliberately
-   declares no `display`.
-
-   The disabled face is (0,3,0) so it beats `.gly-bar button[disabled]` at
-   (0,2,1): a disabled PRIMARY has to give up its fill, or "dead" reads as
-   "pressable but dim" — the flag-was-set-and-the-control-looked-alive defect,
-   on the one control that hands the document to somebody else. */
-.gly-bar .gly-revise {
-  border-color: var(--gly-signal);
-  background: var(--gly-signal);
-  color: var(--gly-signal-ink);
-  font-weight: 600;
-}
-.gly-bar .gly-revise:hover {
-  border-color: var(--gly-signal);
-  filter: brightness(1.08);
-}
-.gly-bar .gly-revise[disabled] {
-  background: transparent;
-  border-color: var(--gly-line);
-  color: var(--gly-muted);
-  font-weight: inherit;
-}
-/* WAITING IS NOT PRESSING, so the busy face empties the box: outlined signal
-   while the agent holds the document, filled again the moment it comes back.
-   `.gly-on` is the state class paintRevise toggles (it was `.gly-amber`, and
-   the colour left the name behind).
-
-   IT TIES WITH THE DISABLED FACE ABOVE AT (0,3,0) AND WINS ON SOURCE ORDER,
-   deliberately — a revision that is RUNNING is both disabled and waiting, and
-   `revising · 14s` is a state the reviewer is meant to read, not a dead
-   control. Moving either block past the other greys the counter out in
-   silence, which is exactly the equal-specificity-decided-by-source-order
-   trap this file records. */
-.gly-bar .gly-revise.gly-on {
-  background: transparent;
-  color: var(--gly-signal);
-  border-color: var(--gly-signal);
-}
+/* THE PRIMARY'S FACES ARE NOT IN THE BAR ANY MORE. Four rules lived here —
+   `.gly-bar .gly-revise`, its `:hover`, its `[disabled]` and its `.gly-on`
+   busy face, all container-specified at (0,2,0)/(0,3,0) so they would beat
+   `.gly-bar button`. Task 4 moved `#gly-revise` into `.gly-timeline-right`
+   (verdict.ts) and every one of them stopped matching, silently: the button
+   kept a face only because `#gly-revise.gly-revise` further down this file
+   paints one. Deleted rather than re-scoped, because the timeline treatment is
+   a different design (accent fill and a glow, not a signal-bordered bar
+   button) and two stacks for one button is how the last three defects got in.
+   The live set is `#gly-revise.gly-revise` and its `.gly-history-out`,
+   `[disabled]`, `.gly-approve-zero`, `.gly-busy` and `.gly-done` faces. */
 
 /* THE PENDING COUNT, IN A RESERVED BOX, ON THE VERB IT IS A COUNT OF.
    `Instructions · N` used to be a chip of its own three controls to the left;
@@ -3234,18 +3208,18 @@ body.gly-revising .gly-dot {
    them on order, hiding some controls and not others. (0,2,0) beats all of
    them outright.
 
-   AND `.gly-timeline` IS THE SECOND CONTAINER, because the verdict button left
-   the bar. `#gly-revise` is drawn in the timeline's footer row now (Task 4,
-   verdict.ts) and `paintSeal` still marks it `.gly-seal-off` — but a descendant
-   selector scoped to `.gly-bar` stopped reaching it, so a sealed review kept
-   offering its primary. Measured by `web/layers.mjs` §8: `#gly-revise` computed
-   `display: flex` on a page whose every other live control was gone. This is
-   exactly the class of bug that gate exists for — a rule that ships reviewed
-   and never applies — and the repair is the container it moved to, at the same
-   specificity, rather than a bare class that would lose to its own
-   `inline-grid`. */
-.gly-bar .gly-seal-off,
-.gly-timeline .gly-seal-off {
+   AND IT STAYS SCOPED TO `.gly-bar`, WHICH IS THE POINT NOW. The verdict
+   button left the bar (Task 4, verdict.ts puts `#gly-revise` in
+   `.gly-timeline-right`) and `paintSeal` still marks it `.gly-seal-off` — but
+   spec §5 says the primary on an approved document does not GO, it reads
+   `approved` in the panel's own colours, muted and inert. The controls this
+   rule hides are the bar's: `.gly-mode` and `.gly-hold`, verbs a closed review
+   will never offer again. The primary is not one of them, so a
+   `.gly-timeline .gly-seal-off` here (or a bare `#gly-revise.gly-seal-off`)
+   would delete the one thing the reviewer is meant to read at the end. What
+   makes the approved primary inert is `paintSeal`'s `el.disabled = sealed` plus
+   the `[disabled]` face above — a real disabled button, not a hidden one. */
+.gly-bar .gly-seal-off {
   display: none;
 }
 
@@ -3404,24 +3378,12 @@ body.gly-revising .gly-dot {
 
 /* --- History's rail --- */
 
-/* THE WAY OUT SITS IN THE PRIMARY'S SLOT, OUTLINED RATHER THAN FILLED. The
+/* THE WAY OUT SITS IN THE PRIMARY'S SLOT, OUTLINED RATHER THAN FILLED — the
    filled box is what the reviewer presses to move the document forward and
-   History moves nothing — an outlined signal says "this is the important
-   control here, and it does not commit anything". Declared after
-   `.gly-bar .gly-revise[disabled]`, which it ties with at (0,3,0), so source
-   order decides and the History face wins; moving either block past the other
-   reverses it in silence. */
-.gly-bar .gly-revise.gly-history-out {
-  background: transparent;
-  border-color: var(--gly-signal);
-  color: var(--gly-signal);
-  font-weight: 600;
-}
-.gly-bar .gly-revise.gly-history-out:hover {
-  border-color: var(--gly-signal);
-  filter: none;
-  background: var(--gly-card);
-}
+   scrubbing moves nothing, so an outlined accent says "this is the important
+   control here, and it does not commit anything". The rule itself moved with
+   the button: it is `#gly-revise.gly-revise.gly-history-out`, beside the other
+   timeline faces, because a `.gly-bar` descendant no longer reaches it. */
 
 /* Below the two-column width the rail goes under the paper.
 
@@ -3967,14 +3929,28 @@ main {
   padding-bottom: 220px;
 }
 
+/* THE PRIMARY'S TIMELINE TREATMENT, AND IT KEEPS THE ONE-CELL STACK.
+   `#gly-revise.gly-revise` is (1,1,0) and beats `.gly-revise` at (0,1,0), so
+   whatever `display` is spelled HERE is the one the button gets. This block
+   shipped `inline-flex; gap: 10px` and that silently undid the reservation the
+   whole four-label mechanism is built on: `.gly-revise-label { grid-area:
+   label }` became inert, the four faces laid out SIDE BY SIDE, and three of
+   them are `.gly-reserved` (`visibility: hidden`, which still reserves), so the
+   button measured ~425px with the live label off to one side of a blank field.
+   `inline-grid` + a single `"label"` area is the reservation: the box is as
+   wide as the WIDEST face at every moment, so a press that swaps
+   `Revise · 4 ▾` for `revising · 0s` moves nothing. Gated by web/layers.mjs —
+   the four `.gly-revise-label` rects share one origin and the button is under
+   200px — rather than by a text search for these declarations, because the bug
+   was a rule that was authored and did not apply. */
 #gly-revise.gly-revise {
   border: 0;
   border-radius: 8px;
   padding: 11px 18px;
   font: 600 14px/1.2 var(--gly-sans);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  display: inline-grid;
+  grid-template-areas: 'label';
+  place-items: center;
   white-space: nowrap;
   cursor: pointer;
   background: var(--gly-accent);
@@ -3985,20 +3961,53 @@ main {
 #gly-revise.gly-revise:hover {
   filter: brightness(1.1);
 }
+/* THE FACES THAT MOVED WITH THE BUTTON. `.gly-bar .gly-revise.gly-history-out`
+   and `.gly-bar .gly-revise[disabled]` are (0,3,0) and stopped matching when
+   verdict.ts put `#gly-revise` in `.gly-timeline-right`; the timeline
+   treatment above is (1,1,0), so both faces painted as the filled accent
+   primary — a scrubbing reviewer saw `← back to draft` wearing the one filled
+   box on the page, and the approve-cooling disabled face looked pressable.
+   (1,1,0) plus one more class or attribute beats it, and the pairs below are
+   the narrowest selectors that do. */
+#gly-revise.gly-revise.gly-history-out {
+  background: transparent;
+  border: 1px solid var(--gly-accent);
+  color: var(--gly-accent);
+  box-shadow: none;
+}
+#gly-revise.gly-revise.gly-history-out:hover {
+  filter: none;
+  background: var(--gly-panel-hover);
+}
+/* DEAD MEANS DEAD ON THE PRIMARY — the flag-was-set-and-the-control-looked-
+   alive defect this file names under `.gly-bar .gly-revise[disabled]`, on the
+   one control that hands the document to somebody else. It paints the same
+   panel-on-muted as `.gly-busy` and `.gly-done` below, which is deliberate:
+   every reason this button goes dead is a reason not to send, so the three
+   agree on one dead face and only `.gly-busy`'s `13ch` reserve is its own.
+   `#gly-revise.gly-revise[disabled]` is (1,2,0) and outranks both, so the
+   agreement is what keeps that harmless. */
+#gly-revise.gly-revise[disabled] {
+  background: var(--gly-panel-bg);
+  color: var(--gly-muted);
+  box-shadow: none;
+  cursor: default;
+}
+#gly-revise.gly-revise[disabled]:hover {
+  filter: none;
+}
 #gly-revise .gly-revise-label {
   font-variant-numeric: tabular-nums;
 }
-/* AND THE SEAL HAS TO BEAT THE RULE ABOVE, WHICH IS WHY IT IS SPELLED HERE.
-   `.gly-bar .gly-seal-off` / `.gly-timeline .gly-seal-off` is (0,2,0) and
-   `#gly-revise.gly-revise` is (1,1,0), so the primary's own timeline treatment
-   won and a SEALED review went on painting its filled Revise button — the exact
-   shape that block's own comment names, a more-specific selector silently
-   beating an intended one. (1,1,0) against (1,1,0), declared after, is what
-   takes it: the same tie-plus-order the shell's `:where()` fallback is built on
-   one screen up, and the narrowest selector that can win. */
-#gly-revise.gly-seal-off {
-  display: none;
-}
+/* THE SEAL DOES NOT HIDE THE PRIMARY, and this is where that used to happen.
+   `#gly-revise.gly-seal-off { display: none }` shipped here to beat the rule
+   above — and it worked, which was the defect: spec §5 leaves the primary on
+   screen reading `approved`, in panel colours, muted, disabled and without its
+   glow, so the last thing the reviewer looks at says what they decided. It is
+   `.gly-done` below plus `paintSeal`'s `el.disabled = sealed` that paint that,
+   and there is nothing left for a hide rule to do. `.gly-seal-off` stays on the
+   element because seal.ts uses it as the marker for "a sealed review's control";
+   only `.gly-bar` acts on it. */
 #gly-revise.gly-approve-zero {
   background: var(--gly-fg);
   color: var(--gly-bg);
@@ -4029,9 +4038,6 @@ main {
 .gly-handoff-cancel:hover {
   border-color: var(--gly-coral);
   color: var(--gly-coral);
-}
-.gly-handoff-cancel[disabled] {
-  display: none;
 }
 
 .gly-verdict-menu {
@@ -4312,6 +4318,21 @@ body.gly-cannot .ProseMirror > .gly-marked {
 body.gly-revising .ProseMirror > .gly-marked {
   background: var(--gly-accent-fill-16);
   outline: 1.5px dashed var(--gly-dashed);
+}
+/* AND THE REST OF THE PAGE STANDS BACK WHILE THE AGENT WRITES (spec §2). Same
+   primitive as the composer's dimming one screen up and the same number — the
+   blocks the round is about keep full contrast, everything else drops to .35 —
+   with the sheet itself easing to .92 so the whole paper reads as "not yours to
+   type in for a moment". `:not(.gly-marked)` and not a class of its own,
+   because the marked set is already the answer to "which blocks is this round
+   about"; a second list would be a second thing to keep in step. */
+body.gly-revising .ProseMirror {
+  opacity: 0.92;
+  transition: opacity 0.3s;
+}
+body.gly-revising .ProseMirror > *:not(.gly-marked) {
+  opacity: 0.35;
+  transition: opacity 0.3s;
 }
 body.gly-revising .ProseMirror > .gly-marked::after {
   content: '';

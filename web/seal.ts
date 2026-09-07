@@ -28,6 +28,7 @@ import {
   VERDICT_DISCARDED,
   clockTime,
   APPROVE_IDLE,
+  APPROVE_DONE,
 } from './verdict.ts';
 import type { AppShell } from './appshell.ts';
 import type { ReviseWatchView } from './verdict.ts';
@@ -500,6 +501,17 @@ export const sealMethods = {
     this.sealLanding = d.landing || 0;
     if (now !== was) {
       this.applySeal(was, d);
+      // THE FOOTER LEARNS ABOUT THE SEAL HERE OR NEVER. `keyframeAt` flips the
+      // head keyframe to the accent fill on `sealed` (web/timeline.ts) and
+      // `paintTimeline` reads `this.sealed` — but the seal's own edge called
+      // neither painter, and the only other callers are the first build, the
+      // scrub and History. So an approved review kept a grey head keyframe
+      // until the reviewer happened to drag the scrubber: the one mark on the
+      // page that says the document is finished, missing at the moment it
+      // becomes true. The frame goes with it because the eyebrow reads the same
+      // phase (`phaseOf`'s `sealed`).
+      this.paintTimeline();
+      this.paintFrame();
     }
     this.paintSeal();
   },
@@ -683,6 +695,16 @@ export const sealMethods = {
       if (el instanceof HTMLButtonElement) {
         el.disabled = sealed;
       }
+    }
+    // THE PRIMARY STAYS ON SCREEN AND SAYS WHAT WAS DECIDED (spec §5). The
+    // past tense used to be written only by the press that earned it
+    // (postVerdict), which is right for the reviewer who pressed it and wrong
+    // for every later load of the same sealed page: the server's seal arrives
+    // on the poll and the button still read `Approve`, disabled, over a review
+    // that was already over. Derived from `sealed` here so both paths agree.
+    if (sealed && this.reviseApprove) {
+      this.reviseApprove.textContent = APPROVE_DONE;
+      this.approved = true;
     }
     if (!sealed) {
       // HANDED BACK TO THEIR OWN PAINTERS, never left at `false`. hold is

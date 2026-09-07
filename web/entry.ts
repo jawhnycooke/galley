@@ -887,7 +887,6 @@ class App implements AppState {
   theme: ThemeChoice;
   themeButton: HTMLButtonElement | null;
   readoutDot: HTMLSpanElement | null;
-  appliedKeys: Set<string> | null;
   arrivalWas: WasSpec[] | null;
   revertFloat: HTMLButtonElement | null;
 
@@ -1105,7 +1104,6 @@ class App implements AppState {
     this.readoutDot = null;
     // The arrival's news, absent until a round lands — see web/rows.ts. The
     // revert pill is built lazily on the first hover over a ghost.
-    this.appliedKeys = null;
     this.arrivalWas = null;
     this.revertFloat = null;
     // Hold's state has to exist before makeMode paints the button.
@@ -2336,6 +2334,7 @@ Object.assign(App.prototype, {
 Object.assign(App.prototype, {
   makeTimeline: timeline.makeTimeline,
   paintTimeline: timeline.paintTimeline,
+  atHead: timeline.atHead,
   scrubMax: timeline.scrubMax,
   scrubTo: timeline.scrubTo,
   scrubStep: timeline.scrubStep,

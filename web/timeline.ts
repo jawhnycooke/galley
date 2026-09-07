@@ -97,6 +97,12 @@ export interface TimelineUI {
   handle: HTMLElement;
   label: HTMLElement;
   papers: [HTMLElement, HTMLElement];
+  // The maximum this footer was last DRAWN with. Not a second copy of
+  // `scrubMax()` — it is what lets paintTimeline tell "the reviewer is parked
+  // on the last round" from "a new round just landed under a reviewer who was
+  // at the head", which is the one question `scrubState` alone cannot answer
+  // because both read `scrubT === the old max`.
+  max: number;
 }
 
 export function makeTimeline(this: AppShell): void {
@@ -167,7 +173,16 @@ export function makeTimeline(this: AppShell): void {
   stage.append(a, b);
   const paper = document.querySelector('.ProseMirror');
   paper?.after(stage);
-  this.timeline = { root, keys, track, fill, handle, label, papers: [a, b] };
+  this.timeline = {
+    root,
+    keys,
+    track,
+    fill,
+    handle,
+    label,
+    papers: [a, b],
+    max: this.scrubMax(),
+  };
   this.scrubT = this.scrubMax();
   this.paintTimeline();
 }
@@ -187,9 +202,10 @@ export function paintTimeline(this: AppShell): void {
   // head this is the reviewer's own position and nothing may touch it; at the
   // head it is not a position at all, it is the live editor — so it follows
   // the new maximum rather than being left pointing one version behind it.
-  if (!document.body.classList.contains('gly-scrubbing')) {
+  if (this.scrubT >= ui.max) {
     this.scrubT = max;
   }
+  ui.max = max;
   const frames = keyframesOf(rounds, this.sealed);
   ui.keys.replaceChildren(
     ...frames.map((k) => {
@@ -256,6 +272,27 @@ function versionHTML(n: number): Promise<string | null> {
 
 export function forgetVersionHTML(n: number): void {
   htmlCache.delete(n);
+}
+
+// ONE PREDICATE FOR "AM I OFF THE HEAD", AND EVERY SURFACE ASKS IT.
+//
+// This question used to be spelled three ways in five files —
+// `versionsPanel.open`, `body.gly-scrubbing`, and `scrubState(...).atHead` —
+// with the panel and the body class as PEERS of the derived truth rather than
+// renders of it. They can disagree, and one of them already had: frame.ts
+// records a 119px layout jump from asking `scrubT` before the timeline was
+// built, and fixed it by picking a different one of the three.
+//
+// The position is the truth: `scrubT` at `scrubMax()` is the live draft, and
+// anything below it is a version being read. `versionsPanel.show()/hide()` and
+// `body.gly-scrubbing` are what scrubTo WRITES from that answer, one place.
+//
+// A page with no scrubber is at the head by construction, and saying so here is
+// what retires the 119px jump at its source: before makeTimeline runs `scrubT`
+// is still 1 while `scrubMax()` already answers the record's length, so the
+// arithmetic alone reads "reading v1" on any document with more than one round.
+export function atHead(this: AppShell): boolean {
+  return !this.timeline || scrubState(this.scrubT, this.scrubMax()).atHead;
 }
 
 // The ticket every scrubTo takes, so a late fetch can tell whether the handle

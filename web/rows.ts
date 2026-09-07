@@ -18,7 +18,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AppShell } from './appshell.ts';
 import { postJSON } from './net.ts';
 
-interface RowSpec {
+export interface RowSpec {
   key: string;
   index: number;
   text: string;
@@ -85,7 +85,21 @@ function blockRange(doc: PMNode, index: number): [number, number] | null {
 // diff's HTML and the editor's DOM disagree about both; a change with nothing
 // inserted (a pure deletion) is looked up by what it removed instead, which is
 // still in the block for as long as the region is only part of it.
-const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+//
+// THE PROBE HAS A FLOOR, AND IT IS 20 CHARACTERS. A short fragment is not
+// distinctive, it is COMMON: a twelve-character deletion (`, this skill`)
+// matched the document's frontmatter block by substring and hung a WAS strip
+// full of the wrong prose at the top of the paper. Twenty characters of real
+// prose picks out one block or none, and "none" is the honest answer — the
+// strip is an enrichment, and a missing one costs the reviewer nothing while a
+// wrong one tells them the agent changed something it never touched.
+//
+// AND ONE WAS PER BLOCK. A round that edits three phrases in one paragraph
+// renders three regions, all matching that paragraph, and three strips stacked
+// under it read as three separate rewrites of the same words. The longest
+// deletion is kept because it is the one that shows most of what was there.
+export const PROBE_MIN = 20;
+export const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 export function matchBlocks(
   changes: { ins: string; del: string }[],
   blocks: string[],
@@ -93,12 +107,48 @@ export function matchBlocks(
   const bs = blocks.map(norm);
   return changes.map((c) => {
     const probe = norm(c.ins).slice(0, 40) || norm(c.del).slice(0, 40);
-    if (!probe) {
+    if (probe.length < PROBE_MIN) {
       return null;
     }
     const i = bs.findIndex((b) => b.includes(probe));
     return i >= 0 ? i : null;
   });
+}
+
+// Keeps one WAS per block — the longest `was` wins. Order is the order the
+// blocks first appear, so the strips read down the page as the paper does.
+export function dedupeWas(was: WasSpec[]): WasSpec[] {
+  const best = new Map<number, WasSpec>();
+  for (const w of was) {
+    const now = best.get(w.index);
+    if (!now || w.was.length > now.was.length) {
+      best.set(w.index, w);
+    }
+  }
+  return [...best.values()].sort((a, b) => a.index - b.index);
+}
+
+// A SENT ASK IS FOUND BY THE WORDS IT WAS ON. Its thread has left the pending
+// list by then (`internal/serve/editmode.go`: sent instructions live in the
+// immutable round ledger and never come back), so there is no anchorKey to
+// look up — but the round carries the `quote` the reviewer selected, and that
+// text is still in the paper unless the agent rewrote exactly it. Same
+// normalised containment `matchBlocks` uses, same reason, and the same floor:
+// a two-word quote would match half the document.
+export function quoteBlockIndex(
+  doc: { childCount: number; child(i: number): { textContent: string } },
+  quote: string,
+): number {
+  const probe = norm(quote).slice(0, 40);
+  if (probe.length < PROBE_MIN) {
+    return -1;
+  }
+  for (let i = 0; i < doc.childCount; i++) {
+    if (norm(doc.child(i).textContent).includes(probe)) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function rowDOM(r: RowSpec, onRemove: (key: string) => void): HTMLElement {
@@ -309,8 +359,77 @@ export function runBlockIndex(
 // The mixin: rows follow the pending instructions; WAS/revised follow the
 // arrival (Task 11).
 export const rowMethods = {
+  // THE ROUND KEEPS THE ROWS ALIVE AFTER THE PRESS. Rows used to be built from
+  // `this.comments` alone, which is the PENDING list — so the instant Revise
+  // was pressed the server emptied it and every row vanished from the paper,
+  // taking spec §2-§4's `writing…`, `applied` and `not applied` with it. That
+  // left the repo's own invariant — nothing the reviewer sent may ever
+  // disappear — with no surface at all, because the unanswered-ask card lived
+  // on History's landing and this branch deleted it.
+  //
+  // The round is the right source, not a second copy of pending: it is the
+  // immutable ledger, it carries each ask's `text`, its `quote` and whether the
+  // agent `answered` it, and it is already on the wire and already refreshed by
+  // the versions poll. Rows built from it are NOT removable — a sent
+  // instruction is a fact about the past, and a `×` on it would be offering to
+  // un-say something the agent has already read.
+  sentRows(this: AppShell, phase: 'revising' | 'review' | 'cannot'): RowSpec[] {
+    const rounds = this.versionsPanel?.rounds ?? [];
+    let round = null;
+    for (const r of rounds) {
+      if (r.reason === 'revise' && (!round || r.n > round.n)) {
+        round = r;
+      }
+    }
+    const doc = this.editor.state.doc;
+    const rows: RowSpec[] = [];
+    for (const a of round?.asks ?? []) {
+      // The pending thread is gone by definition, but a thread that has NOT
+      // been sent yet can still be keyed the same way (the arrival poll and the
+      // versions poll are on different beats), so its anchor is preferred while
+      // it lasts — a key is exact and a quote is a text match.
+      const thread = this.comments.find((t) => t.key === a.key);
+      const block = thread?.anchorKey
+        ? this.blocks.find((b) => b.key === thread.anchorKey)
+        : undefined;
+      const index = block ? block.index : quoteBlockIndex(doc, a.quote ?? '');
+      if (index < 0) {
+        continue;
+      }
+      const state: RowSpec['state'] =
+        phase === 'revising'
+          ? 'writing…'
+          : phase === 'review' && a.answered
+            ? 'applied'
+            : 'not applied';
+      rows.push({
+        key: a.key,
+        index,
+        text: a.text,
+        state,
+        tone: state === 'not applied' ? 'coral' : 'accent',
+        removable: false,
+      });
+    }
+    return rows;
+  },
+
   paintRows(this: AppShell): void {
     const phase = this.phase();
+    if (phase === 'revising' || phase === 'review' || phase === 'cannot') {
+      const rows = this.sentRows(phase);
+      const was = this.arrivalWas ?? [];
+      setRows(this.editor.view, {
+        rows,
+        was,
+        // `review` is the one phase that does not tint: the block already wears
+        // `.gly-revised` from the arrival, and a coral mark under an accent
+        // wash would be saying the round is both done and outstanding.
+        marked: phase === 'review' ? [] : rows.map((r) => r.index),
+        revised: was.map((w) => w.index),
+      });
+      return;
+    }
     const rows: RowSpec[] = [];
     const marked: number[] = [];
     for (const t of this.comments) {
@@ -332,30 +451,17 @@ export const rowMethods = {
       if (index < 0) {
         continue;
       }
-      const applied = this.appliedKeys?.has(t.key) ?? false;
-      const state: RowSpec['state'] =
-        phase === 'revising'
-          ? 'writing…'
-          : phase === 'review'
-            ? applied
-              ? 'applied'
-              : 'not applied'
-            : phase === 'cannot'
-              ? 'not applied'
-              : 'queued';
-      const tone: RowSpec['tone'] =
-        state === 'applied' || state === 'writing…' ? 'accent' : 'coral';
+      // Only `markup` reaches here now — the three sent phases returned above
+      // — so the state is the one a pending instruction has: waiting to go.
       rows.push({
         key: t.key,
         index,
         text: t.entries[0]?.text ?? '',
-        state,
-        tone,
-        removable: phase === 'markup' || phase === 'cannot',
+        state: 'queued',
+        tone: 'coral',
+        removable: true,
       });
-      if (phase !== 'review') {
-        marked.push(index);
-      }
+      marked.push(index);
     }
     const was = this.arrivalWas ?? [];
     setRows(this.editor.view, {

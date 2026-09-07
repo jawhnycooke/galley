@@ -131,7 +131,7 @@ import type { ThemeChoice } from './theme.ts';
 import type { Phase } from './phase.ts';
 import type { TimelineUI } from './timeline.ts';
 import type { FrameUI } from './frame.ts';
-import type { WasSpec } from './rows.ts';
+import type { WasSpec, RowSpec } from './rows.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -477,12 +477,12 @@ export interface AppState {
   readoutDot: HTMLSpanElement | null;
 
   // --- the pinned rows inside the paper (web/rows.ts) ---
-  // Which instructions the last round actually applied, and what each revised
-  // block used to say. Both are the ARRIVAL's news rather than the pending
-  // view's, so both start genuinely absent — `null`, not an empty list, which
-  // would claim "the round applied nothing" before a round has landed. Task 11
-  // fills them.
-  appliedKeys: Set<string> | null;
+  // What each revised block used to say. The ARRIVAL's news rather than the
+  // pending view's, so it starts genuinely absent — `null`, not an empty list,
+  // which would claim "the round changed nothing" before a round has landed.
+  // (Which instructions the round APPLIED used to be cached beside this as
+  // `appliedKeys`; it is read straight off `round.asks[].answered` in
+  // rows.ts's sentRows now, one source rather than a copy of one.)
   arrivalWas: WasSpec[] | null;
   // The `× revert` pill that follows the pointer over a deletion ghost. Built
   // lazily on the first hover, like readoutDot above.
@@ -664,6 +664,8 @@ export interface AppMethods {
   // --- the footer scrubber (web/timeline.ts) ---
   makeTimeline(): void;
   paintTimeline(): void;
+  // See timeline.ts: THE one predicate for "am I off the head".
+  atHead(): boolean;
   scrubMax(): number;
   scrubTo(t: number): void;
   scrubStep(delta: -1 | 1): void;
@@ -734,6 +736,7 @@ export interface AppMethods {
   phase(): Phase;
 
   // --- the pinned rows inside the paper (web/rows.ts) ---
+  sentRows(phase: 'revising' | 'review' | 'cannot'): RowSpec[];
   paintRows(): void;
   removeInstruction(key: string): void;
 }

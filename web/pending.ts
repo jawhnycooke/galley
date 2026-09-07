@@ -267,7 +267,6 @@ export const pendingMethods = {
         const filed = (view.instructions || []).length;
         if (filed > this.pendingCount && this.arrivalWas) {
           this.arrivalWas = null;
-          this.appliedKeys = null;
         }
         this.pendingCount = filed;
         this.paintBarCount();

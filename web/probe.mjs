@@ -8387,11 +8387,13 @@ function bindsContentField(src) {
 
 // --- arrival matching ---
 {
-  const { matchBlocks } = await import('./rows.ts');
+  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN } = await import(
+    './rows.ts'
+  );
   const blocks = [
     'Intro paragraph.',
     'A long, structured research document covering everything.',
-    'Closing.',
+    'Closing, and this skill is where it ends.',
   ];
   const m = matchBlocks(
     [
@@ -8411,7 +8413,48 @@ function bindsContentField(src) {
   check('matchBlocks: unmatched is null', m[1] === null, m);
   check(
     'matchBlocks: an empty insertion matches by deletion text',
-    matchBlocks([{ ins: '', del: 'Closing.' }], blocks)[0] === 2,
+    matchBlocks([{ ins: '', del: 'Closing, and this skill is where' }], blocks)[0] ===
+      2,
+  );
+  // THE FLOOR IS THE WHOLE POINT: `, this skill` is twelve characters and it
+  // occurs inside the third block AND inside anything else that says it. On the
+  // real document a fragment that short matched the FRONTMATTER and hung a WAS
+  // strip full of the wrong prose at the top of the paper.
+  check('matchBlocks: a short probe is refused, not guessed', PROBE_MIN === 20);
+  check(
+    'matchBlocks: a 12-char deletion matches nothing',
+    matchBlocks([{ ins: '', del: ', this skill' }], blocks)[0] === null,
+  );
+  check(
+    'dedupeWas: one WAS per block, the longest deletion',
+    JSON.stringify(
+      dedupeWas([
+        { index: 2, was: 'short' },
+        { index: 1, was: 'the middle one' },
+        { index: 2, was: 'a considerably longer one' },
+      ]),
+    ) ===
+      JSON.stringify([
+        { index: 1, was: 'the middle one' },
+        { index: 2, was: 'a considerably longer one' },
+      ]),
+  );
+  // The sent-round rows' bridge: an ask is found by the words it was on.
+  const doc = {
+    childCount: blocks.length,
+    child: (i) => ({ textContent: blocks[i] }),
+  };
+  check(
+    'quoteBlockIndex: an ask finds its block by the quote it was on',
+    quoteBlockIndex(doc, 'A long, structured research document') === 1,
+  );
+  check(
+    'quoteBlockIndex: a short quote is refused',
+    quoteBlockIndex(doc, 'Closing') === -1,
+  );
+  check(
+    'quoteBlockIndex: a quote in no block is -1',
+    quoteBlockIndex(doc, 'words that appear nowhere in this paper') === -1,
   );
 }
 

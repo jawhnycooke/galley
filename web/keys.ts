@@ -61,7 +61,7 @@ export const keyMethods = {
       // READING A VERSION is one surface with one exit: Esc returns to the
       // head. It used to be two stacked meanings — release the pinned change,
       // then leave the reading mode — and the pin went with the change rail.
-      if (this.versionsPanel.open) {
+      if (!this.atHead()) {
         this.scrubHome();
         return;
       }
@@ -145,7 +145,7 @@ export const keyMethods = {
     // suggestions, and so reached nothing at all. The note that stood here
     // named both exits ("point the stepper at the instruction cards or take
     // that check with it") and this is the first of them.
-    if (this.versionsPanel.open) {
+    if (!this.atHead()) {
       return;
     }
     switch (event.key) {
