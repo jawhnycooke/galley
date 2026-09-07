@@ -5,7 +5,7 @@
 // own position and nothing else, so it cannot disagree with the footer or the
 // readout about where the round stands. See web/phase.ts's header.
 import type { AppShell } from './appshell.ts';
-import { eyebrowRight, type Phase } from './phase.ts';
+import { eyebrowRight, type Phase, type Tone } from './phase.ts';
 import { ageSaid } from './versions.ts';
 import { scrubState } from './timeline.ts';
 
@@ -141,22 +141,18 @@ export function paintFrame(this: AppShell): void {
     ? undefined
     : ageSaid(rounds[s.near - 1]?.at ?? '', Date.now());
   const phase = this.phase();
-  const right = s.atHead
-    ? eyebrowRight(phase, this.pendingCount, this.changes.length)
-    : { text: 'READ ONLY', tone: 'muted' as const };
-  // THE EYEBROW SPEAKS ONLY WHEN THE BAR DOES NOT. At the head of a working
-  // draft the left cell said `WORKING DRAFT · ROUND 15` under a readout that
-  // already says `round 15 · draft`, and the right cell said `DRAFT` again —
-  // the reviewer read it as the same fact three times. So: the left cell is
-  // blank at the head in markup (the bar owns round and phase there), and
-  // the right cell is blank when all it has is `DRAFT`. Off the head, and in
-  // every other phase, both say something the bar does not.
-  const plainDraft = s.atHead && phase === 'markup';
-  f.eyebrowL.textContent = plainDraft
-    ? ''
-    : eyebrowLeft(phase, round, max, { atHead: s.atHead, near: s.near, at });
-  f.eyebrowR.textContent = right.text === 'DRAFT' ? '' : right.text;
-  f.eyebrowR.dataset.tone = right.tone;
+  const brow = eyebrowTexts(
+    phase,
+    round,
+    max,
+    s,
+    at,
+    this.pendingCount,
+    this.changes.length,
+  );
+  f.eyebrowL.textContent = brow.left;
+  f.eyebrowR.textContent = brow.right;
+  f.eyebrowR.dataset.tone = brow.tone;
   // The restore verb names the version the scrubber is ON, so the panel's
   // selection follows the handle rather than a click that no longer exists.
   // Hidden at the head: there is nothing to restore the draft FROM there, and
@@ -177,21 +173,54 @@ export function paintFrame(this: AppShell): void {
   const cannot = phase === 'cannot' && s.atHead;
   f.banner.hidden = !cannot;
   if (cannot) {
-    f.banner.replaceChildren();
-    const label = document.createElement('span');
-    label.className = 'gly-cannot-label';
-    label.textContent = 'COULD NOT';
-    const body = document.createElement('div');
-    body.className = 'gly-cannot-body';
-    const head = document.createElement('div');
-    head.textContent = cannotSaid(round);
-    const why = document.createElement('div');
-    why.className = 'gly-cannot-why';
-    why.textContent = this.seenCannot;
-    const fixed = document.createElement('div');
-    fixed.className = 'gly-cannot-fixed';
-    fixed.textContent = CANNOT_FIXED;
-    body.append(head, why, fixed);
-    f.banner.append(label, body);
+    paintCannot(f.banner, round, this.seenCannot);
   }
+}
+
+/** The eyebrow's two cells. THE EYEBROW SPEAKS ONLY WHEN THE BAR DOES NOT: at
+ *  the head of a working draft the left cell said `WORKING DRAFT · ROUND 15`
+ *  under a readout that already says `round 15 · draft`, and the right cell
+ *  said `DRAFT` again — the reviewer read it as the same fact three times. So
+ *  the left cell is blank at the head in markup (the bar owns round and phase
+ *  there), and the right cell is blank when all it has is `DRAFT`. Off the
+ *  head, and in every other phase, both say something the bar does not. */
+function eyebrowTexts(
+  phase: Phase,
+  round: number,
+  max: number,
+  s: { atHead: boolean; near: number },
+  at: string | undefined,
+  pending: number,
+  edits: number,
+): { left: string; right: string; tone: Tone } {
+  const right = s.atHead
+    ? eyebrowRight(phase, pending, edits)
+    : { text: 'READ ONLY', tone: 'muted' as const };
+  const plainDraft = s.atHead && phase === 'markup';
+  return {
+    left: plainDraft
+      ? ''
+      : eyebrowLeft(phase, round, max, { atHead: s.atHead, near: s.near, at }),
+    right: right.text === 'DRAFT' ? '' : right.text,
+    tone: right.tone,
+  };
+}
+
+function paintCannot(banner: HTMLElement, round: number, why: string): void {
+  banner.replaceChildren();
+  const label = document.createElement('span');
+  label.className = 'gly-cannot-label';
+  label.textContent = 'COULD NOT';
+  const body = document.createElement('div');
+  body.className = 'gly-cannot-body';
+  const head = document.createElement('div');
+  head.textContent = cannotSaid(round);
+  const reason = document.createElement('div');
+  reason.className = 'gly-cannot-why';
+  reason.textContent = why;
+  const fixed = document.createElement('div');
+  fixed.className = 'gly-cannot-fixed';
+  fixed.textContent = CANNOT_FIXED;
+  body.append(head, reason, fixed);
+  banner.append(label, body);
 }

@@ -29,7 +29,7 @@ const HEAD_EPS = 0.01;
 // labels overprint. Every stride-th label stays, plus the first, the last and
 // the one nearest the handle; the dots all stay, and hovering the row shows
 // every label. 44px is one label and a breath at 11px mono.
-export const LABEL_GAP_PX = 44;
+const LABEL_GAP_PX = 44;
 export function labelStride(
   trackWidth: number,
   count: number,
@@ -51,7 +51,7 @@ export function showLabel(
 // which on a long track is under a pixel: "let go near the right end" landed a
 // hair short of `now` and the page stayed read-only. The last few pixels of
 // the track ARE the head.
-export const HEAD_SNAP_PX = 8;
+const HEAD_SNAP_PX = 8;
 export function trackToT(
   x: number,
   width: number,

@@ -1899,9 +1899,15 @@ try {
       // have four different `x` and the SAME midpoint and the same `y`. Laid
       // out side by side — the `inline-flex` this check was written to catch —
       // the midpoints march rightwards and no two of them agree.
+      // ±1px: the four faces share one grid cell, and their centres differ
+      // only by the rounding of four different text widths — Linux fonts put
+      // `← back to draft` at 515 beside three at 516 and a strict equality
+      // read that as a second cell.
       oneCell:
         labels.length === 4 &&
-        labels.every((l) => l.mid === labels[0].mid && l.y === labels[0].y),
+        labels.every(
+          (l) => Math.abs(l.mid - labels[0].mid) <= 1 && l.y === labels[0].y,
+        ),
     };
   });
   check(

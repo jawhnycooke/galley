@@ -51,6 +51,35 @@
 // chromium` once, or GALLEY_CHROME=<executable>. It is in `just gates` beside
 // the other five, and a step of its own in ci.yml.
 
+// readPinnedRow is the one reading of the fence's pinned row — the row's
+// count, its key and words, its state, whether the fence wears the mark, and
+// where the row sits relative to the fence — taken on whichever page is asked
+// (the first tab, or the reopened one).
+const readPinnedRow = (tab) =>
+  tab.evaluate(() => {
+    const el = document.querySelector('.ProseMirror .gly-row');
+    const pre = document.querySelector('.ProseMirror pre');
+    return {
+      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
+      railThreads: document.querySelectorAll('.gly-rail-band .gly-thread')
+        .length,
+      key: el ? el.dataset.key : '',
+      said: el ? el.querySelector('.gly-row-text').textContent : '',
+      state: el ? el.querySelector('.gly-row-state').textContent : '',
+      marked: !!pre && pre.classList.contains('gly-marked'),
+      // Both in viewport coordinates in the same frame: the row is pinned at
+      // the end of the fence's own block, so UNDER it means a positive gap
+      // measured from the fence's bottom.
+      below:
+        el && pre
+          ? Math.round(
+              el.getBoundingClientRect().top -
+                pre.getBoundingClientRect().bottom,
+            )
+          : null,
+    };
+  });
+
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -407,29 +436,7 @@ const filed = await pendingOn(PORT);
     { quote: one && one.quote, label: ref.label, region: one && one.region },
   );
 
-  const row = await page.evaluate(() => {
-    const el = document.querySelector('.ProseMirror .gly-row');
-    const pre = document.querySelector('.ProseMirror pre');
-    return {
-      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
-      railThreads: document.querySelectorAll('.gly-rail-band .gly-thread')
-        .length,
-      key: el ? el.dataset.key : '',
-      said: el ? el.querySelector('.gly-row-text').textContent : '',
-      state: el ? el.querySelector('.gly-row-state').textContent : '',
-      marked: !!pre && pre.classList.contains('gly-marked'),
-      // Both in viewport coordinates in the same frame: the row is pinned at
-      // the end of the fence's own block, so UNDER it means a positive gap
-      // measured from the fence's bottom.
-      below:
-        el && pre
-          ? Math.round(
-              el.getBoundingClientRect().top -
-                pre.getBoundingClientRect().bottom,
-            )
-          : null,
-    };
-  });
+  const row = await readPinnedRow(page);
   check(
     'a pinned row carries that thread and the reviewer\u2019s words \u2014 and the rail keeps nothing',
     row.rows === 1 &&
@@ -508,18 +515,7 @@ await reopened.waitForSelector('.ProseMirror .gly-row', {
       one.anchorKey === again.key,
     { one, again },
   );
-  const row = await reopened.evaluate(() => {
-    const el = document.querySelector('.ProseMirror .gly-row');
-    const pre = document.querySelector('.ProseMirror pre');
-    return {
-      rows: document.querySelectorAll('.ProseMirror .gly-row').length,
-      railThreads: document.querySelectorAll('.gly-rail-band .gly-thread')
-        .length,
-      key: el ? el.dataset.key : '',
-      said: el ? el.querySelector('.gly-row-text').textContent : '',
-      marked: !!pre && pre.classList.contains('gly-marked'),
-    };
-  });
+  const row = await readPinnedRow(reopened);
   check(
     'and the reviewer sees the same row pinned under the fence, which is still marked',
     row.rows === 1 &&
