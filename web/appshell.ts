@@ -550,6 +550,7 @@ export interface AppMethods {
   };
   toggleVersions(): void;
   showArrival(): void;
+  readArrivalInline(n: number): void;
   openInstructions(): void;
   paintSheet(): void;
   paintSheetSettled(): void;

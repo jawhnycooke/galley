@@ -28,12 +28,14 @@
 
 import {
   arrivalSaid,
-  arrivedSaid,
   STAGE_ROUNDS,
   VERSIONS_LABEL,
   VERSIONS_NAME,
 } from './versions.ts';
 import type { AppShell, ReviseView } from './appshell.ts';
+import type { DiffView } from './wire';
+import { getJSON } from './net.ts';
+import { matchBlocks } from './rows.ts';
 import { forgetVersionHTML, scrubState } from './timeline.ts';
 import { WHOLE_DOC_LABEL } from './frame.ts';
 
@@ -302,22 +304,86 @@ export const historyMethods = {
     // ends in a bare `.catch(() => {})` (versions.ts), so this chain cannot
     // reject in practice; `void` records the same "fails silently, on
     // purpose" intent this comment already states.
-    void this.versionsPanel.refresh().then(() => this.showArrival());
+    void this.versionsPanel.refresh().then(() => {
+      this.showArrival();
+      this.readArrivalInline(n);
+    });
     this.paintVersionsButton();
   },
 
-  // showArrival composes board 1e's sentence and puts it on the strip. It reads
-  // the panel's own rounds — the list the record was just refreshed into — so
-  // the strip, the History landing and the reading state are all quoting one
-  // fetch of one endpoint.
+  // readArrivalInline PUTS THE ROUND INSIDE THE PAPER. The strip used to say
+  // "round N changed k blocks" beside the prose; what a reviewer actually asks
+  // is "which words moved, and what did they say before" — and both answers are
+  // on the page already, one block apart. So the round is drawn where it
+  // happened: the changed block tints, the WAS strip under it carries the old
+  // wording struck through, the agent's own sentence about that change sits
+  // below it, and the instruction's row reads `applied`.
+  //
+  // THE DIFF IS THE SOURCE FOR THE WORDS AND THE RECORD IS THE SOURCE FOR THE
+  // VERDICT, because they are different questions. `view=inplace` renders
+  // v(n-1) against v(n) and is the only place the OLD text still exists; which
+  // instructions the agent actually answered is the round's own `asks[].answered`,
+  // which the panel has just refreshed. Neither is guessed from the other.
+  //
+  // It runs after `refresh()` for that reason — `versionsPanel.rounds` has to
+  // be the list that includes round n — and it fails silently by design: the
+  // readout and the amber door have already said a round came back, and an
+  // inline strip is an enrichment of a page that is already correct without it.
+  readArrivalInline(this: AppShell, n: number) {
+    void getJSON<DiffView>(
+      `/_galley/versions/view?from=${n - 1}&to=${n}&view=inplace`,
+    ).then((diff) => {
+      if (!diff) {
+        return;
+      }
+      const doc = new DOMParser().parseFromString(diff.html, 'text/html');
+      // A REGION IS STAMPED ON THE ELEMENT IT ALREADY RENDERS AS rather than
+      // wrapped in one (internal/diff/render.go, `mark`), so the region element
+      // can BE the `.gly-ins` — hence `matches` beside `querySelectorAll`. The
+      // ordinal is read off the attribute, not off document order, because it
+      // is what indexes `changes`.
+      const text = (r: Element, sel: string) =>
+        [...(r.matches(sel) ? [r] : []), ...r.querySelectorAll(sel)]
+          .map((e) => e.textContent ?? '')
+          .join(' ');
+      const regions = [...doc.querySelectorAll('[data-gly-region]')];
+      const changes = regions.map((r) => ({
+        k: Number(r.getAttribute('data-gly-region')),
+        ins: text(r, '.gly-ins'),
+        del: text(r, '.gly-del'),
+      }));
+      const blocks = [...document.querySelectorAll('.ProseMirror > *')].map(
+        (b) => b.textContent ?? '',
+      );
+      const at = matchBlocks(changes, blocks);
+      this.arrivalWas = changes.flatMap((c, i) => {
+        const index = at[i];
+        return index === null || !c.del
+          ? []
+          : [{ index, was: c.del, note: diff.changes?.[c.k]?.note }];
+      });
+      const round = this.versionsPanel.rounds?.find((r) => r.n === n);
+      this.appliedKeys = new Set(
+        (round?.asks ?? []).filter((a) => a.answered).map((a) => a.key),
+      );
+      this.paintRows();
+      this.paintFrame();
+    });
+  },
+
+  // showArrival USED TO COMPOSE THE STRIP'S SENTENCE and no longer does: the
+  // strip said "round N · k changes" over the top of the prose, and the round
+  // now says both of those things where it happened — the tinted block, the WAS
+  // text under it, the eyebrow's `NEEDS YOUR APPROVAL` (frame.ts). A banner
+  // repeating a count for changes the reviewer can see is one more surface to
+  // dismiss before reading the document. The frame paint is what is left; the
+  // method survives this task only so its callers still resolve, and Task 14
+  // deletes it with the strip itself.
   showArrival(this: AppShell) {
     if (!this.arrival) {
       return;
     }
-    this.showStrip(
-      arrivedSaid(this.versionsPanel.rounds, this.arrival.n),
-      this.arrival,
-    );
+    this.paintFrame();
   },
 
   toggleVersions(this: AppShell) {

@@ -4205,6 +4205,25 @@ body.gly-revising .ProseMirror > .gly-marked { background: var(--gly-accent-fill
 .ProseMirror > .gly-revised { background: var(--gly-accent-fill-18); border-radius: 6px; padding: 8px 12px; margin-left: -12px; margin-right: -12px; animation: gly-glow 1.2s ease-out 1; }
 @keyframes gly-glow { 0% { box-shadow: 0 0 0 0 rgba(214, 255, 61, .5); } 100% { box-shadow: 0 0 0 18px rgba(214, 255, 61, 0); } }
 
+/* --- what the block said before, and why it changed ---
+
+   The WAS strip is a QUOTATION, not a control: no border box, no background —
+   a coral rule down the left and grey ink, so the eye reads the living
+   paragraph above it first and the old wording second. `user-select: none`
+   for the row's reason: it is a readout inside editable prose and a selection
+   dragged through the paragraph must not pick it up.
+
+   The agent's note is the ONE sentence it wrote about that change
+   (`ChangeView.note`) and is styled as a message rather than a quotation —
+   filled, rounded, labelled — because it comes from the other party to the
+   review and the struck text above it does not. */
+.gly-was-wrap { margin: 12px 0 0; user-select: none; }
+.gly-was { padding: 8px 12px; border-left: 2px solid var(--gly-coral); font: 14px/1.5 var(--gly-sans); color: var(--gly-was-ink); animation: rise .3s ease; }
+.gly-was-eyebrow { font: 10.5px var(--gly-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gly-coral); margin-right: 10px; }
+.gly-was s { text-decoration-color: var(--gly-coral); }
+.gly-agent-note { margin: 8px 0 0; display: flex; gap: 10px; align-items: flex-start; font: 13.5px/1.45 var(--gly-sans); color: var(--gly-muted2); background: var(--gly-bg); border-radius: 8px; padding: 8px 12px; animation: rise .35s ease; }
+.gly-agent-note-label { font: 11px var(--gly-mono); color: var(--gly-accent); white-space: nowrap; padding-top: 2px; }
+
 /* The instruction itself, under the block it is about. `user-select: none`
    because it is a readout inside editable prose and a selection dragged
    through the paragraph must not pick it up. */

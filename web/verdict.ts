@@ -530,6 +530,16 @@ export const verdictMethods = {
     void postJSON('/_galley/revise', body)
       .then((res) => {
         if (res.status === 204) {
+          // THE LAST ROUND IS OVER THE MOMENT A VERDICT IS TAKEN. The WAS
+          // strips and the `applied` rows are a reading of ONE round — the one
+          // that landed — and both verdicts end that reading: an approve ends
+          // the review, and a Revise hands the document back to the agent, so
+          // the old wording under the paragraph is now two rounds stale.
+          // Cleared here rather than on the next paint because the paints are
+          // on a poll and the reviewer just pressed the button.
+          this.arrivalWas = null;
+          this.appliedKeys = null;
+          this.paintRows();
           if (approving) {
             // The past tense is EARNED: the label reads `approved` only after
             // the server took the verdict, and paintRevise keeps the button

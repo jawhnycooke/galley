@@ -248,7 +248,20 @@ export const pendingMethods = {
         // the label here rather than on its own 1s beat, so the button and the
         // census it reads can never disagree for a tick.
         this.verdict = verdictLabel(view);
-        this.pendingCount = (view.instructions || []).length;
+        // A NEWLY FILED INSTRUCTION RETIRES THE LANDED ROUND. The WAS strip and
+        // the `applied`/`not applied` rows are the answer to the round that just
+        // came back; the moment the reviewer pins a new instruction they are
+        // composing the NEXT round, and a row under it that still reads
+        // `applied` from the last one is answering a question nobody asked.
+        // A GROWN COUNT IS THE TEST because filing is the only thing that grows
+        // it — a delete shrinks it, and a delete leaves the last round's reading
+        // exactly as true as it was.
+        const filed = (view.instructions || []).length;
+        if (filed > this.pendingCount && this.arrivalWas) {
+          this.arrivalWas = null;
+          this.appliedKeys = null;
+        }
+        this.pendingCount = filed;
         this.paintCensus();
         this.paintRevise();
         this.paintHold();

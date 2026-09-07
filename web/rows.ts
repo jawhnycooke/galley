@@ -75,6 +75,32 @@ function blockRange(doc: PMNode, index: number): [number, number] | null {
   return [pos, pos + doc.child(index).nodeSize];
 }
 
+// matchBlocks is THE ONLY BRIDGE between the diff and the paper, and it is a
+// text match rather than a position map on purpose: the diff is a render of two
+// SERVER documents and the paper is a live ProseMirror doc the reviewer may
+// already have typed into, so there is no shared coordinate to map through.
+// What both do share is the words, and the words the agent just wrote are the
+// most distinctive thing on the page — a 40-character prefix of an insertion
+// picks out one block or none. Whitespace and case are normalised because the
+// diff's HTML and the editor's DOM disagree about both; a change with nothing
+// inserted (a pure deletion) is looked up by what it removed instead, which is
+// still in the block for as long as the region is only part of it.
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+export function matchBlocks(
+  changes: { ins: string; del: string }[],
+  blocks: string[],
+): (number | null)[] {
+  const bs = blocks.map(norm);
+  return changes.map((c) => {
+    const probe = norm(c.ins).slice(0, 40) || norm(c.del).slice(0, 40);
+    if (!probe) {
+      return null;
+    }
+    const i = bs.findIndex((b) => b.includes(probe));
+    return i >= 0 ? i : null;
+  });
+}
+
 function rowDOM(r: RowSpec, onRemove: (key: string) => void): HTMLElement {
   const el = document.createElement('div');
   el.className = 'gly-row';

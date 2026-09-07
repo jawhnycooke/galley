@@ -8640,6 +8640,36 @@ function bindsContentField(src) {
   check('blockEnd: out of range is -1', blockEnd(doc, 3) === -1);
 }
 
+// --- arrival matching ---
+{
+  const { matchBlocks } = await import('./rows.ts');
+  const blocks = [
+    'Intro paragraph.',
+    'A long, structured research document covering everything.',
+    'Closing.',
+  ];
+  const m = matchBlocks(
+    [
+      {
+        ins: 'A long, structured research document covering',
+        del: 'a long structured doc',
+      },
+      { ins: 'nothing like this', del: '' },
+    ],
+    blocks,
+  );
+  check(
+    'matchBlocks: finds the block whose text contains the inserted prefix',
+    m[0] === 1,
+    m,
+  );
+  check('matchBlocks: unmatched is null', m[1] === null, m);
+  check(
+    'matchBlocks: an empty insertion matches by deletion text',
+    matchBlocks([{ ins: '', del: 'Closing.' }], blocks)[0] === 2,
+  );
+}
+
 // --- verdict menu copy ---
 {
   const v = await import('./verdict.ts');
