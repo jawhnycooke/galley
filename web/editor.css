@@ -312,7 +312,7 @@
   border-radius: 6px;
   box-shadow: var(--gly-sheet-shadow);
   padding: clamp(28px, 6%, 56px) clamp(24px, 7%, 64px) 64px;
-  max-width: 760px;
+  max-width: 1040px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -1144,7 +1144,7 @@ body {
 :root {
   --gly-col: 620px;
   --gly-gutter: 20px;
-  --gly-col-wide: 680px;
+  --gly-col-wide: 1080px;
   /* GUTTER_PX, AND THE ONE SPELLING OF IT IN THIS FILE. It was the literal
      `26px` in six rules and imported into none, while `rail.ts` exported the
      constant and `just layers` §9 measured every card's left edge against it —
@@ -2557,15 +2557,23 @@ body.gly-revising .gly-dot {
   min-width: 5ch;
   text-align: left;
 }
+/* A glyph, not a swatch: ☀ light, ☾ dark, ◐ auto — the choice, which is the
+   thing the press changes; the resolved theme is what the whole page shows. */
 .gly-theme-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid var(--gly-muted);
-  background: #ffffff;
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1;
 }
-.gly-theme-swatch[data-theme="dark"] {
-  background: #0b0d12;
+.gly-theme-swatch::before {
+  content: "◐";
+}
+.gly-theme-swatch[data-choice="light"]::before {
+  content: "☀";
+}
+.gly-theme-swatch[data-choice="dark"]::before {
+  content: "☾";
 }
 
 /* --- the mode toggle ---
@@ -2668,6 +2676,23 @@ body.gly-revising .gly-dot {
 .gly-hold.gly-on {
   color: var(--gly-signal);
   border-color: var(--gly-signal);
+}
+/* COLLAPSED, NOT HIDDEN, WHILE THE PAGE IS NOT LIVE. The reserved box used to
+   keep its full width beside `live`, which wedged the theme button ~110px
+   away from the switch it belongs next to. Hold is the LAST control in the
+   row, so a zero-width reserve costs nothing the bar rule protects: when
+   `live` is pressed the box opens to the right of the switch and nothing
+   else moves. `visibility: hidden` stays, so the labels inside are laid out
+   and measured exactly as before. */
+.gly-hold.gly-reserved {
+  width: 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+  margin-left: -18px;
+  overflow: hidden;
 }
 /* Laid out, not drawn. Visibility is inherited, so the button carrying this
    hides its labels with it, and a label carrying it hides alone. */
@@ -3690,7 +3715,7 @@ body.gly-page .ProseMirror p.gly-shell-marker {
   font-family: var(--gly-mono);
 }
 .gly-timeline-grid {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4029,7 +4054,7 @@ main {
    which is what makes the whole-doc verb reachable at any scroll position
    without the bar's stickiness doing it. */
 .gly-frame {
-  max-width: 760px;
+  max-width: 1040px;
   margin: 36px auto 0;
 }
 .gly-eyebrow {

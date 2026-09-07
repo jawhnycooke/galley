@@ -59,7 +59,11 @@ export function applyTheme(this: AppShell): void {
   if (!b) return;
   const resolved = resolveTheme(this.theme, media().matches);
   b.querySelector('.gly-theme-label')!.textContent = themeLabel(this.theme);
-  b.querySelector<HTMLElement>('.gly-theme-swatch')!.dataset.theme = resolved;
+  const swatch = b.querySelector<HTMLElement>('.gly-theme-swatch')!;
+  swatch.dataset.theme = resolved;
+  // The glyph says the CHOICE (☀ light, ☾ dark, ◐ auto); the resolved theme
+  // is what the page already shows.
+  swatch.dataset.choice = this.theme;
   b.title = `theme: ${themeLabel(this.theme)}${this.theme === 'system' ? ` (following browser: ${resolved})` : ''} · click to change`;
 }
 
@@ -69,8 +73,9 @@ export function cycleTheme(this: AppShell): void {
   this.applyTheme();
 }
 
-// The button sits AFTER hold and BEFORE #gly-revise while the button is still
-// in the bar (Task 4 moves Revise to the footer; the theme button stays here).
+// The button sits BEFORE the live switch, so the two controls the reviewer
+// reaches for read as one pair at the bar's right; hold follows live and is
+// collapsed while the page is not live (see .gly-hold.gly-reserved).
 export function makeThemeButton(this: AppShell): void {
   const b = document.createElement('button');
   b.type = 'button';
@@ -81,10 +86,8 @@ export function makeThemeButton(this: AppShell): void {
   label.className = 'gly-theme-label';
   b.append(swatch, label);
   b.addEventListener('click', () => this.cycleTheme());
-  const anchor =
-    document.querySelector<HTMLElement>('.gly-hold') ??
-    document.querySelector<HTMLElement>('.gly-mode');
-  if (anchor) anchor.insertAdjacentElement('afterend', b);
+  const anchor = document.querySelector<HTMLElement>('.gly-mode');
+  if (anchor) anchor.insertAdjacentElement('beforebegin', b);
   else document.querySelector('.gly-bar')?.appendChild(b);
   this.themeButton = b;
   this.applyTheme();
