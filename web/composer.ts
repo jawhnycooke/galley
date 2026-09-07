@@ -51,7 +51,12 @@ const COMPOSER_QUOTE_CHARS = 20;
 // The four suggestion chips under the composer's textarea — a shortcut for
 // the phrasing a reviewer types most often. chipPrefill turns a chip's label
 // into the sentence-cased, em-dash-led opener the reviewer finishes typing.
-export const SUGGESTIONS = ['tighter', 'more concrete', 'shorter', 'plainer language'] as const;
+export const SUGGESTIONS = [
+  'tighter',
+  'more concrete',
+  'shorter',
+  'plainer language',
+] as const;
 export function chipPrefill(label: string): string {
   return `${label[0].toUpperCase()}${label.slice(1)} — `;
 }
@@ -502,8 +507,11 @@ export const composerMethods = {
     // Dim everything but the block the selection is in, so the reviewer's
     // eye has one thing to read while they type.
     document.body.classList.add('gly-composing');
-    const dom = this.editor.view.domAtPos(this.editor.state.selection.from).node;
-    const block: Element | null = dom instanceof Element ? dom : dom.parentElement;
+    const dom = this.editor.view.domAtPos(
+      this.editor.state.selection.from,
+    ).node;
+    const block: Element | null =
+      dom instanceof Element ? dom : dom.parentElement;
     block?.closest('.ProseMirror > *')?.classList.add('gly-composing-target');
   },
 
@@ -689,7 +697,9 @@ export const composerMethods = {
     this.composer.block = null;
     this.composer.button.disabled = false;
     document.body.classList.remove('gly-composing');
-    document.querySelectorAll('.gly-composing-target').forEach((el) => el.classList.remove('gly-composing-target'));
+    document
+      .querySelectorAll('.gly-composing-target')
+      .forEach((el) => el.classList.remove('gly-composing-target'));
   },
 
   // (applyStrike lived here until the trail cut. The Strike button was a

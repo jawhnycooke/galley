@@ -8,25 +8,42 @@ export const THEME_KEY = 'galley-theme';
 export type ThemeChoice = 'system' | 'light' | 'dark';
 export type Theme = 'light' | 'dark';
 
-const CYCLE: Record<ThemeChoice, ThemeChoice> = { system: 'light', light: 'dark', dark: 'system' };
+const CYCLE: Record<ThemeChoice, ThemeChoice> = {
+  system: 'light',
+  light: 'dark',
+  dark: 'system',
+};
 
 export function readTheme(raw: string | null): ThemeChoice {
   return raw === 'light' || raw === 'dark' ? raw : 'system';
 }
-export function nextTheme(t: ThemeChoice): ThemeChoice { return CYCLE[t]; }
+export function nextTheme(t: ThemeChoice): ThemeChoice {
+  return CYCLE[t];
+}
 export function resolveTheme(t: ThemeChoice, prefersDark: boolean): Theme {
   return t === 'system' ? (prefersDark ? 'dark' : 'light') : t;
 }
-export function themeLabel(t: ThemeChoice): string { return t === 'system' ? 'auto' : t; }
+export function themeLabel(t: ThemeChoice): string {
+  return t === 'system' ? 'auto' : t;
+}
 
 function storedTheme(): ThemeChoice {
-  try { return readTheme(localStorage.getItem(THEME_KEY)); } catch { return 'system'; }
+  try {
+    return readTheme(localStorage.getItem(THEME_KEY));
+  } catch {
+    return 'system';
+  }
 }
 function storeTheme(t: ThemeChoice): void {
-  try { localStorage.setItem(THEME_KEY, t); } catch { /* private mode: the choice lasts the page */ }
+  try {
+    localStorage.setItem(THEME_KEY, t);
+  } catch {
+    /* private mode: the choice lasts the page */
+  }
 }
 
-const media = (): MediaQueryList => window.matchMedia('(prefers-color-scheme: dark)');
+const media = (): MediaQueryList =>
+  window.matchMedia('(prefers-color-scheme: dark)');
 
 export function initTheme(this: AppShell): void {
   this.theme = storedTheme();
@@ -36,7 +53,8 @@ export function initTheme(this: AppShell): void {
 
 export function applyTheme(this: AppShell): void {
   const root = document.documentElement;
-  if (this.theme === 'system') delete root.dataset.theme; else root.dataset.theme = this.theme;
+  if (this.theme === 'system') delete root.dataset.theme;
+  else root.dataset.theme = this.theme;
   const b = this.themeButton;
   if (!b) return;
   const resolved = resolveTheme(this.theme, media().matches);
@@ -63,8 +81,11 @@ export function makeThemeButton(this: AppShell): void {
   label.className = 'gly-theme-label';
   b.append(swatch, label);
   b.addEventListener('click', () => this.cycleTheme());
-  const anchor = document.querySelector<HTMLElement>('.gly-hold') ?? document.querySelector<HTMLElement>('.gly-mode');
-  if (anchor) anchor.insertAdjacentElement('afterend', b); else document.querySelector('.gly-bar')?.appendChild(b);
+  const anchor =
+    document.querySelector<HTMLElement>('.gly-hold') ??
+    document.querySelector<HTMLElement>('.gly-mode');
+  if (anchor) anchor.insertAdjacentElement('afterend', b);
+  else document.querySelector('.gly-bar')?.appendChild(b);
   this.themeButton = b;
   this.applyTheme();
 }

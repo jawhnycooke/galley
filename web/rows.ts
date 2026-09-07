@@ -282,9 +282,9 @@ export function runBlockIndex(
     childCount: number;
     child(i: number): {
       descendants(
-        cb: (n: { marks: readonly { attrs: Record<string, unknown> }[] }) =>
-          | boolean
-          | void,
+        cb: (n: {
+          marks: readonly { attrs: Record<string, unknown> }[];
+        }) => boolean | void,
       ): void;
     };
   },

@@ -8687,10 +8687,25 @@ function bindsContentField(src) {
 {
   const { runBlockIndex } = await import('./rows.ts');
   const mk = (run) => ({ marks: run ? [{ attrs: { run } }] : [] });
-  const block = (...runs) => ({ descendants(cb) { for (const r of runs) { if (cb(mk(r)) === false) return; } } });
-  const doc = { childCount: 3, child: (i) => [block(null), block('r-1', 'r-2'), block('r-3')][i] };
-  check('runBlockIndex finds the block holding the run mark', runBlockIndex(doc, 'r-2') === 1 && runBlockIndex(doc, 'r-3') === 2);
-  check('runBlockIndex is -1 when no mark carries the run', runBlockIndex(doc, 'r-9') === -1);
+  const block = (...runs) => ({
+    descendants(cb) {
+      for (const r of runs) {
+        if (cb(mk(r)) === false) return;
+      }
+    },
+  });
+  const doc = {
+    childCount: 3,
+    child: (i) => [block(null), block('r-1', 'r-2'), block('r-3')][i],
+  };
+  check(
+    'runBlockIndex finds the block holding the run mark',
+    runBlockIndex(doc, 'r-2') === 1 && runBlockIndex(doc, 'r-3') === 2,
+  );
+  check(
+    'runBlockIndex is -1 when no mark carries the run',
+    runBlockIndex(doc, 'r-9') === -1,
+  );
 }
 
 process.exit(failures === 0 ? 0 : 1);
