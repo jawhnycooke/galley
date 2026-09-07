@@ -4196,8 +4196,10 @@ console.log('\n--- §13 · an applied round ---');
     prose: document.querySelector('.ProseMirror').innerText,
     cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
     keys: document.querySelectorAll('.gly-scrub-key').length,
+    // The label is one spelling (`R5`); the words the label used to carry
+    // (` draft`, ` · cannot`) are the key's title — read that.
     keyLabels: Array.from(document.querySelectorAll('.gly-scrub-key')).map(
-      (el) => (el.textContent || '').trim(),
+      (el) => el.title || (el.textContent || '').trim(),
     ),
   }));
 
@@ -4289,8 +4291,10 @@ console.log('\n--- §13 · an applied round ---');
       '.ProseMirror .gly-ins, .ProseMirror .gly-del',
     ).length,
     keys: document.querySelectorAll('.gly-scrub-key').length,
+    // The label is one spelling (`R5`); the words the label used to carry
+    // (` draft`, ` · cannot`) are the key's title — read that.
     keyLabels: Array.from(document.querySelectorAll('.gly-scrub-key')).map(
-      (el) => (el.textContent || '').trim(),
+      (el) => el.title || (el.textContent || '').trim(),
     ),
     was: document.querySelectorAll('.ProseMirror .gly-was').length,
     said: (document.querySelector('#gly-status') || {}).innerText || '',
@@ -4506,6 +4510,7 @@ console.log('\n--- §13 · an applied round ---');
     said: (document.querySelector('#gly-status') || {}).innerText || '',
     keys: [...document.querySelectorAll('.gly-scrub-key')].map((k) => ({
       label: (k.innerText || '').trim(),
+      title: k.title,
       tone: k.dataset.tone,
       fill: k.dataset.fill,
       colour: getComputedStyle(k).color,
@@ -4530,8 +4535,8 @@ console.log('\n--- §13 · an applied round ---');
   // ordinary round is muted or accent, and labelled `· cannot`. Apart by shape
   // AND by colour, asserted as the inequality rather than as one treatment —
   // reading one pins it and goes green the day another replaces it.
-  const cannotKey = exception.keys.find((k) => /· cannot$/.test(k.label));
-  const ordinary = exception.keys.find((k) => !/· cannot$/.test(k.label));
+  const cannotKey = exception.keys.find((k) => /· cannot$/.test(k.title));
+  const ordinary = exception.keys.find((k) => !/· cannot$/.test(k.title));
   check(
     'the exception is on the record as a round of its own',
     !!cannotKey,

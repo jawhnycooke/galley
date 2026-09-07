@@ -7,6 +7,8 @@ export interface Keyframe {
   n: number;
   left: number;
   label: string;
+  /** The label plus the state the label no longer spells (` draft`, ` · cannot`). */
+  title: string;
   fill: 'none' | 'accent' | 'grey';
   tone: 'muted' | 'accent' | 'coral';
 }
@@ -84,7 +86,11 @@ function keyframeAt(
   return {
     n,
     left: max === 1 ? 0 : ((n - 1) / (max - 1)) * 100,
-    label: `R${r.n}${cannot ? ' · cannot' : draft ? ' draft' : ''}`,
+    // ONE SPELLING PER KEYFRAME. `R15 draft` and `R4 · cannot` were wider than
+    // their neighbours and overprinted them; the hollow dot, the coral, and the
+    // readout under the track (`v15 · agent revised`) already say the state.
+    label: `R${r.n}`,
+    title: `R${r.n}${cannot ? ' · cannot' : draft ? ' draft' : ''}`,
     fill: cannot || draft ? 'none' : head && sealed ? 'accent' : 'grey',
     tone: cannot ? 'coral' : head && (draft || sealed) ? 'accent' : 'muted',
   };
@@ -172,7 +178,10 @@ export function makeTimeline(this: AppShell): void {
   const last = document.createElement('span');
   last.textContent = 'now';
   labels.append(first, label, last);
-  root.append(keys, track, labels);
+  // The keys live INSIDE the track so the handle can sit above them (z-index)
+  // where they meet at the head; a press on a key still bubbles to the track.
+  track.append(keys);
+  root.append(track, labels);
   host.append(root);
 
   let dragging = false;
@@ -248,9 +257,11 @@ export function paintTimeline(this: AppShell): void {
   ui.max = max;
   const frames = keyframesOf(rounds, this.sealed);
   const near = Math.round(this.scrubT) - 1;
-  const stride = labelStride(
-    ui.track.getBoundingClientRect().width,
-    frames.length,
+  // Past ten rounds every fifth label is enough even where they would fit:
+  // a row of R1…R15 is noise, and the nearest one is always shown.
+  const stride = Math.max(
+    labelStride(ui.track.getBoundingClientRect().width, frames.length),
+    frames.length > 10 ? 5 : 1,
   );
   ui.keys.replaceChildren(
     ...frames.map((k, i) => {
@@ -260,7 +271,7 @@ export function paintTimeline(this: AppShell): void {
       btn.style.left = `${k.left}%`;
       btn.dataset.tone = k.tone;
       btn.dataset.fill = k.fill;
-      btn.title = k.label;
+      btn.title = k.title;
       if (!showLabel(i, frames.length, stride, near)) btn.dataset.thin = '';
       btn.classList.toggle('is-near', Math.round(this.scrubT) === k.n);
       const text = document.createElement('span');

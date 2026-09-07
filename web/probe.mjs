@@ -8075,7 +8075,8 @@ function bindsContentField(src) {
   check(
     'keyframes: labels R1..Rn, head draft is hollow accent',
     k[0].label === 'R1' &&
-      k[4].label === 'R5 draft' &&
+      k[4].label === 'R5' &&
+      k[4].title === 'R5 draft' &&
       k[4].fill === 'none' &&
       k[4].tone === 'accent',
     k[4],
@@ -8084,7 +8085,8 @@ function bindsContentField(src) {
     'keyframes: a could-not round is hollow coral',
     k[3].fill === 'none' &&
       k[3].tone === 'coral' &&
-      k[3].label === 'R4 · cannot',
+      k[3].label === 'R4' &&
+      k[3].title === 'R4 · cannot',
     k[3],
   );
   check(

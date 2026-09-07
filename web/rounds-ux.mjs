@@ -2147,6 +2147,7 @@ try {
     if (!k) return null;
     return {
       label: k.innerText.trim(),
+      title: k.title,
       fill: k.dataset.fill,
       color: getComputedStyle(k).color,
       coral: (() => {
@@ -2309,7 +2310,8 @@ try {
   check(
     'a refused round is a hollow coral keyframe that says `cannot`',
     refusedRound &&
-      /· cannot$/.test(refusedRound.label) &&
+      /^R\d+$/.test(refusedRound.label) &&
+      /· cannot$/.test(refusedRound.title) &&
       refusedRound.fill === 'none' &&
       refusedRound.color === refusedRound.coral,
     JSON.stringify(refusedRound),
