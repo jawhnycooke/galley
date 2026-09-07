@@ -160,20 +160,27 @@ function wasDOM(w: WasSpec): HTMLElement {
   return wrap;
 }
 
-// pinAt is where a row or a WAS strip actually hangs. For prose that is
-// blockEnd — inside the paragraph, before its closing token, so the row reads
-// as belonging to the block above it. A FENCE is the exception and has to be:
-// a code block renders its content verbatim inside one <pre>, so a widget put
-// inside it draws the row as the fence's last line, boxed in with the shell
-// command it is about (measured by codeblock.mjs as 73px ABOVE the fence's own
-// bottom). There the row hangs just after the node instead, which is the same
-// place on screen for every other block and the only honest one here.
+// pinAt is where a row or a WAS strip actually hangs: JUST AFTER the block,
+// for every block. A fence always needed that — a code block renders its
+// content verbatim inside one <pre>, so a widget put inside it draws the row
+// as the fence's last line, boxed in with the shell command it is about
+// (measured by codeblock.mjs as 73px ABOVE the fence's own bottom).
+//
+// PROSE NEEDS IT TOO, and Task 18 is where that showed. A row pinned inside
+// the paragraph grows the paragraph's own box by the height of the row, and
+// the reviewer's click into their paragraph then lands in a
+// contenteditable="false" widget instead of the prose: the caret does not
+// move and what they type goes nowhere. Measured in rounds-ux.mjs — with the
+// row inside, the click-End-type gesture left the .md unchanged; with the row
+// after the node it lands. On screen this is the same place either way (the
+// spec's "pinned instruction row UNDER the block"), and it keeps the coral
+// block tint on the block rather than around the readout about it.
 function pinAt(doc: PMNode, index: number): number {
   const end = blockEnd(doc, index);
   if (end < 0) {
     return -1;
   }
-  return doc.child(index).type.spec.code ? end + 1 : end;
+  return end + 1;
 }
 
 function build(
@@ -267,6 +274,38 @@ export function setRows(view: EditorView, s: RowsState): void {
   view.dispatch(view.state.tr.setMeta(rowsKey, s));
 }
 
+// The ordinary instruction — select words, type — carries no anchorKey; it is
+// a highlight mark in the prose whose `run` attr is the thread's run. The spec
+// pins every instruction under its block, so the block comes from the mark.
+export function runBlockIndex(
+  doc: {
+    childCount: number;
+    child(i: number): {
+      descendants(
+        cb: (n: { marks: readonly { attrs: Record<string, unknown> }[] }) =>
+          | boolean
+          | void,
+      ): void;
+    };
+  },
+  run: string,
+): number {
+  for (let i = 0; i < doc.childCount; i++) {
+    let hit = false;
+    doc.child(i).descendants((n) => {
+      if (n.marks.some((m) => m.attrs.run === run)) {
+        hit = true;
+        return false;
+      }
+      return undefined;
+    });
+    if (hit) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // The mixin: rows follow the pending instructions; WAS/revised follow the
 // arrival (Task 11).
 export const rowMethods = {
@@ -277,11 +316,20 @@ export const rowMethods = {
     for (const t of this.comments) {
       // Whole-doc rows live in the frame slot (Task 7), and a settled thread
       // has nothing pending about it — the same two cuts railThreads makes.
-      if (!t.anchorKey || t.resolved) {
+      if (t.resolved) {
         continue;
       }
-      const block = this.blocks.find((b) => b.key === t.anchorKey);
-      if (!block) {
+      let index = -1;
+      if (t.anchorKey) {
+        const block = this.blocks.find((b) => b.key === t.anchorKey);
+        if (block) {
+          index = block.index;
+        }
+      } else if (t.run) {
+        index = runBlockIndex(this.editor.state.doc, t.run);
+      }
+      // Unplaced: stays in the whole-doc slot's unplaced group.
+      if (index < 0) {
         continue;
       }
       const applied = this.appliedKeys?.has(t.key) ?? false;
@@ -299,14 +347,14 @@ export const rowMethods = {
         state === 'applied' || state === 'writing…' ? 'accent' : 'coral';
       rows.push({
         key: t.key,
-        index: block.index,
+        index,
         text: t.entries[0]?.text ?? '',
         state,
         tone,
         removable: phase === 'markup' || phase === 'cannot',
       });
       if (phase !== 'review') {
-        marked.push(block.index);
+        marked.push(index);
       }
     }
     const was = this.arrivalWas ?? [];
