@@ -130,6 +130,7 @@ import type { DocMenu, MenuItem } from './menu.ts';
 import type { ReviseWatchView } from './verdict.ts';
 import type { growthWatch } from './card.ts';
 import type { ThemeChoice } from './theme.ts';
+import type { Phase } from './phase.ts';
 
 // --- shapes AppShell's members are built from ---
 
@@ -454,6 +455,11 @@ export interface AppState {
   // --- theme (web/theme.ts) ---
   theme: ThemeChoice;
   themeButton: HTMLButtonElement | null;
+
+  // --- the readout dot (web/bar.ts / web/phase.ts) ---
+  // Built lazily, on the first paintReadout, by makeReadoutDot — genuinely
+  // absent until then, so `null` rather than a definite-assignment lie.
+  readoutDot: HTMLSpanElement | null;
 }
 
 // THE METHODS ARRIVE AT RUNTIME, WHICH IS WHY THEY ARE A SEPARATE INTERFACE.
@@ -692,6 +698,9 @@ export interface AppMethods {
   applyTheme(): void;
   cycleTheme(): void;
   makeThemeButton(): void;
+
+  // --- the one derived phase (web/phase.ts) ---
+  phase(): Phase;
 }
 
 // What a mixin method's `this` is: both halves together.

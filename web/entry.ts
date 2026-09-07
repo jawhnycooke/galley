@@ -141,6 +141,7 @@ import { barMethods, MODE_ASK } from './bar.ts';
 import { verdictMethods } from './verdict.ts';
 import { sealMethods } from './seal.ts';
 import * as theme from './theme.ts';
+import { phase } from './phase.ts';
 import { coerceLevel } from './heading.ts';
 import { runFor, markElement } from './runs.ts';
 // ONE CARD AND ONE REVEAL, shared with History's rail. See web/card.ts, whose
@@ -876,6 +877,7 @@ class App implements AppState {
   modeUI: ModeUI;
   theme: ThemeChoice;
   themeButton: HTMLButtonElement | null;
+  readoutDot: HTMLSpanElement | null;
 
   // --- fields private to this file's own methods (lit-run highlighting,
   //     the caret-restoring rebuild, run memoisation) — no mixin reads any
@@ -1079,6 +1081,9 @@ class App implements AppState {
     this.mode = MODE_ASK;
     this.theme = 'system';
     this.themeButton = null;
+    // Built lazily by makeReadoutDot on the first paintReadout — see
+    // web/bar.ts.
+    this.readoutDot = null;
     // Hold's state has to exist before makeMode paints the button.
     this.holding = false;
     this.held = new Set();
@@ -2424,6 +2429,9 @@ Object.assign(App.prototype, {
   cycleTheme: theme.cycleTheme,
   makeThemeButton: theme.makeThemeButton,
 });
+// The one derived phase — see web/phase.ts's own header for why it is never
+// stored.
+Object.assign(App.prototype, { phase });
 
 // A DECLARATION, NOT A CHECK — see this file's own header and
 // web/appshell.ts's for the whole argument. Every member of AppMethods

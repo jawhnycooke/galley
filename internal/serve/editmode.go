@@ -1053,13 +1053,21 @@ func (s *EditServer) handleEditRoot(w http.ResponseWriter, r *http.Request) {
 	if s.pageMode {
 		previewURL = "/_galley/preview/" + s.previewRel
 	}
+	docPath := filepath.Dir(s.MdPath)
+	if wd, err := os.Getwd(); err == nil {
+		if rel, err := filepath.Rel(wd, docPath); err == nil {
+			docPath = rel
+		}
+	}
 	if err := editShell.Execute(&buf, struct {
 		Title      string
+		Path       string
 		Room       string
 		PageMode   bool
 		PreviewURL string
 	}{
 		Title:      filepath.Base(s.MdPath),
+		Path:       docPath,
 		Room:       s.Room,
 		PageMode:   s.pageMode,
 		PreviewURL: previewURL,

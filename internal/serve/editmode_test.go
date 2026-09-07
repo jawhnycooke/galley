@@ -63,6 +63,7 @@ func TestEditShellCarriesPageMode(t *testing.T) {
 func TestEditShellTemplateDirectly(t *testing.T) {
 	type shellData struct {
 		Title      string
+		Path       string
 		Room       string
 		PageMode   bool
 		PreviewURL string
@@ -72,6 +73,7 @@ func TestEditShellTemplateDirectly(t *testing.T) {
 		var buf bytes.Buffer
 		data := shellData{
 			Title:      "index.html",
+			Path:       ".",
 			Room:       "test-room",
 			PageMode:   true,
 			PreviewURL: "/_galley/preview/index.html",
@@ -95,6 +97,7 @@ func TestEditShellTemplateDirectly(t *testing.T) {
 		var buf bytes.Buffer
 		data := shellData{
 			Title:      "note.md",
+			Path:       ".",
 			Room:       "test-room",
 			PageMode:   false,
 			PreviewURL: "",

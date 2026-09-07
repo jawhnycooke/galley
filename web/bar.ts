@@ -28,6 +28,7 @@ import { railSurfaces } from './rail.ts';
 import { age } from './suggestions.ts';
 import { roundCards, STAGE_READING } from './versions.ts';
 import type { AppShell } from './appshell.ts';
+import { dotFor } from './phase.ts';
 
 /** THE READOUT SAYS WHERE THE DOCUMENT IS, IN A GRAMMAR THAT ALWAYS FITS.
  *
@@ -133,6 +134,18 @@ export function nextMode(mode: Mode): Mode {
   return mode === MODE_LIVE ? MODE_ASK : MODE_LIVE;
 }
 
+/** makeReadoutDot builds the one small dot that opens `.gly-status` and
+ * caches it on the App — a single element, built once and repainted, never
+ * rebuilt, like every other piece of the bar's own chrome. */
+function makeReadoutDot(app: AppShell): HTMLSpanElement {
+  const dot = document.createElement('span');
+  dot.className = 'gly-dot';
+  const readout = document.querySelector('.gly-bar .gly-status');
+  readout?.insertAdjacentElement('afterbegin', dot);
+  app.readoutDot = dot;
+  return dot;
+}
+
 export const barMethods = {
   // --- status ---
 
@@ -232,6 +245,12 @@ export const barMethods = {
    * A SEALED REVIEW PRINTS ONLY WHAT THE SEAL SAID. The terminal bar is the
    * record; this line is where a reopen's reason lands and nothing else. */
   paintReadout(this: AppShell) {
+    // THE DOT IS THE ONE THING EVERY BRANCH BELOW AGREES ON — it reads the
+    // phase and the pending count, neither of which the versions-panel or
+    // sealed branches below change the meaning of, so it is painted once,
+    // ahead of the text, rather than duplicated into every return path.
+    const dot = this.readoutDot ?? makeReadoutDot(this);
+    dot.dataset.tone = dotFor(this.phase(), this.pendingCount);
     // HISTORY SAYS WHERE YOU ARE AND THAT THE DRAFT IS SAFE, and it says both
     // in one clause so the mode can never be mistaken for the draft. The whole
     // fixed grammar below — the phase, the connection, the save age — is about

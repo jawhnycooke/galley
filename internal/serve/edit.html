@@ -298,13 +298,8 @@
 </head>
 <body>
 <header class="gly-bar">
-  <span class="gly-doc">
-    <svg class="gly-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <rect x="6" y="14" width="52" height="6" rx="3" fill="var(--gly-muted)"/>
-      <path d="M 14 54 L 32 26 L 50 54" fill="none" stroke="var(--gly-mark-amber)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span class="gly-doc-name">{{.Title}}</span>
-  </span>
+  <span class="gly-doc"><span class="gly-mark" aria-hidden="true"></span><span class="gly-doc-name">{{.Title}}</span></span>
+  <span class="gly-doc-path" title="{{.Path}}">{{.Path}}</span>
   <span id="gly-status" class="gly-status" role="status" aria-live="polite"></span>
   <span class="gly-spacer"></span>
   <button id="gly-revise" type="button">Revise</button>

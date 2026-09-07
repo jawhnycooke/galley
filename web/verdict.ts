@@ -697,6 +697,10 @@ export const verdictMethods = {
   },
 
   paintRevise(this: AppShell) {
+    // THE BODY CARRIES THE PHASE TOO, ahead of the button guard below: the
+    // dot's pulse (editor.css's `body.gly-revising .gly-dot`) has to track
+    // the page's one derived phase even on a checkout with no `#gly-revise`.
+    document.body.classList.toggle('gly-revising', this.phase() === 'revising');
     // Each of these is genuinely optional on AppShell — see this file's own
     // header. In practice all five are set together by makeRevise or none of
     // them are, so this guard never actually trips; it is here because tsc

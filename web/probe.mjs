@@ -8358,4 +8358,20 @@ function bindsContentField(src) {
   check('the two light blocks in editor.css agree', light(css) !== null && light(css) === auto(css), { light: light(css), auto: auto(css) });
 }
 
+// --- phase.ts ---
+{
+  const { phaseOf, dotFor, trailSaid, eyebrowRight } = await import('./phase.ts');
+  const base = { sealed: false, running: false, waiting: false, handoff: false, cannot: '', landed: 0, pendingCount: 0, edits: 0 };
+  check('phase: sealed wins', phaseOf({ ...base, sealed: true, running: true }) === 'approved');
+  check('phase: running or waiting is revising', phaseOf({ ...base, running: true }) === 'revising' && phaseOf({ ...base, waiting: true }) === 'revising');
+  check('phase: cannot beats review', phaseOf({ ...base, cannot: 'no such file', landed: 3 }) === 'cannot');
+  check('phase: a landed round with nothing pending is review', phaseOf({ ...base, landed: 3 }) === 'review');
+  check('phase: a landed round with new instructions is markup again', phaseOf({ ...base, landed: 3, pendingCount: 1 }) === 'markup');
+  check('phase: default is markup', phaseOf(base) === 'markup');
+  check('dot: green idle, coral pending, accent for the agent', dotFor('markup', 0) === 'green' && dotFor('markup', 2) === 'coral' && dotFor('revising', 2) === 'accent' && dotFor('review', 0) === 'accent' && dotFor('cannot', 1) === 'coral' && dotFor('approved', 0) === 'accent');
+  check('trail: empty when nothing pending', trailSaid(0, 0) === '');
+  check('trail: singular and plural', trailSaid(1, 3) === '1 edit, 3 instructions →' && trailSaid(2, 1) === '2 edits, 1 instruction →');
+  check('eyebrow: draft, marked up, needs approval', eyebrowRight('markup', 0, 0).text === 'DRAFT' && eyebrowRight('markup', 1, 0).text === 'DRAFT · MARKED UP' && eyebrowRight('markup', 1, 0).tone === 'coral' && eyebrowRight('review', 0, 0).text === 'NEEDS YOUR APPROVAL' && eyebrowRight('revising', 1, 0).text === 'WITH THE AGENT' && eyebrowRight('cannot', 1, 0).text === 'UNCHANGED' && eyebrowRight('approved', 0, 0).text === 'SETTLED');
+}
+
 process.exit(failures === 0 ? 0 : 1);

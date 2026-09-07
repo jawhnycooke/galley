@@ -2233,6 +2233,29 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   max-width: max-content;
 }
 
+/* --- the readout dot, and the restyled header lockup (Task 3) --- */
+.gly-bar { height: 58px; padding: 0 28px; gap: 18px; font-size: 12px; color: var(--gly-muted); border-bottom: 1px solid var(--gly-panel-bg); }
+.gly-mark { width: 10px; height: 10px; background: var(--gly-accent); border-radius: 2px; transform: rotate(45deg); }
+.gly-doc { color: var(--gly-fg); gap: 10px; }
+/* `flex: 1 1 0` rather than the brief's bare shrink: a flex container decides
+   which line an item joins by its HYPOTHETICAL (pre-shrink) main size, and an
+   `auto` basis on a long path is that path's full, un-ellipsized width — a
+   ~700px basis on a document opened from far outside the working tree, which
+   pushed the controls after it onto the bar's second row and, because the bar
+   is a fixed 58px tall, off the bottom of its own box and onto whatever sits
+   below (measured: the `#gly-revise` button, `22px` past the bar's bottom,
+   intercepting clicks meant for the page beneath it — `just rounds-ux`'s own
+   §5.4 click). Basis `0` makes the path's hypothetical size zero, so wrapping
+   is decided by the OTHER items alone and the path only grows into what is
+   left over; `min-width: 0` is still what lets that grown box then shrink
+   back down to the ellipsis. */
+.gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gly-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: none; margin-right: 8px; background: var(--gly-green); }
+.gly-dot[data-tone="coral"] { background: var(--gly-coral); }
+.gly-dot[data-tone="accent"] { background: var(--gly-accent); }
+body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
+@keyframes gly-readout-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
 /* --- the bar's controls, and who owns their chrome ---
 
    THIS RULE USED TO LIVE IN edit.html'S INLINE <style>, which loads after this
