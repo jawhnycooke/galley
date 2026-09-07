@@ -23,7 +23,7 @@ Branch: `feat/timeline-draft`. Decision 2026-09-06: re-value the existing `--gly
 | 15 | HTML page-mode pill | 7, 14 | [x] d024308 |
 | 16 | Streaming polish (optional) | 9 | [x] d8c22d5 |
 | 18 | Rows for selection-anchored instructions (added) | 9, 13 | [x] 0da9572 |
-| 17 | Final verification (local only, no PR) | all | [ ] — the controller closes this |
+| 17 | Final verification (local only, no PR) | all | [x] d6f1618 — verify + layers green; six-state walk done; editor serving learn-anything.md on :4417 |
 | — | Final fix wave (review C1–C2, I3–I10, the browser walk's A–N) | all | [x] 671bd91 |
 
 Parallel-safe waves: {1} → {2, 3, 5, 8, 10} → {4} → {6} → {7} → {9, 12} → {11, 13} → {14} → {15, 16} → {17}.
