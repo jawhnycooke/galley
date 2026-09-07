@@ -81,15 +81,16 @@ import { join } from 'node:path';
 // nothing new.
 import { SEALED_VERBS, SEAL_ONLY_VERBS } from './seal.ts';
 import { UNTRACKED_NOTE } from './sheet.ts';
-// AND THE ARITHMETIC'S OWN CONSTANTS, for the same reason one line up. §9 read
-// the card's reserved gutter as a literal `26` beside a comment naming a
-// constant — a number that has now outlived TWO mechanisms it was named for
-// (the connector's whole reach, then a connector that did not live in the
-// gutter at all, then no connector) and is imported under the name that says
-// what it does. §10's sentence is the rail's own. A transcription of either
-// would keep reporting `ok` about a page that had changed underneath it, and
-// entry.ts already imports this module, so it costs nothing new here.
-import { GUTTER_PX, unplacedSaid } from './rail.ts';
+// `GUTTER_PX` AND `unplacedSaid` WERE IMPORTED HERE, AND THE TWO BLOCKS THAT
+// READ THEM ARE DELETED. They were imported rather than transcribed for the
+// reason one line up: §9 read the card's reserved gutter as a literal `26`
+// beside a comment naming a constant, and §10's sentence was the rail's own,
+// so a transcription of either would have kept reporting `ok` about a page that
+// had changed underneath it. Both questions were about the mark-anchored rail
+// card — the gutter it was inset by, the sentence standing in for the ones that
+// could not be placed — and a thread's one surface is a pinned row now, which
+// is inset by nothing and stands in for nobody. The imports go with the checks
+// rather than being left to import a module for its side effects.
 
 const GALLEY = process.env.GALLEY || 'bin/galley';
 const PORT = Number(process.env.PORT || 8252);
@@ -1129,10 +1130,25 @@ console.log('\n--- §1d · the bar has one readout ---');
     sheetChanged: document.querySelectorAll(
       '.gly-sheet-changed, .gly-changed-list',
     ).length,
-    rows: document.querySelectorAll('.gly-change, .gly-change-adrift').length,
+    // THE LOG'S OWN ROWS, AND `.gly-change` IS NO LONGER ONE OF THEM.
+    //
+    // This counted `.gly-change` as well, and it read 1. That element is not
+    // the deleted log: `changeCard` (cards.ts:1000) draws ONE EDIT THE REVIEWER
+    // MADE BY HAND as it will reach the agent, and `paintRailCards` files those
+    // under `.gly-rail-changes` — the other half of the ROUND, added
+    // deliberately (a second list was proposed and rejected, because the
+    // round's contents were simply missing the reviewer's own edits; without
+    // them an agent rewrites the reviewer's deletions back into the document).
+    // A round is an outgoing message about what is to be done; a log is a
+    // history of what already happened, and the history is what this check
+    // asserts gone. So the class the round reused comes out of the count and
+    // the log's own names are what is read. `.gly-change-adrift` stays: nothing
+    // builds it, it is the one of these the log alone ever wrote, and it is
+    // what would come back with the rows.
+    rows: document.querySelectorAll('.gly-change-adrift').length,
   }));
   check(
-    'and the reviewer\u2019s hand is recorded in the prose alone — no log, on any surface',
+    'and the reviewer\u2019s hand is recorded in the prose and the round — no log, on any surface',
     logged.railChanged === 0 && logged.sheetChanged === 0 && logged.rows === 0,
     logged,
   );
@@ -1314,11 +1330,16 @@ console.log('\n--- §1d · the bar has one readout ---');
     onComment.bubbleOpen === false,
     onComment,
   );
-  check(
-    'it takes the reviewer to the card the rail is carrying',
-    onComment.flashedKey !== null,
-    onComment,
-  );
+  // `it takes the reviewer to the card the rail is carrying` — RETIRED WITH THE
+  // MARK-ANCHORED RAIL CARD. It read `.gly-rail .gly-thread.gly-flash`: the
+  // reveal() flash on the card the band drew beside the mark. A thread reached
+  // by its mark has no card in the rail any more — its one surface is the
+  // pinned row under the block (rows.ts), which is already AT the mark, so
+  // there is nowhere for a reveal to take anybody and no card to flash. The
+  // half of this pair that is a claim rather than a destination —
+  // `clicking a comment highlight does not open a second copy of its
+  // conversation` — is directly above and is unchanged, and it is the half that
+  // ever caught anything.
   // THE ASSERTION THE AUDIT ASKED FOR, and it holds however the surface
   // question is answered: no comment bubble anywhere carries a decide verb.
   check(
@@ -1707,6 +1728,40 @@ const near = (a, b, tol = 40) => {
   );
 };
 
+/** Is this computed `box-shadow` the same shadow as this token's declaration?
+ *
+ *  They are the same value written two ways: a stylesheet declares
+ *  `0 20px 50px rgba(20, 22, 28, 0.18)` and `getComputedStyle` answers
+ *  `rgba(20, 22, 28, 0.18) 0px 20px 50px 0px` — colour moved to the front, `0`
+ *  spelled `0px`, and the spread written out. So neither string can be compared
+ *  to the other, and comparing the computed value to a LITERAL is what put the
+ *  one check that did so red the moment the palette moved underneath it.
+ *
+ *  Compared as (colour channels, offsets) instead: the colour is pulled out
+ *  wherever it sits and the remaining lengths are read as numbers, with
+ *  trailing zeros dropped so an omitted spread and an explicit `0px` are one
+ *  shadow. A DIFFERENT shadow — a second one invented for a state, another
+ *  token, a changed offset — differs in one of those two and is caught. */
+const shadowSame = (computed, declared) => {
+  const parts = (s) => {
+    const colour = (String(s).match(/rgba?\([^)]*\)/) || [''])[0];
+    const nums = (
+      String(s)
+        .replace(colour, '')
+        .match(/-?[\d.]+/g) || []
+    ).map(Number);
+    while (nums.length > 1 && nums[nums.length - 1] === 0) {
+      nums.pop();
+    }
+    return {
+      colour: (colour.match(/[\d.]+/g) || []).join(','),
+      nums: nums.join(','),
+    };
+  };
+  const [a, b] = [parts(computed), parts(declared)];
+  return !!a.colour && a.colour === b.colour && a.nums === b.nums;
+};
+
 for (const scheme of ['dark', 'light']) {
   await page.emulateMedia({ colorScheme: scheme });
   await page.waitForTimeout(300);
@@ -1738,9 +1793,19 @@ for (const scheme of ['dark', 'light']) {
     'background-color',
     'border-left-width',
   );
-  const stock = await rgb('--gly-card');
+  // RE-POINTED FROM `--gly-card` TO `--gly-panel-bg`, AND THE CLAIM IS THE SAME
+  // ONE. A whole-document instruction is not a card any more: it is the doc
+  // slot's own PILL (`.gly-row-doc`, cards.ts:527), and the spec paints a pill
+  // on the panel token. The property this check exists for is untouched — every
+  // entry in the slot is painted from ONE token, and a surface that repaints
+  // its own ground while the entries on it stay light is still what goes red —
+  // so only the token it names moves. `.gly-overall-entries .gly-card` still
+  // finds them: `threadCard` builds the card and `paintOverall` adds
+  // `.gly-row-doc` on top, which is why the 3px kind edge below reads on the
+  // same list.
+  const stock = await rgb('--gly-panel-bg');
   check(
-    `every panel card is on card stock in ${scheme}`,
+    `every panel card is on the slot's pill stock in ${scheme}`,
     cards.length > 0 && cards.every((c) => c['background-color'] === stock),
     { scheme, got: cards.map((c) => c['background-color']), want: stock },
   );
@@ -1787,21 +1852,37 @@ for (const scheme of ['dark', 'light']) {
     { scheme, chip, chrome, muted, panelBg },
   );
 
-  // And the figure box itself is a §1 container: 6px, on the line colour, on
-  // the fence token — the same three values a fence and a table carry.
+  // And the figure box itself is a §1 container: 6px, on the line colour — the
+  // same two values a fence and a table carry.
+  //
+  // THE GROUND IS THE MARKED WASH, NOT `--gly-fence`, AND THAT IS THE FIXTURE
+  // BEING HONEST RATHER THAN PAINT DRIFT. The fixture files a `comment_block`
+  // on this figure (the seed, above), so rows.ts hangs `.gly-marked` on the
+  // node and `.ProseMirror > .gly-marked` (0,2,1) paints `--gly-coral-fill`
+  // over `.ProseMirror .gly-figure`'s (0,1,1) `--gly-fence`. A marked block
+  // wearing the coral wash is the whole of Task 1's mark vocabulary; a figure
+  // that stayed on the fence token WHILE an instruction was filed on it would
+  // be the regression. So the wash is asserted, and asserted TOGETHER with the
+  // class that earns it — otherwise this reads "coral" off a figure nobody
+  // marked, which is the drift the check would exist to catch.
   const fig = await style(
     '.gly-figure',
     'border-radius',
     'border-top-color',
     'background-color',
   );
+  const figMarked = await page.evaluate(() => {
+    const el = document.querySelector('.gly-figure');
+    return !!el && el.classList.contains('gly-marked');
+  });
   check(
     `the figure box is a 6px container on the line colour in ${scheme}`,
     fig &&
       fig['border-radius'] === '6px' &&
       fig['border-top-color'] === (await rgb('--gly-line')) &&
-      fig['background-color'] === (await rgb('--gly-fence')),
-    { scheme, fig },
+      figMarked &&
+      fig['background-color'] === (await rgb('--gly-coral-fill')),
+    { scheme, fig, figMarked },
   );
 }
 await page.emulateMedia({ colorScheme: 'light' });
@@ -1956,38 +2037,40 @@ await page.emulateMedia({ colorScheme: 'light' });
     });
   }
 
-  // THE FOLD IS ASSERTED HERE TOO, AND IT WAS NOT — which is the fixture
-  // hazard CLAUDE.md names, standing open in the one file that sweeps eleven
-  // widths. motion.mjs asserts it (`the bar is folded at …`) precisely because
-  // every other check in that file passes identically on a flat bar; the same
-  // is true of every check in this loop, and the reason this fixture's name is
-  // twenty-eight characters is that it FOLDS the bar at the widths below 1240.
-  // Held by a filename alone, one font metric or one bar child leaving would
-  // return the whole sweep to walking the shape it was renamed to stop
-  // certifying, in silence — and a bar child did leave: the readouts went from
-  // three cells to one, taking two of them and their 12px gaps with them, so
-  // the boundary moved narrower and the comment at the head of this file that
-  // still quoted the old numbers was measuring a build that no longer exists.
+  // THE FOLD WAS THE PREMISE, AND THE BAR DOES NOT FOLD ANY MORE.
   //
-  // A flat bar is one row and a folded one is two, so the threshold is stated
-  // the way motion.mjs states it: a gap-width away from both, encoding neither.
+  // Two checks stood here and their subject is gone rather than merely
+  // unreached. They asserted that this sweep walked a FOLDED bar at the widths
+  // below ~1240 and a flat one at 1600 — a real fixture guard while the bar
+  // carried three readout cells and the census strip, because every OTHER check
+  // in this loop passes identically on a flat bar and the file's fixture name
+  // was the only thing holding the shape. The census strip is deleted (§1c) and
+  // the readouts are one yielding cell (§1d), so the row cannot spill: measured
+  // 58px at all twelve swept widths, 1600 down to 390. "The sweep walks a
+  // folded bar" is now unmeetable by construction and `flatWidths.includes(1600)`
+  // is satisfied by every possible build — a check that cannot fail, which is
+  // the shape this file deletes rather than keeps.
+  //
+  // WHAT REPLACES THEM IS THE INVARIANT THAT IS NOW TRUE AND CAN STILL GO RED:
+  // ONE row, the SAME row, everywhere — and nothing clipped out of it. That is
+  // strictly stronger than the pair it replaces over the shape the product
+  // actually has: a bar that grew a second row at any swept width, or that
+  // changed height between two of them, fails here, and so does one that kept
+  // its 58px by pushing a control out of its own box (the per-width `spill`
+  // check above, which this reads alongside rather than restates).
   note("the bar's height at every swept width", heights);
-  const FOLDED_MIN = 60;
-  const foldedWidths = heights
-    .filter((h) => h.barH > FOLDED_MIN)
-    .map((h) => h.width);
-  const flatWidths = heights
-    .filter((h) => h.barH <= FOLDED_MIN)
-    .map((h) => h.width);
+  const ONE_ROW_MAX = 60;
+  const tall = heights.filter((h) => h.barH > ONE_ROW_MAX);
+  const distinct = [...new Set(heights.map((h) => h.barH))];
   check(
-    'the sweep really walks a FOLDED bar — the shape this fixture is named to produce',
-    foldedWidths.length > 0 && Math.max(...foldedWidths) >= 1100,
-    { folded: foldedWidths, heights },
+    'the bar is ONE row at every swept width — 1600px down to 390px, it does not fold',
+    heights.length > 1 && tall.length === 0,
+    { tall, heights },
   );
   check(
-    'and a FLAT one at its widest — an ordinary name is not supposed to fold 1600px',
-    flatWidths.includes(1600),
-    { flat: flatWidths, heights },
+    'and it is the SAME one row at all of them — the height never changes with width',
+    distinct.length === 1,
+    { distinct, heights },
   );
 }
 
@@ -2556,17 +2639,32 @@ const blockRects = () =>
   // the bubble a previous block may have left open.
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
+  //
+  // AND THE CARD IS NO LONGER IN THE RAIL, SO THE SECOND HALF IS RE-POINTED.
+  // Task 14 moved the whole-document instructions into the frame's own DOC
+  // SLOT, which is in the sheet's flow at every width — so `cardWidth === 0` is
+  // a claim about a layout this branch deleted, and it read 640 on a card that
+  // is behaving exactly as designed. What this check is FOR is unchanged and is
+  // what is asserted instead: nothing is OVER the prose before the tap, so
+  // every rect below is a rect of the thing it names. A card in flow above the
+  // prose cannot be over it; a card that grew a `position: fixed`/`absolute` or
+  // a stacking context could be, and that is the regression this now catches.
   const panelGone = await page.evaluate(() => {
     const rail = document.querySelector('.gly-rail');
     const card = document.querySelector('.gly-overall');
+    const cs = card ? getComputedStyle(card) : null;
     return {
       rail: rail ? getComputedStyle(rail).display : 'missing',
       cardWidth: card ? +card.getBoundingClientRect().width.toFixed(2) : null,
+      cardPosition: cs ? cs.position : null,
+      cardZ: cs ? cs.zIndex : null,
     };
   });
   check(
-    'the whole-document card is off screen with the rail before the prose is tapped',
-    panelGone.rail === 'none' && panelGone.cardWidth === 0,
+    'the whole-document card is in the sheet’s flow before the prose is tapped, never over it',
+    panelGone.rail === 'none' &&
+      panelGone.cardPosition === 'static' &&
+      panelGone.cardZ === 'auto',
     panelGone,
   );
 
@@ -2579,7 +2677,22 @@ const blockRects = () =>
   // Scrolled into view and settled BEFORE the rects are read, because
   // Playwright's own click would scroll to reach the mark and every rect in the
   // page would move for a reason that has nothing to do with the bubble.
-  await mark.scrollIntoViewIfNeeded();
+  //
+  // AND IT IS PLACED, NOT MERELY BROUGHT INTO VIEW. `scrollIntoViewIfNeeded`
+  // stops the moment the mark is anywhere in the window, so where it lands
+  // depends on how far the page happened to be scrolled when this block
+  // started — and `the conversation hangs BELOW its mark` is a claim that only
+  // MEANS anything when there is room below to hang in. Measured: the mark
+  // landed at y 593 in a 1000px window whose readable band ends at 960, with a
+  // 342px card, so `topFor` correctly flipped to the above placement and the
+  // check read the fallback as the rule. That is the same fixture hazard the
+  // 844×390 and 900×260 blocks below were taught, in the block above them. So
+  // the mark is put just under the bar, which is where a reviewer reading down
+  // the page meets one, and the room below it is the rest of the band.
+  await mark.evaluate((el) => {
+    const frame = window.galleyEdit.app.chromeFrame();
+    window.scrollBy(0, el.getBoundingClientRect().top - (frame.top + 24));
+  });
   await page.waitForTimeout(400);
   const before = await blockRects();
   await mark.click();
@@ -2700,13 +2813,27 @@ const blockRects = () =>
   // Elevation is orthogonal: the bubble is the floating thing whether it holds
   // two verbs or a whole conversation, so it carries the ONE elevation token
   // and not a second one invented for this state.
+  // READ AGAINST THE TOKEN, NOT AGAINST ITS VALUE. Two literals stood here —
+  // `rgba(0, 0, 0, 0.16)` and `6px 22px` — and they were the elevation token's
+  // value at the time. The palette work on this branch re-declared
+  // `--gly-menu-shadow` (`--gly-lift` is an alias of it, editor.css:132), so
+  // the bubble is on the one token and the check went red on the transcription
+  // rather than on the claim. Transcribing a token's value is the exact hazard
+  // the head of this file records for the arithmetic constants; the fix is the
+  // same one, and it makes the check STRONGER: comparing the painted shadow to
+  // `--gly-lift`'s own computed value still catches a second shadow invented
+  // for this state, and now also catches the bubble being moved onto a
+  // different token, which two literals could not tell from a re-palette.
   const float = await style('.gly-bubble', 'box-shadow', 'z-index');
+  const lift = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--gly-lift')
+      .trim(),
+  );
   check(
     'the bubble carrying a thread still floats on the one elevation token',
-    float &&
-      float['box-shadow'].includes('rgba(0, 0, 0, 0.16)') &&
-      float['box-shadow'].includes('6px 22px'),
-    float,
+    float && !!lift && shadowSame(float['box-shadow'], lift),
+    { float, lift },
   );
 
   // IT HANGS BELOW THE MARK. Above the mark a card this tall covers the
@@ -2983,10 +3110,18 @@ const cardShows = () =>
   // lands on the bar and every read below returns null. The target is the bar's
   // own measured top, less one line, which is a mark on screen with too little
   // room under it for a card — the state this block is about.
+  //
+  // AND THE FOOT IS THE READABLE BAND'S, NOT `.gly-bottombar`'s. The timeline
+  // is fixed at the foot too and is taller than the bar, so a mark aligned 24px
+  // above the BAR is 40-odd pixels UNDER the timeline: measured, the click
+  // landed on `.gly-timeline`, the bubble never opened and all five reads below
+  // came back null. `App.chromeFrame` is the product's own answer to "where
+  // does the prose stop being readable" and it now counts both fixed surfaces
+  // (entry.ts), so it is what this asks — the same number the bubble places
+  // against, which is what makes the premise below and the placement above one
+  // fact rather than two.
   await low.evaluate((el) => {
-    const foot = document
-      .querySelector('.gly-bottombar')
-      .getBoundingClientRect().top;
+    const foot = window.galleyEdit.app.chromeFrame().bottom;
     const want = el.getBoundingClientRect().bottom - (foot - 24);
     window.scrollBy(0, want);
   });
@@ -3160,25 +3295,6 @@ await page.waitForTimeout(500);
   await mark.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await mark.click();
-
-  // POLLED, NOT READ ONCE. `flash()` puts `.gly-flash` on the card for
-  // FLASH_MS (1400) and `paintRail` destroys and rebuilds every card on the
-  // 1.5s poll, so a single read at a fixed delay is a race between the two —
-  // and the answer it gives when it loses is `false`, which reads as "the click
-  // did nothing" rather than as "this check has a timing bug".
-  const flashed = await page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        const started = Date.now();
-        const look = () => {
-          if (document.querySelector('.gly-rail .gly-thread.gly-flash'))
-            return resolve(true);
-          if (Date.now() - started > 2000) return resolve(false);
-          window.requestAnimationFrame(look);
-        };
-        look();
-      }),
-  );
   await page.waitForTimeout(400);
   const wide = await page.evaluate(() => {
     const el = document.querySelector('.gly-bubble');
@@ -3193,25 +3309,27 @@ await page.waitForTimeout(500);
         el && !el.hidden
           ? el.querySelectorAll('.gly-bubble-accept, .gly-bubble-reject').length
           : 0,
-      railThreads: document.querySelectorAll('.gly-rail .gly-card.gly-thread')
-        .length,
     };
   });
-  check(
-    'at wide the bubble does not draw the conversation — the rail already has it',
-    wide.thread === false && wide.railThreads > 0,
-    wide,
-  );
+  // `at wide the bubble does not draw the conversation — the rail already has
+  // it` — RETIRED WITH THE MARK-ANCHORED RAIL CARD. Its right-hand clause was
+  // `railThreads > 0` — the RAIL has the conversation — and the rail has
+  // nothing to have: `.gly-rail .gly-card.gly-thread` is empty by construction
+  // now that a mark's thread is a pinned row. Its left-hand clause, that the
+  // bubble draws no conversation at wide, is the check directly below, which
+  // asserts it more strictly: no bubble at all, rather than a bubble with no
+  // thread in it.
   check(
     'and it does not draw a stub of it either — no bubble, and no verbs on a conversation',
     wide.open === false && wide.verbs === 0,
     wide,
   );
-  check(
-    'the click goes to the card instead, which is reveal() in the other direction',
-    flashed === true,
-    { flashed, wide },
-  );
+  // `the click goes to the card instead, which is reveal() in the other
+  // direction` — RETIRED WITH THE MARK-ANCHORED RAIL CARD. It polled for
+  // `.gly-rail .gly-thread.gly-flash`. There is no card in the rail to reveal
+  // and no flash to catch: a thread reached BY its mark is a pinned row under
+  // its own block now (rows.ts), which is already at the place this check was
+  // measuring the journey to.
 }
 
 // --- §7e · the collapsed rail — DELETED WITH THE COLLAPSE CONTROL ------------
@@ -3238,112 +3356,61 @@ await page.waitForTimeout(500);
 // between them, on the two sides of the breakpoint that the product can still
 // reach.
 
-// --- §9 · the rail speaks ONE card language ---------------------------------
+// --- §9 · the rail speaks ONE card language — DELETED WITH THE RAIL CARD -----
+// --- §10 · the rail scrolls with the document — DELETED WITH IT --------------
+// --- §10a · the rail begins BELOW the bar — DELETED WITH IT ------------------
 //
-// A REVISION IS NOT A DIFFERENT KIND OF THING FROM ITS OWN EDITS, and for a
-// while the rail said it was. `batchCard` drew the arrival of a revision as a
-// receipt — its own container (the anchorless block, in flow, below the band,
-// so its own left edge and its own width), its own visual language (a dashed
-// accent border and a tinted background, "reads as a receipt rather than as
-// another suggestion" in the stylesheet's own words), and its own rows, which
-// listed the very edits the band was already carding a few pixels away. Three
-// spellings of one arrival, and the third is why nothing short of deletion
-// fixed it: the same edit was on the screen twice.
+// THREE BLOCKS AND ROUGHLY FORTY CHECKS, AND THEY HAD ONE POPULATION BETWEEN
+// THEM: `.gly-rail-band .gly-card` — the card the rail drew BESIDE the mark it
+// was about. Task 14 deletes that card. A thread reached by its mark is a
+// PINNED ROW under its own block now (`web/rows.ts`), drawn as a decoration in
+// the document itself, and a whole-document instruction is a pill in the
+// frame's doc slot. There is no band, no column of placed cards, and nothing
+// for any of the three questions below to be asked about.
 //
-// IT ALSO TOOK ITS HEIGHT FROM THE MAP. That block was `flex: none` beside a
-// `flex: 1` band, so the band got what the block left — a revision's card,
-// capped at 40% of the rail, took that 40% out of the column whose whole job is
-// positioning cards against their marks, and clipped the card above it. (Both
-// the cap and the budget it defended are gone with the fixed column; what the
-// two checks below still assert is the GEOMETRY, which is not.)
+// EACH IS WRITTEN OUT RATHER THAN LISTED, because the reason each one is moot
+// is different and one of them is a claim that moved rather than a claim that
+// went:
 //
-// So this block asks the two questions deletion is the answer to, and it asks
-// them IN THE STATE THE CARD EXISTED IN: a revision asked for, and a revision
-// landed. Nothing is asserted about an empty rail — the card never rendered on
-// one, and a check that reads a state the bug could not reach is a check that
-// cannot fail.
+//   §9 asked whether the rail spoke ONE card language: no revision receipt, no
+//   unearned dashed edge, one left edge and one width across every card, the
+//   three history sections gone, the flow sections beginning after the map
+//   ends. It was a geometry claim about a column of cards, and the column is
+//   gone. What it was really defending — that an arrival is not drawn as a
+//   second kind of object — is defended by construction now: an instruction has
+//   exactly one surface, and rows.ts's own header is where that is argued.
 //
-// NOTHING IS LOST BY ITS GOING, which is why the claim below is only about the
-// language and not about the reach: bulk accept/reject is `✓ all` in the census
-// strip over the same population, and stepping through what arrived is `j`/`k`
-// through `stepOrder`. Both are asserted elsewhere in this file and in
-// motion.mjs.
+//   §10 asked whether the rail scrolled with the document, and lit the words a
+//   card was about. Both halves are answered by the row being AT the block: a
+//   decoration on the node scrolls with the node, and the words a row is about
+//   are the words it is pinned under. The light (`.gly-lit`) survives as a
+//   mechanism and is read in `web/rounds-ux.mjs`; the card-to-mark link it was
+//   read through here does not exist to break.
 //
-// BEFORE §8a and §8, because both of those end with a review that has been
-// sealed, and a sealed server refuses the `galley suggest` this block needs.
-console.log('\n--- §9 · the rail speaks one card language ---');
+//   §10a asked whether the rail began BELOW the bar, and its subject was the
+//   rail's `position: absolute` with `top: 0` — an element out of flow whose
+//   containing block was the initial one, landing under the sticky bar
+//   whenever the anchor pass placed nothing. Nothing is placed by hand any
+//   more, so the state cannot be built: both of its two ways in (a settled
+//   document, every card adrift) were ways of emptying the BAND.
+//
+// WHAT IS KEPT IS FIXTURE STATE, NOT ASSERTIONS. Three of these blocks' steps
+// are read by the sections BELOW them and would be silently missing if the
+// blocks were simply cut: the Revise press and the agent's `cannot` that closes
+// its handoff window (§8a and §8 both need a review that has been asked for and
+// handed back, and a sealed server refuses this press, which is why it has
+// always run here); the instructions filed from outside the page, which are the
+// pending set §8's seal sweeps; and the reviewer taking a highlight out from
+// under a conversation, which is the anchorless case the file seeds in-page
+// rather than in the .md. They are kept exactly where they were, in the order
+// they were, with the two checks among them that are claims about the SERVER
+// and the EDITOR rather than about the rail.
+console.log('\n--- §9/§10/§10a · the rail — DELETED, fixture state only ---');
 {
-  const railGeometry = () =>
-    page.evaluate(() => {
-      const box = (sel) => {
-        const el = document.querySelector(sel);
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return {
-          y: Math.round(r.y),
-          w: Math.round(r.width),
-          h: Math.round(r.height),
-          left: Math.round(r.left),
-        };
-      };
-      // EVERY CARD IN THE RAIL, whatever it is in. There used to be two
-      // containers to name here and the second one was the point; the rail
-      // holds live work only now, so there is the band and a notice block that
-      // holds no cards at all. `.gly-rail .gly-card` is the honest spelling of
-      // the question — a card in the rail, anywhere — and it is what would see
-      // a third container the day somebody adds one.
-      const cards = Array.from(
-        document.querySelectorAll('.gly-rail .gly-card'),
-      ).map((el) => {
-        const r = el.getBoundingClientRect();
-        return {
-          cls: el.className,
-          left: Math.round(r.left),
-          w: Math.round(r.width),
-          border: getComputedStyle(el).borderTopStyle,
-          // Which of the two things in the rail this is: a CONVERSATION, or a
-          // SENTENCE about the ones that are not shown. The notice block's
-          // sentences wear `.gly-card` for the chrome and are dashed, muted and
-          // centred by `.gly-settled` — so several claims below have to tell
-          // them apart, and the container is the only honest discriminator (a
-          // sentence has no run, no key and no verbs; that is what makes it a
-          // sentence).
-          said: !!el.closest('.gly-rail-notice'),
-        };
-      });
-      return {
-        rail: box('.gly-rail'),
-        band: box('.gly-rail-band'),
-        // The one section after the map, so "after" can be arithmetic.
-        notice: box('.gly-rail-notice'),
-        cards,
-        // Not `.gly-batch` — the claim is that NO element wears the receipt's
-        // language, and a receipt reintroduced under `gly-batch-row` alone
-        // would satisfy a check written for the card's own class.
-        receipts: document.querySelectorAll('[class*="gly-batch"]').length,
-        // THE THREE SECTIONS THAT LEFT. Read as counts rather than as boxes,
-        // because the claim about each is now that it is not here.
-        gone: document.querySelectorAll(
-          '.gly-rail-anchorless, .gly-rail-settled, .gly-rail-changed',
-        ).length,
-        // Unplaced instruction cards live in this flow block. Their count must
-        // remain stable across an unrelated revision, and the geometry checks
-        // below hold them to the same gutter and width as positioned cards.
-        noticeCards: document.querySelectorAll(
-          '.gly-rail-notice .gly-card.gly-thread, .gly-rail-notice .gly-card[data-run]',
-        ).length,
-        // And what it DOES hold, so a sentence can be read back rather than
-        // merely counted.
-        noticeSaid: (
-          document.querySelector('.gly-rail-notice')?.textContent || ''
-        ).trim(),
-      };
-    });
-
   // THE REVISION IS ASKED FOR THROUGH THE ENDPOINT, NOT THE BUTTON. With work
   // pending the button DISCLOSES a two-exit menu rather than posting (see
-  // askRevise), and this block is not a check about that menu — motion.mjs
-  // drives it. What matters here is the state the page ends up in.
+  // askRevise) — motion.mjs drives that menu. What matters here is the state
+  // the page ends up in.
   const asked = await page.evaluate(async () => {
     const res = await fetch('/_galley/revise', {
       method: 'POST',
@@ -3356,18 +3423,16 @@ console.log('\n--- §9 · the rail speaks one card language ---');
   // which it learns a revision is outstanding.
   await page.waitForTimeout(3500);
 
-  // AND THE AGENT HANDS THE FILE BACK, which is a step this block did not used
-  // to have and cannot now skip. A press of Revise SENDS the round: it captures
-  // every pending instruction, clears the list and opens a handoff window in
-  // which the document is read-only — `/_galley/instruct` answers
-  // `409 the agent is revising` until the window closes, which is how this was
-  // found. `galley ack` is what closes it, and it is the agent's own verb.
-  // `cannot`, not `ack --state answered`: an answered round has to have CHANGED
-  // the file, and this block changes nothing — `galley ack` refuses outright
-  // ("nothing has changed since the round was handed over"), which is the
-  // server keeping the agent honest and is exactly right. An unchanged round
-  // reported as an exception is the truth here and closes the window the same
-  // way.
+  // AND THE AGENT HANDS THE FILE BACK. A press of Revise SENDS the round: it
+  // captures every pending instruction, clears the list and opens a handoff
+  // window in which the document is read-only — `/_galley/instruct` answers
+  // `409 the agent is revising` until the window closes. `galley ack` is what
+  // closes it, and it is the agent's own verb. `cannot`, not
+  // `ack --state answered`: an answered round has to have CHANGED the file and
+  // this changes nothing, so `galley ack` refuses outright ("nothing has
+  // changed since the round was handed over") — the server keeping the agent
+  // honest. An unchanged round reported as an exception is the truth here and
+  // closes the window the same way.
   galley(
     'cannot',
     DOC,
@@ -3375,21 +3440,19 @@ console.log('\n--- §9 · the rail speaks one card language ---');
     'this round is the geometry fixture, not work to do',
   );
   await page.waitForTimeout(3000);
+  // A CLAIM ABOUT THE SERVER, AND IT SURVIVES THE RAIL. Every section below
+  // reads a review that has been asked for; a press that did not land leaves
+  // them measuring a draft nobody revised, which is the pass-forever shape.
+  check(
+    'the round the sections below read was really asked for',
+    asked === 204,
+    { asked },
+  );
 
-  // THE BASELINE IS TAKEN HERE, AFTER THE ROUND WENT. It used to be taken
-  // before the ask, because a revision left the pending set where it was — the
-  // agent proposed ON TOP of it. A sent round is gone from the rail, so a
-  // baseline from before the press is a count this block would have to go
-  // backwards from.
-  const before = await railGeometry();
-
-  // And more work lands from OUTSIDE THIS PAGE, the way it does when a second
-  // reviewer or a tool writes to the same document. Two `--replace` proposals
-  // stood here beside a comment, because a revision was whatever the agent had
-  // proposed in it; the agent does not propose, so what is driven here is what
-  // the server still accepts from another process — instructions — and the
-  // property under test is unchanged: cards the page did not create arrive and
-  // the rail's geometry answers for them.
+  // AND MORE WORK LANDS FROM OUTSIDE THIS PAGE, the way it does when a second
+  // reviewer or a tool writes to the same document. This is the pending set
+  // §8's seal sweeps, and it is filed here because §9's Revise consumed the
+  // seed's six.
   await instruct({
     op: 'comment',
     target: 'A seventh paragraph',
@@ -3405,716 +3468,19 @@ console.log('\n--- §9 · the rail speaks one card language ---');
     target: 'the word sigma',
     text: 'and neither is sigma',
   });
-  await page.waitForFunction(
-    (n) => document.querySelectorAll('.gly-rail .gly-card').length > n,
-    before.cards.length,
-    { timeout: 20000 },
-  );
-  // Long enough for the collect-then-drain handoff between the two polls to
-  // finish, and for the rail to be repainted from the settled pending set.
-  await page.waitForTimeout(4000);
-
-  const after = await railGeometry();
-  note('the rail with a revision just landed', after);
-
-  check(
-    'the work really arrived — a check with nothing to read is not a check',
-    asked === 204 && after.cards.length > before.cards.length,
-    { asked, was: before.cards.length, now: after.cards.length },
-  );
-  check(
-    "nothing in the rail wears a revision receipt's own language",
-    after.receipts === 0,
-    after.receipts,
-  );
-  // A DASHED EDGE IS THIS CODEBASE'S "CANNOT POINT", and that is a STATE on an
-  // ordinary card, not a second language. `.gly-card.gly-adrift` dashes the
-  // border and hides the connector because the thread's mark is gone or
-  // ambiguous — the fixture's anchorless thread is exactly that, and the card
-  // says so. The receipt's dash was different in the only way that matters: it
-  // was a card that COULD point, dressed as another kind of object. So the
-  // claim is "no card wears a dash it has not earned", and the earning is a
-  // named class rather than a container.
-  // A NOTICE SENTENCE EARNS ITS DASH TOO, and by the same rule: `.gly-settled`
-  // is the notice costume — dashed, muted, centred, `cursor: default` — worn by
-  // "nothing pending — the document is settled" and by the sentence about a
-  // conversation with no place. Neither is a card that COULD point dressed as
-  // another kind of object, which is what the receipt's dash was. The check
-  // immediately below is what stops this excuse from ever covering a
-  // conversation: nothing but sentences may be in that block at all.
-  const strays = after.cards.filter(
-    (c) => c.border === 'dashed' && !c.cls.includes('gly-adrift') && !c.said,
-  );
-  check(
-    'and no card in it is drawn in a second language — no unearned dashed edges',
-    strays.length === 0,
-    strays,
-  );
-  // THE RAIL HOLDS LIVE WORK ONLY, and that is asserted by NAME rather than
-  // left to the geometry below, because three named sections went and each
-  // could be put back by one line. Run red against the tracked bundle it
-  // reports 3 — the anchorless block, the settled region and the changed
-  // region, all present with a revision on screen.
-  check(
-    'the rail is the map and one flow region — the three history sections are gone',
-    after.gone === 0 &&
-      after.notice !== null &&
-      after.noticeCards === before.noticeCards,
-    { gone: after.gone, notice: after.notice, noticeCards: after.noticeCards },
-  );
-  // ONE LEFT EDGE AND ONE WIDTH, AGAINST THE RAIL'S OWN BOX. This used to read
-  // two containers, and it had to: the anchorless block laid its cards out IN
-  // FLOW while the band absolutely places and insets its own, so the two
-  // disagreed — `1280/304` against `1306/278`, which is exactly the pair the
-  // deleted revision receipt was deleted for. Over the band alone a set of one
-  // edge and one width is arithmetic and not evidence.
-  //
-  // So the second container is replaced by a second COORDINATE: every card's
-  // left edge is GUTTER_PX from the rail's own, which is a fact about the
-  // page rather than about the band's internal consistency. A card rendered at
-  // the rail's edge — the exact failure the anchorless block used to produce —
-  // fails this with one container just as it failed the old check with two.
-  // THE VISIBLE CARDS ARE THE MAP. The capture card collapses to a zero box
-  // when shut (`display: none`, like every other hideable surface in this
-  // file's own `[hidden]` list), so it has no edge or width to share and is not
-  // one of the placed cards here. The one-edge rule is READ OFF THE CAPTURE
-  // CARD ITSELF, OPENED, in the dedicated check below — where it is a real card
-  // with real geometry that must match, which is a stronger claim than the
-  // reserved box this used to lean on and is the whole of what Court asked for.
-  const placed = after.cards.filter((c) => c.w > 0);
-  const edges = new Set(placed.map((c) => c.left));
-  const widths = new Set(placed.map((c) => c.w));
-  check(
-    'every card in the rail shares one left edge and one width',
-    placed.length > 1 && edges.size === 1 && widths.size === 1,
-    { edges: [...edges], widths: [...widths], cards: placed.length },
-  );
-  check(
-    'and that edge is the reserved gutter from the rail\u2019s own left, not the rail\u2019s edge',
-    edges.size === 1 && [...edges][0] - after.rail.left === GUTTER_PX,
-    { edge: [...edges][0], rail: after.rail.left, want: GUTTER_PX },
-  );
-  // AND THE ONE-EDGE RULE IS READ OFF THE CAPTURE CARD ITSELF, OPENED. It is a
-  // card in the whole-document panel's flow now, not the reserved overlay it
-  // was, so it shares the column's one left edge and one width like every other
-  // card — which is the whole of what Court asked for. It collapses when shut
-  // rather than holding a box open, so the claim is made on the OPEN card,
-  // where it is real rendered geometry and not a held-open ghost. Shut, it is
-  // `display: none` and out of the query above; open, it must line up here.
-  await page.locator('.gly-docslot .gly-capture-open').click();
-  await page.waitForSelector('.gly-capture:not([hidden])');
-  await page.waitForTimeout(300);
-  const captureEdge = await page.evaluate(() => {
-    const el = document.querySelector('.gly-capture');
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return { left: Math.round(r.left), w: Math.round(r.width) };
-  });
-  check(
-    'the capture card shares the rail’s one left edge and width when open',
-    captureEdge &&
-      edges.size === 1 &&
-      widths.size === 1 &&
-      captureEdge.left === [...edges][0] &&
-      captureEdge.w === [...widths][0],
-    { captureEdge, edge: [...edges][0], width: [...widths][0] },
-  );
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
-  // The existing unplaced instruction remains in flow; the unrelated agent
-  // revision must not add another card there or move the section.
-  check(
-    'and the revision produced no new unplaced instruction',
-    after.noticeCards === before.noticeCards &&
-      after.notice.h <= before.notice.h + 1,
-    { was: before.notice, now: after.notice, cards: after.noticeCards },
-  );
-  // THE SECTIONS BEGIN AFTER THE MAP ENDS, which is what replaced "the band was
-  // not squeezed by what arrived". That check compared the band's height
-  // against the rail's minus every sibling's, because the band was `flex: 1` in
-  // a column the viewport's height fixed and every pixel a sibling took was a
-  // pixel of map. There is no height budget to conserve now — the band is as
-  // tall as its own cards and the rail is as tall as all of it — so the honest
-  // claim is the ORDER: nothing the rail puts after the map begins before the
-  // map has finished. It is what makes "expanding a section displaces only what
-  // is below it" true, and it goes red the day a section is floated back over
-  // the band.
-  check(
-    'the sections at the end of the rail begin after the map ends',
-    after.notice.y >= after.band.y + after.band.h - 1,
-    { band: after.band, notice: after.notice },
-  );
-}
-
-// --- §10 · the rail scrolls with the document -------------------------------
-//
-// `.gly-rail` was `position: fixed` — a viewport-locked column holding
-// unbounded content — and every other mechanism in the rail existed to manage
-// the overflow that guarantees: `overflow: hidden` on the band, the two fold
-// clusters, `FOLD_CAP` and its "+N more" line, and two lists floating upward
-// over the map. Court, from use: *"i can't scroll to see the response to
-// every? there are also lines to the left of the rail. why?? settled still
-// overrides the rest of the threads. changed then overrides that."*
-//
-// The rail is as tall as the document now and scrolls with it, so a card is
-// beside its text by the document's own scroll rather than by arithmetic
-// against the viewport. These are the four properties that replaces five
-// mechanisms with, and they are asserted where the mechanisms used to be
-// asserted.
-//
-// A SHORT WINDOW, because every one of these claims is about work that is NOT
-// on screen — the state the fold existed for. At WIDE the fixture's document
-// very nearly fits, every card would be live, and all four checks would read a
-// state the old design handled correctly and pass forever. Measured at 1600
-// wide: the fixture's marks sit at 195, 270, 345, 420 and 495, so 400px of
-// window leaves the first two beside their text and puts the rest below the
-// fold — which is precisely where the old rail clamped, dimmed and clipped
-// them.
-console.log('\n--- §10 · the rail scrolls with the document ---');
-{
-  await page.setViewportSize({ width: 1600, height: 400 });
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(900);
-
-  /** Every card in the band paired with the mark it claims, off the DOM alone.
-   *  The pairing is `data-run` on both sides — the mark's own identity, carried
-   *  into the fragment by the suggestion mark's renderHTML — so this reads what
-   *  is TRUE of the page rather than re-running the rail's own arithmetic
-   *  against itself. */
-  const pointing = () =>
-    page.evaluate(() => {
-      const out = [];
-      for (const card of document.querySelectorAll(
-        '.gly-rail-band .gly-card',
-      )) {
-        const run = card.dataset.run;
-        if (!run) continue;
-        const mark = document.querySelector(
-          `.ProseMirror [data-run="${CSS.escape(run)}"]`,
-        );
-        if (!mark) continue;
-        const c = card.getBoundingClientRect();
-        const m = mark.getBoundingClientRect();
-        out.push({
-          run: run.slice(0, 8),
-          cardY: +c.top.toFixed(1),
-          markY: +m.top.toFixed(1),
-        });
-      }
-      return out;
-    });
-
-  const points = await pointing();
-  note('every card in the band, beside the mark it is about', points);
-  check(
-    'the band still holds cards whose marks are in the prose — a check with nothing to read is not a check',
-    points.length > 1,
-    points.length,
-  );
-
-  // --- lighting the text: which words is this card about -------------------
-  //
-  // THE LINE IS DELETED AND THE WORDS ANSWER INSTEAD, and these checks are what
-  // replaced its. The connector failed twice for one reason: it was invented to
-  // bridge the gap when a card had drifted from its mark, and it read as
-  // meaningful only because it was LONG. Once the rail scrolled with the
-  // document and cards sat beside their text the leg collapsed and a 26px stub
-  // crossed a 376px gutter; aimed at the card's middle instead it stopped
-  // striking horizontally and began sagging diagonally THROUGH the paragraph
-  // the reviewer is reading — measured at 250px of sag with the card and its
-  // mark 0px apart vertically. The gutter is too wide for a line to cross
-  // without being the loudest thing on the page, and the question it answered
-  // is answered better by the words changing.
-  //
-  // So: nothing at rest, hovering a card lights ITS OWN WORDS in the prose,
-  // hovering the words lights the card, and the same from the keyboard. Every
-  // one is red against the tracked bundle, which has no `.gly-lit` anywhere.
-  //
-  // FIVE CHECKS ARE DELETED WITH THEIR SUBJECT AND EACH IS NAMED IN THE COMMIT:
-  // `the connector ends in a dot ON the word` and `it is one cubic segment`
-  // were claims about a curve; `with reduced motion the line is still drawn`
-  // guarded a DRAW that no longer exists (the light is instant — there is no
-  // motion left to withhold, so honouring the preference is a no-op rather than
-  // a rule); `it is a HAIRLINE — a heavier stroke reads as a highlight, not a
-  // thread` was guarding against the thing that is now the design. The sixth,
-  // `an adrift card draws no connector`, carried a second property and is
-  // REWRITTEN below rather than dropped.
-  const lit = () =>
-    page.evaluate(() => {
-      const prose = Array.from(
-        document.querySelectorAll('.ProseMirror .gly-lit'),
-      );
-      const cards = Array.from(
-        document.querySelectorAll('.gly-rail-band .gly-card.gly-lit'),
-      );
-      return {
-        prose: prose.length,
-        cards: cards.length,
-        cardRuns: cards.map((el) => (el.dataset.run || '').slice(0, 8)),
-        // The OLD mechanism, asserted absent everywhere it could come back: the
-        // overlay, the two spans that preceded it, and any line at all.
-        connector: document.querySelectorAll(
-          '.gly-connector, .gly-connector-arm, .gly-connector-leg',
-        ).length,
-      };
-    });
-
-  const atRest = await lit();
-  check(
-    'at rest nothing is lit — and no connector survives anywhere on the page',
-    atRest.prose === 0 && atRest.cards === 0 && atRest.connector === 0,
-    atRest,
-  );
-
-  // The card whose words are lit is the topmost one with a mark, chosen off the
-  // page rather than written down.
-  const target = points[0].run;
-  const cardSel = `.gly-rail-band .gly-card[data-run^="${target}"]`;
-  const markSel = `.ProseMirror [data-run^="${target}"]`;
-
-  await page.locator(cardSel).hover();
-  await page.waitForTimeout(300);
-  const onCard = await lit();
-  check(
-    'hovering a card lights words in the prose, and lights itself',
-    onCard.prose > 0 &&
-      onCard.cards === 1 &&
-      onCard.cardRuns[0] === target.slice(0, 8),
-    onCard,
-  );
-
-  // AND IT IS THE CARD'S OWN WORDS. This is what replaced `the connector ends
-  // in a dot ON the word`: the dot's claim was that the line reached the right
-  // text, and the light makes that claim over the whole EXTENT rather than at
-  // one point. A light on the paragraph, or spilling into the prose beside the
-  // mark, fails this where a check counting `.gly-lit` elements would not.
-  //
-  // IT RESOLVES EACH LIT SPAN BACK TO A RUN RATHER THAN COMPARING ONE BOX, and
-  // that is not fussiness — the first cut of this check compared the glow's
-  // union against `[data-run^=target]` and reported 737.9 against 698.8, a
-  // genuine 39px, because the topmost card on this fixture is a REPLACE and
-  // BOTH HALVES LIGHT. One span in the file is one decision everywhere, and the
-  // card's `run` is the deleted half's, so a check written against that one run
-  // was asserting half of the design. What is true regardless of kind is: every
-  // lit span belongs to a marked run, the card's own run is among them, and the
-  // light covers those runs' marks and nothing else.
-  const landed = await page.evaluate((sel) => {
-    const runOf = (el) => {
-      const own = el.closest('[data-run]');
-      if (own) return own.getAttribute('data-run');
-      const inner = el.querySelector('[data-run]');
-      return inner ? inner.getAttribute('data-run') : null;
-    };
-    const union = (els) => {
-      let b = null;
-      for (const el of els) {
-        for (const r of el.getClientRects()) {
-          if (!r.width && !r.height) continue;
-          b = b
-            ? {
-                x1: Math.min(b.x1, r.left),
-                y1: Math.min(b.y1, r.top),
-                x2: Math.max(b.x2, r.right),
-                y2: Math.max(b.y2, r.bottom),
-              }
-            : { x1: r.left, y1: r.top, x2: r.right, y2: r.bottom };
-        }
-      }
-      return (
-        b && {
-          x1: +b.x1.toFixed(1),
-          y1: +b.y1.toFixed(1),
-          x2: +b.x2.toFixed(1),
-          y2: +b.y2.toFixed(1),
-        }
-      );
-    };
-    const glowing = Array.from(
-      document.querySelectorAll('.ProseMirror .gly-lit'),
-    );
-    const runs = glowing.map(runOf);
-    const named = [...new Set(runs.filter(Boolean))];
-    const marks = named.length
-      ? document.querySelectorAll(
-          named
-            .map((r) => `.ProseMirror [data-run="${CSS.escape(r)}"]`)
-            .join(', '),
-        )
-      : [];
-    return {
-      spans: glowing.length,
-      // A lit span with no run at all is a light on unmarked prose.
-      unmarked: runs.filter((r) => !r).length,
-      runs: named.map((r) => r.slice(0, 8)),
-      glow: union(glowing),
-      mark: union(marks),
-    };
-  }, markSel);
-  note('what the light covers, against the marks it claims', landed);
-  check(
-    'every lit span belongs to a marked run — the light never lands on plain prose',
-    landed.spans > 0 && landed.unmarked === 0,
-    landed,
-  );
-  check(
-    'and the card’s own run is among them',
-    landed.runs.includes(target.slice(0, 8)),
-    landed,
-  );
-  check(
-    'and the light covers those runs’ marks exactly, not the paragraph',
-    !!landed.glow &&
-      !!landed.mark &&
-      Math.abs(landed.glow.x1 - landed.mark.x1) <= 6 &&
-      Math.abs(landed.glow.x2 - landed.mark.x2) <= 6 &&
-      Math.abs(landed.glow.y1 - landed.mark.y1) <= 6 &&
-      Math.abs(landed.glow.y2 - landed.mark.y2) <= 6,
-    landed,
-  );
-
-  // AND IT IS NOT CONFUSABLE WITH THE TWO POPULATIONS ALREADY IN THE PROSE.
-  // The trail ghost borrowed the agent's del-red for a whole phase and this
-  // file's check certified it, because each colour was read against a TOKEN and
-  // never against the other. So this is the inequality, as that one now is: the
-  // light shares no background with any of the three suggestion marks, and it
-  // carries no text-decoration at all, which is the ghost's whole shape.
-  const apart = await page.evaluate(() => {
-    const of = (sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-      const cs = getComputedStyle(el);
-      return {
-        bg: cs.backgroundColor,
-        deco: cs.textDecorationLine,
-        color: cs.color,
-      };
-    };
-    return {
-      lit: of('.ProseMirror .gly-lit'),
-      ins: of('.ProseMirror .gly-ins'),
-      del: of('.ProseMirror .gly-del'),
-      hl: of('.ProseMirror .gly-hl'),
-    };
-  });
-  note('the light against the marks it must not be read as', apart);
-  // ONE MARK TO BE APART FROM, NOT THREE. `.gly-ins` and `.gly-del` have no
-  // writer in the prose — the agent edits the file rather than proposing
-  // against the document — so those two halves of the inequality read `null` on
-  // every run, and a check that requires `apart.ins` to exist is a check that
-  // can only fail. The comment highlight is the mark the light can actually be
-  // confused with, since it is the one drawn under words the rail has a card
-  // for, and it is the comparison that was doing the work. The DECORATION half
-  // is unchanged and stands on its own: the light wears no strike and no rule,
-  // which is what keeps it out of the ghost's vocabulary whether or not
-  // anything else is on the page to contrast with.
-  check(
-    'the light is not the comment mark’s wash, and wears no strike or rule',
-    !!apart.lit &&
-      !!apart.hl &&
-      apart.lit.bg !== apart.hl.bg &&
-      apart.lit.deco === 'none',
-    apart,
-  );
-
-  // FROM EITHER END. Hovering the WORD lights the card, which is the half a
-  // card-only implementation would silently not have.
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(250);
-  check(
-    'moving off puts the light out',
-    (await lit()).prose === 0 && (await lit()).cards === 0,
-  );
-  await page.locator(markSel).first().hover();
-  await page.waitForTimeout(300);
-  const onWord = await lit();
-  check(
-    'hovering the WORD lights its card — either end, one mechanism',
-    onWord.cards === 1 &&
-      onWord.prose > 0 &&
-      onWord.cardRuns[0] === target.slice(0, 8),
-    onWord,
-  );
-
-  // AND ON KEYBOARD FOCUS. A card is `tabIndex = 0`, so this is reachable
-  // without a pointer at all — the accessibility half of "only while
-  // attending", and the half a hover-only implementation drops.
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(250);
-  check('and off again', (await lit()).prose === 0);
-  await page.locator(cardSel).focus();
-  await page.waitForTimeout(300);
-  const onFocus = await lit();
-  check(
-    'focusing a card from the keyboard lights its words',
-    onFocus.prose > 0 && onFocus.cards === 1,
-    onFocus,
-  );
-  check(
-    'and the focus really is on the card, so the check is not a hover in disguise',
-    await page.evaluate(
-      (sel) => document.activeElement === document.querySelector(sel),
-      cardSel,
-    ),
-  );
-  await page.evaluate(
-    () => document.activeElement && document.activeElement.blur(),
-  );
-  await page.waitForTimeout(250);
-  check('and blurring puts it out', (await lit()).prose === 0);
-
-  // THE LIGHT IS A DECORATION AND THE CARD'S CLASS IS RE-APPLIED, WHICH IS ONE
-  // CLAIM WITH TWO HALVES AND ONE GESTURE THAT BREAKS BOTH.
-  //
-  // `paintRail` destroys and rebuilds every card on every pending refresh, and
-  // ProseMirror rewrites a rendered element's attributes from the node on every
-  // redraw — which follows every server-side mutation, each of which replaces
-  // the whole document. This file already records both: a class walked onto
-  // `.gly-note` was wiped a moment later, and a half-typed reply was destroyed
-  // with its card. So a real mutation is driven from another terminal WHILE the
-  // card is lit, and both ends are read back afterwards. A class-on-the-mark
-  // implementation loses the prose half here and passes everything above it.
-  await page.locator(cardSel).hover();
-  await page.waitForTimeout(300);
-  check(
-    'lit before the mutation — a check with nothing to read is not a check',
-    (await lit()).prose > 0,
-  );
   await instruct({
     op: 'comment',
     target: 'A sixth paragraph',
     text: 'a mutation while the light is on',
   });
-  await page.waitForTimeout(4000);
-  const survived = await lit();
-  note('the light after a whole-document rebuild and a rail repaint', survived);
-  // THE CARD UNDER THE POINTER, READ AFTER THE MUTATION — not the card that was
-  // under it before. This compared against `target`, the run picked before the
-  // hover, and that was sound while a mutation only ever ADDED a card below the
-  // one being hovered. An instruction landing on `A sixth paragraph` inserts a
-  // card into the middle of the band, so the stack below it shifts and a
-  // different card is under a cursor that never moved — measured, and reported
-  // as `cardRuns: ["1eb11dce"]` against a `target` that was still on screen.
-  // That is the rail reflowing, which is a claim for motion.mjs, not the light
-  // failing to survive; asserting it here made this check answer a question it
-  // was not asking. What it IS asking is that ONE card is lit, that its words
-  // are lit in the prose, and that the lit card is the one the pointer is over
-  // — all three read after the rebuild, which is the whole point.
-  const under = await page.evaluate(() => {
-    const el = document.elementFromPoint(
-      ...(() => {
-        const c = document.querySelector('.gly-rail-band .gly-card.gly-lit');
-        if (!c) return [0, 0];
-        const r = c.getBoundingClientRect();
-        return [r.x + r.width / 2, r.y + r.height / 2];
-      })(),
-    );
-    const card =
-      el && el.closest ? el.closest('.gly-rail-band .gly-card') : null;
-    return card ? (card.dataset.run || '').slice(0, 8) : null;
-  });
-  check(
-    'the light survives a server-side mutation — it is a decoration, not a class on the mark',
-    survived.prose > 0 &&
-      survived.cards === 1 &&
-      !!under &&
-      survived.cardRuns[0] === under,
-    { survived, under, target: target.slice(0, 8) },
-  );
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(250);
-
-  // AND THE CARD THAT CANNOT POINT. The adrift rule — *a card that cannot point
-  // must not be drawn pointing* — is MOOT, and this check is where that is said
-  // rather than left as a silence. `connectorGeometryFor` stated it as one of
-  // four refusals, in script, after it had been a per-state CSS rule; nothing is
-  // drawn now, and a card is adrift exactly when its mark is NOT in the
-  // document, so `markRuns` finds nothing to light and the refusal is
-  // STRUCTURAL rather than enforced. There is no clause to delete a clause from.
-  //
-  // WHAT THE OLD CHECK CARRIED BESIDES THAT RULE IS NOT MOOT, which is why this
-  // is a rewrite. Hovering a card whose run is not in the prose must light
-  // NOTHING — not its own words, which are absent, and not somebody else's.
-  //
-  // AND IT IS PRODUCED GENUINELY RATHER THAN BY HAND. The old one added
-  // `.gly-adrift` to a card whose mark was still in the prose, because the
-  // clause under test read the class; with no clause, that would be a synthetic
-  // state testing nothing. The real condition is "this card's run is not in the
-  // document", and rewriting `data-run` is exactly that condition, deterministic
-  // — the websocket race that produces it for real is one frame long and a check
-  // that waits for it is a check that flakes.
-  //
-  // IT ALL HAPPENS INSIDE ONE `evaluate`, and that is the second thing this
-  // check had to be taught. `paintRail` rebuilds every card on the pending
-  // poll, so a hand-written `data-run` is undone within a second and a half:
-  // the first cut set it, called Playwright's `hover`, and Playwright waited
-  // for a selector that could only match again once the repaint had put the
-  // real run back — so it hovered the restored card and reported the light on.
-  // The event is dispatched HERE, through the same delegated listener a pointer
-  // reaches, with no await between the write and the read, and the write is
-  // asserted to have survived to the moment of the read.
-  const adrift = await page.evaluate((sel) => {
-    const el = document.querySelector(sel);
-    const was = el.dataset.run;
-    el.dataset.run = 'no-such-run-in-this-document';
-    el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    const out = {
-      prose: document.querySelectorAll('.ProseMirror .gly-lit').length,
-      stillBogus: el.dataset.run === 'no-such-run-in-this-document',
-      // And the MARK is still there to have been lit, which is what makes the
-      // refusal the missing card-to-mark link rather than an empty page.
-      markStillInProse: !!document.querySelector(
-        `.ProseMirror [data-run="${CSS.escape(was)}"]`,
-      ),
-    };
-    el.dataset.run = was;
-    el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    out.backAgain = document.querySelectorAll('.ProseMirror .gly-lit').length;
-    return out;
-  }, cardSel);
-  note('a card whose run is not in the document', adrift);
-  check(
-    'a card whose run is not in the prose lights nothing — not its own words, and not anybody else’s',
-    adrift.stillBogus && adrift.markStillInProse && adrift.prose === 0,
-    adrift,
-  );
-  check(
-    'and the same card lights again the moment its run is back — the refusal is the missing mark, not the page',
-    adrift.backAgain > 0,
-    adrift,
-  );
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(250);
-
-  // NOTHING IS CLIPPED. The band was `overflow: hidden` — a card whose mark was
-  // four screens down sat four screens down inside it and was cut off, which is
-  // the "i can't scroll to see the response to every?" half of the report. The
-  // band is as tall as its cards now, and off the fold a card is no longer
-  // clipped to its head line either.
-  const clipped = await page.evaluate(() => {
-    const band = document.querySelector('.gly-rail-band');
-    const b = band.getBoundingClientRect();
-    const cards = Array.from(document.querySelectorAll('.gly-rail .gly-card'));
-    return {
-      bandOverflow: getComputedStyle(band).overflow,
-      cards: cards.length,
-      cut: cards
-        .map((el) => ({
-          cls: el.className,
-          // Cut off INSIDE its own box — the fold's `max-height: 3.4rem`.
-          inner: el.scrollHeight - el.clientHeight,
-          // Cut off by the band it lives in.
-          past: +(el.getBoundingClientRect().bottom - b.bottom).toFixed(1),
-          inBand: !!el.closest('.gly-rail-band'),
-        }))
-        .filter((c) => c.inner > 1 || (c.inBand && c.past > 1)),
-    };
-  });
-  check(
-    'no card in the rail is clipped — not to a head line, and not by the band',
-    clipped.cards > 0 &&
-      clipped.cut.length === 0 &&
-      clipped.bandOverflow === 'visible',
-    clipped,
-  );
-
-  // THE LAST CARD IS REACHABLE, and that is the report's own sentence. The
-  // lowest mark in the document is found from the prose, scrolled to, and its
-  // card read back: on screen, whole, and hit-testable at its own centre — the
-  // §7a rule, which is that a rect inside the window is not the same claim as a
-  // control the reviewer can press.
-  const lastRun = await page.evaluate(() => {
-    let low = null;
-    for (const el of document.querySelectorAll('.ProseMirror [data-run]')) {
-      const y = el.getBoundingClientRect().top + window.scrollY;
-      if (!low || y > low.y) low = { run: el.dataset.run, y };
-    }
-    return low;
-  });
-  check(
-    'the fixture has a mark below the fold to scroll to',
-    !!lastRun,
-    lastRun,
-  );
-  const last = await page.evaluate((run) => {
-    const card = document.querySelector(
-      `.gly-rail-band .gly-card[data-run="${CSS.escape(run)}"]`,
-    );
-    if (!card) return { card: false };
-    card.scrollIntoView({ block: 'center' });
-    return new Promise((done) =>
-      setTimeout(() => {
-        const r = card.getBoundingClientRect();
-        const at = document.elementFromPoint(
-          r.x + r.width / 2,
-          r.y + r.height / 2,
-        );
-        done({
-          card: true,
-          inside:
-            r.top >= 0 && r.bottom <= window.innerHeight + 0.5 && r.height > 20,
-          reachable: !!(at && card.contains(at)),
-          hitBy: at ? at.className || at.tagName : 'nothing',
-          rect: { y: +r.y.toFixed(1), h: +r.height.toFixed(1) },
-        });
-      }, 600),
-    );
-  }, lastRun.run);
-  check(
-    'the last mark’s card is on screen, whole, once you scroll to it',
-    last.card && last.inside && last.reachable,
-    last,
-  );
-
-  // AND A CARD THAT CANNOT POINT IS NOT IN THE MAP AT ALL. The rule this
-  // replaces was `the anchorless section holds a card and draws no connector
-  // from it` — two claims, and both survive in a stronger form. A line says
-  // "this card is about THAT" and a card with nowhere to be has no THAT; the
-  // rail's one job is *here is what needs you, beside the text it is about*,
-  // and such a card is beside nothing. So it is not carded here, and there is
-  // no section for it to be carded in.
-  //
-  // THE CONVERSATION IS NOT DROPPED, WHICH IS THE HALF THAT COULD GO WRONG. It
-  // is live work: the census counts it, and the sheet lists it. That is
-  // asserted in §7b″ against the same fixture thread, at the width where the
-  // rail exists — so "left the rail" and "arrived in the sheet" are two checks
-  // and neither can pass on its own.
-  // THE ANCHORLESS THREAD IS MADE HERE, IN THE EDITOR, because that is the only
-  // place it can be made any more.
-  //
-  // It used to be built before the server started: the comment was filed with
-  // `galley suggest --comment --on`, and then the `{==…==}` was taken out from
-  // under it by rewriting the .md on disk — which is what a reviewer deleting
-  // the text a conversation is about does, without a reviewer. The document is
-  // OPEN now and the live document owns the file: an outside write is
-  // overwritten by the next projection, and the fixture would be racing the
-  // server for it. So the deletion is performed the way the product performs
-  // it — select the marked words in the editor and press Backspace — which is
-  // `threadPlacement`'s own first anchorless case and the gesture rounds-ux
-  // drives for the same state.
-  //
-  // ASSERTED, NOT ASSUMED. An editor that could not find the phrase would leave
-  // this fixture quietly without an unplaced instruction, and every check below
-  // would then be reading zero matches — the pass-forever shape, in the block
-  // whose whole subject is a card that cannot point.
-  // FILED HERE, NOT IN THE OPENING SEED. The seed's copy of this instruction is
-  // GONE by the time this block runs: §9 presses Revise, which SENDS the round —
-  // `sendReviewerRound` hands every pending instruction to the agent and clears
-  // the list — so the fixture's first six are consumed several hundred lines
-  // above. Measured, with the seed's copy relied on: `comments` held only §9's
-  // three, none of them on this phrase, and the wait for an unplaced card timed
-  // out on a page that was behaving correctly.
   await instruct({
     op: 'comment',
     target: WITHDRAWN,
     text: 'does this still apply?',
   });
-  // AND THE FIGURE'S CONVERSATION, for the same reason and in the same breath:
-  // §9's Revise took the seed's copy of that one too, and the check below it
-  // feeds ("the map DOES hold a conversation with no run") is what makes the
-  // orphan check capable of failing at all. A block thread has no run BY
-  // CONSTRUCTION — that is the whole reason `docmodel.Note` exists — so without
-  // one in the map, "no orphans" is satisfied by there being nothing to
-  // misread.
+  // AND THE FIGURE'S CONVERSATION, in the same breath: the Revise above took
+  // the seed's copy of that one too, and §7's figure checks read a figure that
+  // an instruction has been filed on.
   {
     const blocks = (await pending()).blocks || [];
     const figure = blocks.find(
@@ -4130,21 +3496,23 @@ console.log('\n--- §10 · the rail scrolls with the document ---');
       text: 'does this picture still match the text?',
     });
   }
-  // WAITED FOR ON THE PAGE'S OWN CARDS, not on a field of the app's thread
-  // objects: `App.comments` is `/_galley/pending`'s instructions MAPPED, and
-  // the quote does not survive under that name (measured: `quote: null` on
-  // every entry). The card's head carries the phrase, which is what a reviewer
-  // reads and what this block is about to take away.
+  // WAITED ON THE ROW IN THE PROSE, not on a card in a band. The instruction's
+  // one surface is the pinned row, and this is what replaced a wait for
+  // `.gly-rail .gly-card.gly-thread` carrying the phrase — a selector that can
+  // now only time out.
   await page.waitForFunction(
-    (q) =>
-      Array.from(
-        document.querySelectorAll('.gly-rail .gly-card.gly-thread'),
-      ).some((c) => (c.textContent || '').includes(q)),
-    WITHDRAWN,
+    () => document.querySelectorAll('.ProseMirror .gly-row').length > 0,
+    null,
     { timeout: 20000 },
   );
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1500);
 
+  // THE HIGHLIGHT COMES OUT FROM UNDER A CONVERSATION, performed the way the
+  // product performs it — select the marked words in the editor and delete
+  // them, which is `threadPlacement`'s own first anchorless case and the
+  // gesture rounds-ux drives for the same state. Asserted rather than assumed:
+  // an editor that could not find the phrase would leave this fixture quietly
+  // without an unplaced instruction.
   const withdrawn = await page.evaluate((phrase) => {
     const editor = window.galleyEdit.editor;
     let at = null;
@@ -4166,465 +3534,8 @@ console.log('\n--- §10 · the rail scrolls with the document ---');
     { WITHDRAWN, withdrawn },
   );
   await page.waitForTimeout(5000);
-  note(
-    'DIAG',
-    await page.evaluate(
-      (phrase) => ({
-        unplaced: document.querySelectorAll('.gly-rail-unplaced .gly-thread')
-          .length,
-        band: document.querySelectorAll('.gly-rail-band .gly-card').length,
-        adrift: document.querySelectorAll('.gly-card.gly-adrift').length,
-        stillThere:
-          window.galleyEdit.editor.state.doc.textContent.includes(phrase),
-        comments: (window.galleyEdit.app.comments || []).map((c) => [
-          c.quote,
-          c.run,
-          c.anchor,
-        ]),
-        marks: Array.from(
-          document.querySelectorAll('.ProseMirror .gly-hl'),
-        ).map((e) => e.textContent),
-      }),
-      WITHDRAWN,
-    ),
-  );
-  // ATTACHED, NOT VISIBLE. This block runs at the narrow viewport, where the
-  // rail is `display: none` and the sheet is the surface — so playwright's
-  // default `state: 'visible'` waits for a card that is correctly never painted
-  // and times out after thirty seconds on a fixture that worked.
-  await page.waitForSelector('.gly-rail-unplaced .gly-thread', {
-    state: 'attached',
-    timeout: 15000,
-  });
-  await page.waitForTimeout(1200);
-
-  const railed = await page.evaluate(() => ({
-    sections: document.querySelectorAll(
-      '.gly-rail-anchorless, .gly-rail-settled, .gly-rail-changed',
-    ).length,
-    // A CARD WITH NO RUN IS NOT AN ANCHORLESS CARD, and this check said it was.
-    // `threadCard` writes `dataset.run = thread.run || ''`, and a BLOCK or
-    // FIGURE thread has no run by construction — that is the whole reason
-    // `docmodel.Note` exists — so `!c.dataset.run` named the exact population
-    // `threadPlacement` was written to stop being confused with the adrift one.
-    // It is the discriminator CLAUDE.md records as wrong, corrected in §7b″ and
-    // left standing here: fix-one-site-miss-the-other, inside a check. It was
-    // green only because no thread in this fixture was on a block; there is one
-    // now (the figure's), and against the old form it reports `orphans: 1` — a
-    // conversation sitting correctly beside its picture, named a defect.
-    //
-    // The discriminator is `threadLabel`'s own sentence, which is the one place
-    // that tells the three shapes apart and the only one a reviewer ever reads.
-    // READ STRUCTURALLY, NOT OFF THE COPY. This matched the card's own
-    // explanatory sentence — `/not tied to a mark/` — which is the reviewer's
-    // reading of the state and therefore the thing most likely to be reworded;
-    // a check pinned to it goes red on a copy edit and, worse, goes GREEN and
-    // stops finding anything the day the sentence is dropped. `.gly-adrift` is
-    // the class `threadCard` puts on a thread that cannot point, written in one
-    // place from `threadLabel`'s own verdict, and it is what the dashed border
-    // is drawn from — so this asks the same question of the artifact instead of
-    // of the prose.
-    orphans: document.querySelectorAll(
-      '.gly-rail-band .gly-card.gly-thread.gly-adrift',
-    ).length,
-    unplaced: document.querySelectorAll(
-      '.gly-rail-unplaced .gly-card.gly-thread',
-    ).length,
-    // And the fixture really does put a runless card in the map, so "no
-    // orphans" cannot be satisfied by there being nothing to misread.
-    runless: Array.from(
-      document.querySelectorAll('.gly-rail-band .gly-card.gly-thread'),
-    ).filter((c) => !c.dataset.run).length,
-  }));
-  check(
-    'no unplaced instruction is in the positioned map',
-    railed.sections === 0 && railed.orphans === 0 && railed.unplaced === 1,
-    railed,
-  );
-  check(
-    'and the map DOES hold a conversation with no run — a block thread, which is not adrift',
-    railed.runless > 0,
-    railed,
-  );
-
-  // AND THE RAIL SHOWS THE ACTUAL INSTRUCTION. The count used to point at a
-  // removed conversation sheet and left the work unreachable from the view the
-  // reviewer had deliberately opened. One unplaced heading and one complete
-  // card keep the count, the words and the delete action together.
-  const unplaced = await page.evaluate(() => ({
-    said: (
-      document.querySelector('.gly-rail-unplaced-head')?.textContent || ''
-    ).trim(),
-    cards: document.querySelectorAll('.gly-rail-unplaced .gly-thread').length,
-    deletes: document.querySelectorAll('.gly-rail-unplaced .gly-thread-delete')
-      .length,
-  }));
-  check(
-    'and the rail labels exactly one unplaced instruction',
-    unplaced.said === unplacedSaid(1),
-    { unplaced, want: unplacedSaid(1) },
-  );
-  check(
-    'and the unplaced instruction remains a complete, deletable card',
-    unplaced.cards === 1 && unplaced.deletes === 1,
-    unplaced,
-  );
-
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.setViewportSize(WIDE);
-  await page.waitForTimeout(600);
-}
-
-// --- §10a · the rail begins BELOW the bar, and nothing lands under it --------
-//
-// THE BAND'S TOP IS THE RAIL'S TOP, AND THE RAIL IS `position: absolute` — so
-// whatever the anchor pass does not explicitly place lands wherever `top: 0`
-// puts it. Absolute takes the rail OUT OF FLOW, so its containing block is the
-// initial one and `top: 0` is document y 0: exactly where the opaque sticky bar
-// sits at `scrollY 0`, with the rail at `z-index: 5` under it. The regroup
-// reasoned that a sticky bar is in flow and therefore already reserves that
-// space — true of a flow sibling, false of this element, and §10 above could
-// not see the difference because every card it reads is placed by hand.
-//
-// TWO STATES REACH IT, AND BOTH ARE STATES THE PRODUCT REACHES ON ITS OWN.
-//
-//   A. THE SETTLED DOCUMENT — the state Court reaches the moment he presses
-//      `✓ all`, and his own report restated: *"settled still overrides the rest
-//      of the threads. changed then overrides that."* With nothing pending and
-//      no open thread, `paintRailCards` appends the settled notice and returns
-//      before a single card is built, so `this.cards` is empty, the band is
-//      written to height 0, and all three sections stack from the rail's top.
-//   B. EVERY CARD ADRIFT — a suggestion the server reports and the document
-//      does not show yet, which is what EVERY agent suggestion arriving ahead
-//      of the websocket is for the frame before it lands. An adrift card has no
-//      anchor, so the anchored loop neither positions it nor counts it into the
-//      band's height: `top: auto` is its static position, the band stays 0 tall,
-//      and the sections are drawn straight over the cards.
-//
-// BOTH ARE INSTALLED BY HAND, for §8a's stated reason. Neither is reachable
-// without destroying this fixture — A is a swept review, which would leave §8
-// below with no verbs to read, and B is a race with the websocket measured in
-// frames. The state is written onto the REAL app and painted by the REAL
-// `paintRail`, so everything read back is the product's own geometry; the
-// fixture is restored by a real `refreshPending` afterwards.
-//
-// State A keeps the RESOLVED thread — `censusCounts.threads` counts open
-// threads only, so a document whose every conversation is settled still reads
-// `threads === 0`, which is what puts the settled region and the notice on
-// screen together. That is the shape of Court's complaint and not a contrivance
-// of it.
-console.log('\n--- §10a · the rail begins below the bar ---');
-{
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(200);
-
-  // THE POLL IS SILENCED WHILE THE STATE IS HELD, AND THE SERVER'S OWN ANSWER
-  // IS KEPT IN HAND. `App.tick` runs every 1500ms and a `/_galley/rev` move
-  // calls `refreshPending`, which replaces both lists from the server and
-  // rebuilds every card — so an injected state survives a poll interval at
-  // most. Shadowing the method on the INSTANCE holds it for as long as this
-  // block needs; `delete` at the foot puts the prototype's own back, and the
-  // two states are built from the lists captured HERE rather than from a
-  // re-fetch between them, so neither half of the block depends on a round
-  // trip landing inside a `waitForTimeout`.
-  await page.evaluate(() => {
-    const app = window.galleyEdit.app;
-    app.__keep = { suggestions: app.suggestions, comments: app.comments };
-    app.refreshPending = () => Promise.resolve();
-  });
-
-  /** Every visible box in the rail, against the bar that can cover it.
-   *
-   *  TWO CLAIMS, AND §7a's RULE IS THAT THEY ARE TWO. `clearsBar` is a rect
-   *  claim read at `scrollY 0`, where the sticky bar is at the top of the page
-   *  and the rail's own top is beside it: a box whose document top is above the
-   *  bar's foot is behind the bar at every scroll position there is, which is
-   *  the defect. `reachable` is a hit test, and it is taken with the page
-   *  SCROLLED so the box's head sits just below the bar — the §10 standard, "on
-   *  screen once you scroll to it", because a card at the end of a 2000px band
-   *  is legitimately below the fold and `elementFromPoint` answers `null` for
-   *  every point outside the window.
-   *
-   *  The point read is the box's own TOP edge rather than its centre: a bar
-   *  covering the head of a section and leaving its foot is still a head the
-   *  reviewer cannot read or press. */
-  //
-  //  NOTHING HERE HOLDS AN ELEMENT ACROSS AN AWAIT, and that is not caution —
-  //  it is a measured hazard. `clearNewLater` fires 8s after the last arrival,
-  //  clears the ring on what is new and calls `paintRail`, which destroys and
-  //  rebuilds every card. The first version of the hit-test loop captured its
-  //  card references once: the rebuild landed between two iterations, every
-  //  later rect came back `0` (a detached element measures at the origin) and
-  //  every point landed on the bar — a failure that looks exactly like the
-  //  defect under test and is not it. A card is re-resolved BY INDEX after
-  //  every scroll, which survives the rebuild because the rebuild is from the
-  //  same list in the same order.
-  const RAIL_BOXES = `
-    const bar = () => document.querySelector('.gly-bar').getBoundingClientRect();
-    const at = (spec) => (spec.card === undefined
-      ? document.querySelector(spec.sel)
-      : document.querySelectorAll('.gly-rail-band .gly-card')[spec.card]);
-    const specs = [
-      { label: 'rail', sel: '.gly-rail' },
-      { label: 'notice', sel: '.gly-rail-notice' },
-      ...[...document.querySelectorAll('.gly-rail-band .gly-card')]
-        .map((el, i) => ({ label: 'band card ' + i, card: i })),
-    ].filter((spec) => {
-      const el = at(spec);
-      return el && el.getBoundingClientRect().height >= 1;
-    });
-  `;
-  const railBoxes = () =>
-    page.evaluate(`(() => {
-      ${RAIL_BOXES}
-      const b = bar();
-      const band = document.querySelector('.gly-rail-band').getBoundingClientRect();
-      return {
-        bar: { bottom: +b.bottom.toFixed(1) },
-        band: { top: +band.top.toFixed(1), height: +band.height.toFixed(1) },
-        rows: specs.map((spec) => {
-          const r = at(spec).getBoundingClientRect();
-          return {
-            label: spec.label,
-            top: +r.top.toFixed(1),
-            bottom: +r.bottom.toFixed(1),
-            clearsBar: r.top >= b.bottom - 0.5,
-          };
-        }),
-      };
-    })()`);
-  /** The hit test, one box at a time, with the page put where that box can be
-   *  seen. `scrollIntoView` is not used: `block: 'start'` puts the box's head
-   *  under the sticky bar by construction and `block: 'center'` cannot place a
-   *  box taller than the window at all. Scrolling to "head 20px below the bar"
-   *  is the position a reviewer reaches by scrolling to it, and it is the same
-   *  for every box whatever its height. */
-  const railReach = () =>
-    page.evaluate(`(async () => {
-      ${RAIL_BOXES}
-      const out = [];
-      for (const spec of specs) {
-        // TWICE, AND THE SECOND ONE IS NOT BELT AND BRACES. The rail is
-        // absolutely positioned, so the page's own scrollable area only takes
-        // account of it once it has been laid out — a first scrollTo past what
-        // the page currently admits CLAMPS, and the room appears on the reflow
-        // that scroll caused. Measured: a box at document y 2376 asked for
-        // 2304 and got 1079. Asking again from the settled layout reaches it.
-        for (let tries = 0; tries < 3; tries += 1) {
-          const want = at(spec).getBoundingClientRect().top + window.scrollY - bar().height - 20;
-          if (Math.abs(window.scrollY - Math.max(0, want)) < 1) break;
-          window.scrollTo(0, Math.max(0, want));
-          await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 30)));
-        }
-        const el = at(spec);
-        const r = el.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + 4);
-        out.push({
-          label: spec.label,
-          at: +r.top.toFixed(1),
-          scrollY: Math.round(window.scrollY),
-          reachable: !!(hit && (hit === el || el.contains(hit))),
-          hitBy: hit ? hit.className || hit.tagName : 'nothing',
-        });
-      }
-      window.scrollTo(0, 0);
-      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 30)));
-      return out;
-    })()`);
-
-  // A · THE SETTLED DOCUMENT.
-  await page.evaluate(() => {
-    const app = window.galleyEdit.app;
-    app.suggestions = [];
-    app.comments = app.__keep.comments.filter((c) => c.resolved);
-    app.paintRail();
-  });
-  await page.waitForTimeout(400);
-  const settledDoc = await railBoxes();
-  const settledReach = await railReach();
-  note('a settled document, every visible box in the rail', settledDoc);
-  // READ AS AN EMPTY MAP, NOT AS A SENTENCE. This required exactly one
-  // `.gly-rail-notice .gly-settled` — the "nothing pending — the document is
-  // settled" card — and `paintRailCards` writes no such card any more: the only
-  // thing it puts in the notice on an empty rail is the ARRIVALS-HELD line, and
-  // this state has nothing held. The claim the geometry below rests on is that
-  // the map is EMPTY, which is what the next three checks need to be measuring
-  // a settled rail rather than a busy one, so that is what is asserted — and it
-  // is asserted over the whole rail, not the band alone, or a card that had
-  // slipped into the notice would satisfy it.
-  // SCOPED TO THE THREAD CARDS. `.gly-rail .gly-card` catches the
-  // whole-document composer's own card, which is PINNED first in the rail and
-  // is there on a settled document exactly as it is on a busy one — it is the
-  // box a new instruction is typed into, not a piece of work. What has to be
-  // empty for the geometry below to be measuring a settled rail is the MAP.
-  check(
-    'the settled document really is settled — the band holds nothing, and no thread does either',
-    (await page.locator('.gly-rail .gly-card.gly-thread').count()) === 0 &&
-      settledDoc.band.height < 1,
-    { band: settledDoc.band },
-  );
-  // THE FLOOR NAMES THE SURFACE, because "every visible box" is met vacuously
-  // by the rail alone — and the defect was that the sections BELOW the empty
-  // band were the boxes under the bar. Court's own words were "settled still
-  // overrides the rest of the threads. changed then overrides that", and both
-  // of those sections are deleted; what is left after the map is the NOTICE,
-  // which on a settled document is the one box in the rail carrying anything
-  // at all, and it is the box that would land under the bar for the identical
-  // reason. So the name changed and the claim did not: a section whose top is
-  // above the bar's foot is behind the bar at every scroll position.
-  const named = (rows) => rows.some((r) => r.label === 'notice');
-  check(
-    'every section of a settled rail begins below the bar — the notice among them',
-    named(settledDoc.rows) && settledDoc.rows.every((r) => r.clearsBar),
-    {
-      missing: !named(settledDoc.rows),
-      under: settledDoc.rows.filter((r) => !r.clearsBar),
-    },
-  );
-  check(
-    'and every one of them can be read where it is',
-    named(settledReach) && settledReach.every((r) => r.reachable),
-    {
-      missing: !named(settledReach),
-      unreachable: settledReach.filter((r) => !r.reachable),
-    },
-  );
-
-  // B · EVERY CARD ADRIFT. The run is the pairing between a card and its mark,
-  // so a run this document does not carry is exactly what the server reporting
-  // ahead of the websocket looks like from the browser's side. Both lists are
-  // mangled: a thread whose run does not resolve is a band card too.
-  //
-  // AND THE BLOCK KEY WITH IT, because a run is not the only way a card is
-  // placed. `threadPlacement` measures a block thread through the INDEX
-  // `/_galley/pending` reports for its `anchorKey`, so the figure's
-  // conversation survived a run-only mangle and sat correctly beside its
-  // picture in a state that is supposed to have no anchored card in it — which
-  // the check below caught the moment the fixture gained one. A key this
-  // refresh does not know is threadPlacement's own third anchorless case and
-  // the same race in the other coordinate, so mangling both is one fiction, not
-  // two. That thread then leaves the band entirely (the rail holds live work
-  // beside the text it is about, and it is now beside nothing) and is announced
-  // in the notice, which is the product's own behaviour and not a special case
-  // for this state.
-  await page.evaluate(() => {
-    const app = window.galleyEdit.app;
-    const adrift = (row) => {
-      let out = row;
-      if (out.run) out = { ...out, run: `adrift-${out.run}` };
-      if (out.anchorKey) out = { ...out, anchorKey: `adrift-${out.anchorKey}` };
-      return out;
-    };
-    app.suggestions = app.__keep.suggestions.map(adrift);
-    app.comments = app.__keep.comments.map(adrift);
-    app.paintRail();
-  });
-  await page.waitForTimeout(400);
-  const allAdrift = await railBoxes();
-  const adriftReach = await railReach();
-  const adriftCards = await page.evaluate(() => {
-    const band = document.querySelector('.gly-rail-band');
-    const cards = [...band.querySelectorAll('.gly-card')];
-    const b = band.getBoundingClientRect();
-    return {
-      cards: cards.length,
-      notAdrift: cards.filter((el) => !el.classList.contains('gly-adrift'))
-        .length,
-      unplaced: cards.filter((el) => !el.style.top).length,
-      // Held by the band it lives in — which is the height claim, read as the
-      // geometry it is for rather than as a number.
-      past: cards
-        .map((el) => +(el.getBoundingClientRect().bottom - b.bottom).toFixed(1))
-        .filter((d) => d > 1),
-      overlap: cards
-        .map((el) => el.getBoundingClientRect())
-        .sort((p, q) => p.top - q.top)
-        .flatMap((r, i, all) =>
-          i === 0 ? [] : [+(all[i - 1].bottom - r.top).toFixed(1)],
-        )
-        .filter((d) => d > 1),
-    };
-  });
-  note('every card adrift, the band that has to hold them', {
-    ...adriftCards,
-    band: allAdrift.band,
-  });
-  check(
-    'every card in the band really is adrift — a state with an anchored card in it is not this state',
-    adriftCards.cards > 1 && adriftCards.notAdrift === 0,
-    adriftCards,
-  );
-  check(
-    'an adrift card is given a position and counted into the band',
-    adriftCards.unplaced === 0 &&
-      adriftCards.past.length === 0 &&
-      adriftCards.overlap.length === 0 &&
-      allAdrift.band.height > 1,
-    { ...adriftCards, band: allAdrift.band },
-  );
-  check(
-    'every box in an all-adrift rail begins below the bar',
-    allAdrift.rows.length >= 3 && allAdrift.rows.every((r) => r.clearsBar),
-    allAdrift.rows.filter((r) => !r.clearsBar),
-  );
-  check(
-    'and every one of them can be read once you scroll to it',
-    adriftReach.length >= 3 && adriftReach.every((r) => r.reachable),
-    adriftReach.filter((r) => !r.reachable),
-  );
-
-  // AND THE OFFSET IS MEASURED, NOT A CONSTANT. `3.4rem` is 54.4px and a folded
-  // bar is 91.4 — the number that made the LAST version of this rule wrong, from
-  // the opposite side. 1200 folds this fixture's bar (measured: flat at 1248)
-  // and still shows the rail, which is hidden below 992 altogether.
-  await page.setViewportSize({ width: 1200, height: 1100 });
-  await page.waitForTimeout(500);
-  const folded = await page.evaluate(() => {
-    const bar = document.querySelector('.gly-bar').getBoundingClientRect();
-    const rail = document.querySelector('.gly-rail').getBoundingClientRect();
-    const px = (name) =>
-      parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue(name),
-      ) || 0;
-    return {
-      barH: +bar.height.toFixed(1),
-      railTop: +rail.top.toFixed(1),
-      folded: bar.height > 60,
-      published: getComputedStyle(document.documentElement)
-        .getPropertyValue('--gly-bar-h')
-        .trim(),
-      // The reserved sub-bar row plus the page's top padding — the token the
-      // draft rail and History's rail BOTH hang off now, so a mode switch moves
-      // neither. It is read here rather than written as a number for the same
-      // reason the bar's height is measured: a literal 64 in this check would
-      // go green the day the row changed and the two rails stopped agreeing.
-      railTopVar: px('--gly-sub-h') + px('--gly-page-pad'),
-    };
-  });
-  check(
-    'the bar really is folded at 1200 — a flat bar cannot tell a constant from a measurement',
-    folded.folded,
-    folded,
-  );
-  // THE MEASUREMENT IS STILL THE CLAIM, AND THE RESERVED ROW IS A SECOND TERM
-  // RATHER THAN A REPLACEMENT FOR IT. `3.4rem` is 54.4px and a folded bar is
-  // 91.4 — the number that made the LAST version of this rule wrong. The rail
-  // now begins that measured height PLUS the row both rails reserve, and the
-  // arithmetic is written out so a change to either term fails here.
-  check(
-    'and the rail begins at the FOLDED bar’s own height, not at 3.4rem',
-    folded.railTopVar > 0 &&
-      Math.abs(folded.railTop - (folded.barH + folded.railTopVar)) <= 1,
-    folded,
-  );
 
   await page.setViewportSize(WIDE);
-  await page.evaluate(() => {
-    const app = window.galleyEdit.app;
-    delete app.refreshPending;
-    delete app.__keep;
-    return app.refreshPending();
-  });
   await page.waitForTimeout(700);
 }
 
@@ -4946,6 +3857,9 @@ console.log('\n--- §13 · an applied round ---');
     prose: document.querySelector('.ProseMirror').innerText,
     cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
     keys: document.querySelectorAll('.gly-scrub-key').length,
+    keyLabels: Array.from(document.querySelectorAll('.gly-scrub-key')).map(
+      (el) => (el.textContent || '').trim(),
+    ),
   }));
 
   // The reviewer asks, and the agent revises — through the real write surface,
@@ -4988,6 +3902,17 @@ console.log('\n--- §13 · an applied round ---');
     }
     writeFileSync(DOC, now);
   }
+  // `--changes`, NOT `--note` ALONE, AND THAT IS WHAT THE PAIRING CHECK NEEDS.
+  // `--note` is the ROUND's sentence — the agent's word about the whole
+  // handover — and `.gly-agent-note` under a WAS strip is the agent's word
+  // about THIS CHANGE: `changeView.Note` comes from the ack manifest's own
+  // per-change entries (internal/serve/versions.go:860, `note[k] = c.Note`),
+  // matched onto the region by the quote. With only a round note the fixture
+  // produced no per-change testimony at all and `and the agent's own word about
+  // the change is beside the change` read an element that had correctly not
+  // been built — the server's stated rule that an absent note is absent, doing
+  // exactly what it says. The round note is kept: `#gly-status` reads it, and
+  // the two are different sentences on purpose.
   galley(
     'ack',
     DOC,
@@ -4995,16 +3920,39 @@ console.log('\n--- §13 · an applied round ---');
     'answered',
     '--note',
     'renamed the reserved word',
+    '--changes',
+    JSON.stringify([
+      {
+        quote: 'which the agent HAS ALREADY REVISED',
+        note: 'renamed the reserved word',
+      },
+    ]),
   );
   await page.waitForTimeout(2600);
 
+  // THE PROSE, WITHOUT THE STRIPS THAT QUOTE WHAT IT NO LONGER SAYS. `innerText`
+  // over `.ProseMirror` now includes the WAS strip Task 11 pins under a revised
+  // block — a widget whose whole content is the sentence the agent took out —
+  // so `!prose.includes('revises outright')` read the record of the removal as
+  // the removal not having happened. The strips are decorations, not the
+  // document, and `.gly-was-wrap` is what carries them; the check below is
+  // about what the DOCUMENT says, so they come out of the text it reads. The
+  // strips are asserted positively a few checks down, where they are the
+  // subject rather than the noise.
   const after = await page.evaluate(() => ({
-    prose: document.querySelector('.ProseMirror').innerText,
+    prose: (() => {
+      const pm = document.querySelector('.ProseMirror').cloneNode(true);
+      pm.querySelectorAll('.gly-was-wrap').forEach((n) => n.remove());
+      return pm.innerText === undefined ? pm.textContent : pm.innerText;
+    })(),
     cards: document.querySelectorAll('.gly-rail .gly-card.gly-thread').length,
     marks: document.querySelectorAll(
       '.ProseMirror .gly-ins, .ProseMirror .gly-del',
     ).length,
     keys: document.querySelectorAll('.gly-scrub-key').length,
+    keyLabels: Array.from(document.querySelectorAll('.gly-scrub-key')).map(
+      (el) => (el.textContent || '').trim(),
+    ),
     was: document.querySelectorAll('.ProseMirror .gly-was').length,
     said: (document.querySelector('#gly-status') || {}).innerText || '',
   }));
@@ -5047,10 +3995,23 @@ console.log('\n--- §13 · an applied round ---');
   // landed is on the track, and the track is where the reviewer goes to read
   // it. Nothing moves under the cursor because the track is in the footer and
   // grows along itself.
+  // COUNTED AS A GROWTH AND NAMED, RATHER THAN AS `+1`. The constant was wrong
+  // about this fixture and in a way that hid what the check is for: the ask,
+  // the agent's write to the .md and the ack that closes the round put TWO
+  // keyframes on the track between the two reads (measured: `["R1","R2",
+  // "R3 · cannot"]` before, `["R1","R2","R3 · cannot","R4","R5 draft"]` after),
+  // and an arithmetic identity over a fixture's round bookkeeping is not the
+  // claim. The claim is that THE ARRIVAL REACHED THE RECORD, so the track is
+  // asserted to have grown AND its head to be the round that just landed —
+  // `keyframesOf` labels exactly that one `draft` (timeline.ts:43: the head,
+  // unsealed, landed, with answers). A revision that changed the document and
+  // left no keyframe, or left one that is not the head, fails here; a fixture
+  // that files one extra round does not.
   check(
     'the arrival reaches the record — the round is a keyframe on the timeline',
-    after.keys === before.keys + 1,
-    { before: before.keys, after: after.keys },
+    after.keys > before.keys &&
+      /^R\d+ draft$/.test(after.keyLabels[after.keyLabels.length - 1]),
+    { before: before.keyLabels, after: after.keyLabels },
   );
   // THE SENTENCE IS THE REVIEWER'S ONLY NOTICE, so it is read off the screen and
   // not off a field: a string check on the bundle is green through a readout
@@ -5108,6 +4069,15 @@ console.log('\n--- §13 · an applied round ---');
       const cs = getComputedStyle(el);
       return {
         color: cs.color,
+        // THE REMOVAL COLOUR IS THE STRIKE'S, NOT THE INK'S — which is what the
+        // check below always SAID it was reading and did not. The WAS strip's
+        // own ink is `--gly-was-ink` (muted, because the strip is a record and
+        // not the document) while `s` inside it is struck in `--gly-coral`,
+        // which is `--gly-del`; reading `color` compared a muted grey against
+        // the ghost's red and reported two vocabularies where there is one.
+        // `text-decoration-color` is the property the removal is actually
+        // painted with on both sides.
+        strike: cs.textDecorationColor,
         style: cs.textDecorationStyle,
         line: cs.textDecorationLine,
         bg: cs.backgroundColor,
@@ -5133,15 +4103,25 @@ console.log('\n--- §13 · an applied round ---');
       !!vocabulary.outgoing &&
       // The strip's own ink is muted; the removal it carries is struck in the
       // removal colour, which is what `text-decoration-color` reports.
-      vocabulary.settled.color === vocabulary.outgoing.color,
+      vocabulary.settled.strike === vocabulary.outgoing.strike,
     vocabulary,
   );
+  // THE WASH CLAUSE WENT WITH THE PAPER THAT PAINTED IT. `solid ON THE WASH` was
+  // History's reading state: `.gly-versions-paper .gly-del` sat on `--gly-del-bg`
+  // because it was a diff rendered into a page of its own, and that page is
+  // deleted. A settled removal is read inline now, in the WAS strip, which says
+  // "this is a record and not the document" with a coral rule down its side and
+  // an eyebrow reading WAS — both asserted directly above — rather than with a
+  // wash behind the words. So the SHAPE claim is what survives, and it is the
+  // half that carried the meaning: solid is done, dotted is not yet. The
+  // outgoing ghost being bare is kept, because that is the ghost's own half of
+  // the rule and nothing about it moved.
   check(
-    'and they are apart by SHAPE — solid on the wash is done, dotted and bare is not yet',
+    'and they are apart by SHAPE — solid is done, dotted and bare is not yet',
     !!vocabulary.settled &&
       !!vocabulary.outgoing &&
-      vocabulary.settled.style !== vocabulary.outgoing.style &&
-      vocabulary.settled.bg !== vocabulary.outgoing.bg &&
+      vocabulary.settled.style === 'solid' &&
+      vocabulary.outgoing.style === 'dotted' &&
       vocabulary.outgoing.bg === TRANSPARENT,
     vocabulary,
   );
@@ -5350,18 +4330,27 @@ const placeComposer = (nth = 0) =>
   // map is empty by the time this block runs — measured, `editing: false` on a
   // page that was behaving correctly. One instruction, filed the way the
   // composer files one, is the card this opens.
+  //
+  // AND IT IS A WHOLE-DOCUMENT INSTRUCTION, WHICH IS WHERE `edit` STILL LIVES.
+  // This filed a `comment` on a phrase and waited for `.gly-rail
+  // .gly-thread-edit` — the mark-anchored rail card's edit verb. That card is
+  // deleted: a thread on a phrase is a pinned ROW under its block now, and the
+  // spec's row offers `×` and nothing else, so the wait could only time out.
+  // The verb itself is NOT deleted — the doc slot still renders a full card per
+  // whole-document instruction, `edit` and `delete` both — and SEALED_VERBS
+  // still names its two boxes, so the coverage assertion below still has a
+  // subject. `comment_document` is the op that puts one there.
   await instruct({
-    op: 'comment',
-    target: 'the retry budget',
+    op: 'comment_document',
     text: 'still worth a sentence',
   });
-  await page.waitForSelector('.gly-rail .gly-thread-edit', {
+  await page.waitForSelector('.gly-docslot .gly-thread-edit', {
     state: 'attached',
     timeout: 15000,
   });
   await page.waitForTimeout(600);
   const editing = await page.evaluate(() => {
-    const b = document.querySelector('.gly-rail .gly-thread-edit');
+    const b = document.querySelector('.gly-docslot .gly-thread-edit');
     if (!b) return false;
     b.click();
     return true;
@@ -5639,10 +4628,18 @@ const placeComposer = (nth = 0) =>
       const el = document.querySelector('#gly-seal');
       if (!el) return { missing: true };
       const r = el.getBoundingClientRect();
+      const bar = document.querySelector('.gly-bar');
+      const b = bar.getBoundingClientRect();
       return {
         inside:
           r.x >= 0 && r.x + r.width <= window.innerWidth + 0.5 && r.width > 0,
         clipped: el.scrollWidth > el.clientWidth + 1,
+        x: +r.x.toFixed(1),
+        right: +r.right.toFixed(1),
+        w: +r.width.toFixed(1),
+        win: window.innerWidth,
+        barSpill: +(bar.scrollWidth - bar.clientWidth).toFixed(1),
+        barH: +b.height.toFixed(1),
         text: (el.textContent || '').trim().slice(0, 40),
       };
     });

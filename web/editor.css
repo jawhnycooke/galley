@@ -69,17 +69,70 @@
      --gly-lit-bg                 THE LIGHT — stays amber, means HERE only.
    Light applies under [data-theme=light], or prefers-color-scheme: light when
    no data-theme is set. web/theme.ts writes data-theme. */
-@font-face { font-family: "Instrument Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/_galley/fonts/instrument-sans-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "Instrument Sans"; font-style: italic; font-weight: 400; font-display: swap; src: url("/_galley/fonts/instrument-sans-latin-400-italic.woff2") format("woff2"); }
-@font-face { font-family: "Instrument Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/_galley/fonts/instrument-sans-latin-500-normal.woff2") format("woff2"); }
-@font-face { font-family: "Instrument Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/_galley/fonts/instrument-sans-latin-600-normal.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/_galley/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/_galley/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("/_galley/fonts/jetbrains-mono-latin-600-normal.woff2") format("woff2"); }
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/_galley/fonts/instrument-sans-latin-400-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/_galley/fonts/instrument-sans-latin-400-italic.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/_galley/fonts/instrument-sans-latin-500-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/_galley/fonts/instrument-sans-latin-600-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/_galley/fonts/jetbrains-mono-latin-400-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/_galley/fonts/jetbrains-mono-latin-500-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/_galley/fonts/jetbrains-mono-latin-600-normal.woff2")
+    format("woff2");
+}
 :root {
   color-scheme: dark light;
   --gly-bg: #0b0d12;
-  --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #151a26 0%, #0b0d12 60%);
+  --gly-canvas: radial-gradient(
+    1200px 600px at 50% -10%,
+    #151a26 0%,
+    #0b0d12 60%
+  );
   --gly-fg: #f2efe6;
   --gly-muted: #8b90a0;
   --gly-muted2: #b8bcc8;
@@ -96,15 +149,20 @@
   --gly-dashed: #8aa800;
 
   --gly-coral: #ff5c39;
-  --gly-coral-fill: rgba(255, 92, 57, 0.10);
+  --gly-coral-fill: rgba(255, 92, 57, 0.1);
   --gly-coral-fill-deep: rgba(255, 92, 57, 0.14);
   --gly-amber: #e0b64a;
   --gly-green: #4f9e63;
 
   --gly-sheet-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
   --gly-menu-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  --gly-composer-shadow: 0 0 0 4px rgba(214, 255, 61, 0.12), 0 12px 30px rgba(0, 0, 0, 0.35);
-  --gly-footer-fade: linear-gradient(180deg, rgba(11, 13, 18, 0) 0%, #0b0d12 30%);
+  --gly-composer-shadow:
+    0 0 0 4px rgba(214, 255, 61, 0.12), 0 12px 30px rgba(0, 0, 0, 0.35);
+  --gly-footer-fade: linear-gradient(
+    180deg,
+    rgba(11, 13, 18, 0) 0%,
+    #0b0d12 30%
+  );
 
   /* The paper is NOT themed: white sheet, dark ink, in both themes. */
   --gly-paper: #ffffff;
@@ -132,14 +190,21 @@
   --gly-lift: var(--gly-menu-shadow);
   --gly-mark-amber: var(--gly-accent);
 
-  --gly-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  --gly-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --gly-mono:
+    "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --gly-sans:
+    "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --gly-bg: #f4f3ee;
-    --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, #f4f3ee 60%);
+    --gly-canvas: radial-gradient(
+      1200px 600px at 50% -10%,
+      #ffffff 0%,
+      #f4f3ee 60%
+    );
     --gly-fg: #14161c;
     --gly-muted: #6b6f7a;
     --gly-muted2: #4a4e58;
@@ -152,10 +217,16 @@
     --gly-dashed: #5a7d00;
     --gly-coral: #c8401f;
     --gly-amber: #9a6b00;
-    --gly-sheet-shadow: 0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
+    --gly-sheet-shadow:
+      0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
     --gly-menu-shadow: 0 20px 50px rgba(20, 22, 28, 0.18);
-    --gly-composer-shadow: 0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
-    --gly-footer-fade: linear-gradient(180deg, rgba(244, 243, 238, 0) 0%, #f4f3ee 30%);
+    --gly-composer-shadow:
+      0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
+    --gly-footer-fade: linear-gradient(
+      180deg,
+      rgba(244, 243, 238, 0) 0%,
+      #f4f3ee 30%
+    );
     --gly-flash: rgba(90, 125, 0, 0.35);
     --gly-live-bg: rgba(90, 125, 0, 0.08);
     --gly-lit-bg: rgba(154, 107, 0, 0.24);
@@ -163,7 +234,11 @@
 }
 :root[data-theme="light"] {
   --gly-bg: #f4f3ee;
-  --gly-canvas: radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, #f4f3ee 60%);
+  --gly-canvas: radial-gradient(
+    1200px 600px at 50% -10%,
+    #ffffff 0%,
+    #f4f3ee 60%
+  );
   --gly-fg: #14161c;
   --gly-muted: #6b6f7a;
   --gly-muted2: #4a4e58;
@@ -176,10 +251,16 @@
   --gly-dashed: #5a7d00;
   --gly-coral: #c8401f;
   --gly-amber: #9a6b00;
-  --gly-sheet-shadow: 0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
+  --gly-sheet-shadow:
+    0 24px 60px rgba(20, 22, 28, 0.14), 0 0 0 1px rgba(20, 22, 28, 0.06);
   --gly-menu-shadow: 0 20px 50px rgba(20, 22, 28, 0.18);
-  --gly-composer-shadow: 0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
-  --gly-footer-fade: linear-gradient(180deg, rgba(244, 243, 238, 0) 0%, #f4f3ee 30%);
+  --gly-composer-shadow:
+    0 0 0 4px rgba(90, 125, 0, 0.12), 0 12px 30px rgba(20, 22, 28, 0.12);
+  --gly-footer-fade: linear-gradient(
+    180deg,
+    rgba(244, 243, 238, 0) 0%,
+    #f4f3ee 30%
+  );
   --gly-flash: rgba(90, 125, 0, 0.35);
   --gly-live-bg: rgba(90, 125, 0, 0.08);
   --gly-lit-bg: rgba(154, 107, 0, 0.24);
@@ -221,25 +302,53 @@
   margin-left: auto;
   margin-right: auto;
 }
-body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
-.ProseMirror { outline: none; }
-.gly-versions-paper { min-width: 0; }
+body {
+  background: var(--gly-canvas), var(--gly-bg);
+  color: var(--gly-fg);
+}
+.ProseMirror {
+  outline: none;
+}
+.gly-versions-paper {
+  min-width: 0;
+}
 .ProseMirror > * + *,
-.gly-versions-paper > * + * { margin-top: 0.9em; }
+.gly-versions-paper > * + * {
+  margin-top: 0.9em;
+}
 .ProseMirror h1,
-.gly-versions-paper h1.gly-diff-h { font-size: 1.9em; line-height: 1.25; margin-top: 1.4em; }
+.gly-versions-paper h1.gly-diff-h {
+  font-size: 1.9em;
+  line-height: 1.25;
+  margin-top: 1.4em;
+}
 .ProseMirror h2,
-.gly-versions-paper h2.gly-diff-h { font-size: 1.45em; line-height: 1.3; margin-top: 1.3em; }
+.gly-versions-paper h2.gly-diff-h {
+  font-size: 1.45em;
+  line-height: 1.3;
+  margin-top: 1.3em;
+}
 .ProseMirror h3,
-.gly-versions-paper h3.gly-diff-h { font-size: 1.2em; margin-top: 1.2em; }
+.gly-versions-paper h3.gly-diff-h {
+  font-size: 1.2em;
+  margin-top: 1.2em;
+}
 .ProseMirror h4,
 .ProseMirror h5,
 .ProseMirror h6,
 .gly-versions-paper h4.gly-diff-h,
 .gly-versions-paper h5.gly-diff-h,
-.gly-versions-paper h6.gly-diff-h { font-size: 1em; margin-top: 1.1em; }
-.ProseMirror a { color: var(--gly-signal); }
-.ProseMirror img { max-width: 100%; height: auto; }
+.gly-versions-paper h6.gly-diff-h {
+  font-size: 1em;
+  margin-top: 1.1em;
+}
+.ProseMirror a {
+  color: var(--gly-signal);
+}
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
 .ProseMirror blockquote {
   margin-left: 0;
   padding-left: 1rem;
@@ -247,8 +356,12 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   color: var(--gly-muted);
 }
 .ProseMirror ul,
-.ProseMirror ol { padding-left: 1.4rem; }
-.ProseMirror li > * + * { margin-top: 0.4em; }
+.ProseMirror ol {
+  padding-left: 1.4rem;
+}
+.ProseMirror li > * + * {
+  margin-top: 0.4em;
+}
 .ProseMirror code {
   font-family: var(--gly-mono);
   font-size: 0.9em;
@@ -263,7 +376,10 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   background: var(--gly-panel-bg);
   overflow-x: auto;
 }
-.ProseMirror pre code { background: none; padding: 0; }
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
 /* A table renders honestly and is not the reviewer's to edit (phase 1e). The
    default cursor is the FIRST thing that says so — a refusal note the reviewer
    only meets after typing is a rule they had to break to learn. */
@@ -295,7 +411,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   border: none;
   border-top: 1px solid var(--gly-line);
 }
-.ProseMirror .ProseMirror-selectednode { outline: 2px solid var(--gly-signal); }
+.ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid var(--gly-signal);
+}
 
 /* A block note (docmodel.Note): a comment that IS a block, because a comment
    on a figure or on the whole file has no run of prose to highlight. It is in
@@ -334,7 +452,7 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    The BLOCK anchor is untouched — a note about the paragraph above it is
    exactly where it belongs, and its rail card is beside it rather than
    instead of it. */
-.ProseMirror .gly-note[data-anchor='document'] {
+.ProseMirror .gly-note[data-anchor="document"] {
   display: none;
 }
 /* A SETTLED NOTE MUST NOT READ LIKE A LIVE ONE. Resolving a note keeps every
@@ -422,7 +540,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    the declarations below are shared by both spellings. */
 .ProseMirror pre,
 .ProseMirror table,
-.ProseMirror .gly-figure { position: relative; }
+.ProseMirror .gly-figure {
+  position: relative;
+}
 .ProseMirror pre::after,
 .ProseMirror table::after,
 .ProseMirror .gly-figure > .gly-chip {
@@ -441,9 +561,15 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   pointer-events: none;
 }
 @keyframes gly-fence-pulse {
-  0% { box-shadow: 0 0 0 0 var(--gly-flash); }
-  30% { box-shadow: 0 0 0 4px var(--gly-flash); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 var(--gly-flash);
+  }
+  30% {
+    box-shadow: 0 0 0 4px var(--gly-flash);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
 /* .gly-figure as well as pre: a rendered mermaid fence IS a fence, and the
    keystroke that gets refused inside one must pulse the chip it is refusing
@@ -459,7 +585,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    the <code> element that wraps it. */
 .ProseMirror pre.gly-fence-pulse,
 .ProseMirror code.gly-fence-pulse,
-.ProseMirror .gly-figure.gly-fence-pulse { animation: gly-fence-pulse 0.6s ease-out 1; }
+.ProseMirror .gly-figure.gly-fence-pulse {
+  animation: gly-fence-pulse 0.6s ease-out 1;
+}
 @media (prefers-reduced-motion: reduce) {
   .ProseMirror pre.gly-fence-pulse,
   .ProseMirror code.gly-fence-pulse,
@@ -470,7 +598,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   /* The switch still moves — it has to, the position IS the state — it just
      arrives rather than travels. */
   .gly-switch,
-  .gly-switch-knob { transition: none; }
+  .gly-switch-knob {
+    transition: none;
+  }
 }
 
 /* --- figures (§6, R4) ---
@@ -490,15 +620,24 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   background: var(--gly-fence);
   overflow: hidden;
 }
-.ProseMirror .gly-figure img { display: block; max-width: 100%; height: auto; }
+.ProseMirror .gly-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
 .ProseMirror .gly-figure figcaption {
   padding: 0.35rem 0.6rem;
   border-top: 1px solid var(--gly-line);
   color: var(--gly-muted);
   font: 12px/1.5 var(--gly-sans);
 }
-.ProseMirror .gly-figure-render { padding: 0.6rem; }
-.ProseMirror .gly-figure-render svg { max-width: 100%; height: auto; }
+.ProseMirror .gly-figure-render {
+  padding: 0.6rem;
+}
+.ProseMirror .gly-figure-render svg {
+  max-width: 100%;
+  height: auto;
+}
 /* The source, kept and shown again when a diagram will not parse. A diagram
    that fails must not become an empty box — the reviewer still has to be able
    to read and quote the fence. */
@@ -536,13 +675,23 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   transition: opacity 0.12s ease;
 }
 .ProseMirror .gly-figure:hover .gly-region-button,
-.ProseMirror .gly-region-button:focus-visible { opacity: 1; }
-.ProseMirror .gly-region-button:hover { border-color: var(--gly-hl); color: var(--gly-hl); }
+.ProseMirror .gly-region-button:focus-visible {
+  opacity: 1;
+}
+.ProseMirror .gly-region-button:hover {
+  border-color: var(--gly-hl);
+  color: var(--gly-hl);
+}
 
 /* Violet — §8 gives threads and figure pins the sock violet, and a pin IS a
    thread. Crosshair and a dashed violet outline are §6's own words. */
-.ProseMirror .gly-figure.gly-picking { cursor: crosshair; outline: 2px dashed var(--gly-hl); }
-.ProseMirror .gly-figure.gly-picking .gly-region-button { display: none; }
+.ProseMirror .gly-figure.gly-picking {
+  cursor: crosshair;
+  outline: 2px dashed var(--gly-hl);
+}
+.ProseMirror .gly-figure.gly-picking .gly-region-button {
+  display: none;
+}
 .ProseMirror .gly-region-draft {
   position: absolute;
   border: 1px dashed var(--gly-hl);
@@ -567,8 +716,14 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
   cursor: pointer;
   pointer-events: auto;
 }
-.ProseMirror .gly-region-pin:hover { background: var(--gly-hl); opacity: 0.35; }
-.ProseMirror .gly-region-pin:focus-visible { outline: 2px solid var(--gly-hl); outline-offset: 2px; }
+.ProseMirror .gly-region-pin:hover {
+  background: var(--gly-hl);
+  opacity: 0.35;
+}
+.ProseMirror .gly-region-pin:focus-visible {
+  outline: 2px solid var(--gly-hl);
+  outline-offset: 2px;
+}
 
 /* --- suggestion marks ---
    Colour AND shape, so the three kinds stay apart for a reader who does not
@@ -620,7 +775,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    — but two words at one position must read as two words wherever they are
    drawn, and a second copy of this number is a second number. */
 .ProseMirror .gly-del + .gly-ins,
-.gly-versions-paper .gly-del + .gly-ins { margin-left: 0.3em; }
+.gly-versions-paper .gly-del + .gly-ins {
+  margin-left: 0.3em;
+}
 
 /* --- the trail (web/trail.js) ---
    The record of the reviewer's own hand, DECORATION-ONLY: the ghost is a
@@ -726,7 +883,9 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
 }
 /* (0,3,0) against the resting rule's (0,2,0), so it wins outright rather than
    on source order — the trap this stylesheet records more than any other. */
-.ProseMirror .gly-trail-ghost.gly-trail-tight { margin-right: 0; }
+.ProseMirror .gly-trail-ghost.gly-trail-tight {
+  margin-right: 0;
+}
 /* The insertion half, same argument: the agent's `ins` wash is the one that
    means "proposed, decide it". The reviewer's own typing is already in the
    document, so its record is a faint rule under the words rather than a colour
@@ -740,10 +899,18 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    box-shadow follows every fragment where an outline draws one box around the
    union of them — a band across the whole paragraph. */
 @keyframes gly-flash {
-  0% { box-shadow: 0 0 0 0 var(--gly-flash); }
-  16% { box-shadow: 0 0 0 5px var(--gly-flash); }
-  68% { box-shadow: 0 0 0 5px var(--gly-flash); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 var(--gly-flash);
+  }
+  16% {
+    box-shadow: 0 0 0 5px var(--gly-flash);
+  }
+  68% {
+    box-shadow: 0 0 0 5px var(--gly-flash);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
 .gly-flash {
   border-radius: 2px;
@@ -801,7 +968,11 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
    same shape .gly-overall-inner already uses for the same reason. The entries
    are gathered into .gly-bubble-said by App.bubbleThreadCard, because a flex
    child is the only thing that can be the one that scrolls. */
-.gly-bubble-thread { display: flex; flex-direction: column; overflow: hidden; }
+.gly-bubble-thread {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .gly-bubble-card {
   min-height: 0;
   display: flex;
@@ -814,9 +985,18 @@ body { background: var(--gly-canvas), var(--gly-bg); color: var(--gly-fg); }
 }
 .gly-bubble-card > .gly-card-head,
 .gly-bubble-card > .gly-card-actions,
-.gly-bubble-card > .gly-card-note { flex: none; }
-.gly-bubble-said { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.gly-bubble-note { margin-top: 0.35rem; opacity: 0.8; }
+.gly-bubble-card > .gly-card-note {
+  flex: none;
+}
+.gly-bubble-said {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.gly-bubble-note {
+  margin-top: 0.35rem;
+  opacity: 0.8;
+}
 .gly-bubble button,
 .gly-card button,
 .gly-composer button {
@@ -1056,7 +1236,10 @@ body > main {
 /* Collapsed: the rail is gone and the document recentres wider. Not inside the
    media query — below RAIL_MIN_WIDTH `railSurfaces` forces this regardless of
    viewport width, because there is no rail there to be beside. */
-body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(--gly-gutter); }
+body.gly-collapsed > main {
+  max-width: var(--gly-col-wide);
+  padding-right: var(--gly-gutter);
+}
 
 /* THE RAIL STILL ASKS WHERE THE BAR ENDS — BEING ABSOLUTE IS EXACTLY WHY.
 
@@ -1249,7 +1432,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    contribute none of their own), which is what puts the three sections after it
    genuinely after the last card. `flex: 1` and `min-height: 0` went with the
    flex column. */
-.gly-rail-band { position: relative; }
+.gly-rail-band {
+  position: relative;
+}
 
 /* THE RAIL'S SETTLED AND CHANGED SECTIONS ARE GONE FROM THIS STYLESHEET.
 
@@ -1291,9 +1476,17 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   text-align: left;
   cursor: pointer;
 }
-.gly-settled-head::before { content: "\25b8  "; opacity: 0.7; }
-.gly-settled-head.is-open::before { content: "\25be  "; }
-.gly-settled-head:hover { border-color: var(--gly-hl); color: var(--gly-hl); }
+.gly-settled-head::before {
+  content: "\25b8  ";
+  opacity: 0.7;
+}
+.gly-settled-head.is-open::before {
+  content: "\25be  ";
+}
+.gly-settled-head:hover {
+  border-color: var(--gly-hl);
+  color: var(--gly-hl);
+}
 /* The settled card's own dimming is NOT declared here. It has to out-specify
    and out-order `.gly-card.gly-resolved`, which every settled card also
    carries, so it lives beside that rule — see `.gly-card.gly-settled-card`. */
@@ -1325,7 +1518,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    managed the overflow of a viewport-locked column. The rail scrolls with the
    document: a card whose mark is below the window is BELOW THE WINDOW, whole
    and undimmed, and scrolling is how you reach it. */
-.gly-rail-notice .gly-card { margin-left: var(--gly-rail-gutter); }
+.gly-rail-notice .gly-card {
+  margin-left: var(--gly-rail-gutter);
+}
 .gly-rail-unplaced {
   display: grid;
   gap: var(--gly-rail-gap);
@@ -1403,7 +1598,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
      animating anything measured would fight the rAF re-measure. */
   transition: top 0.14s ease;
 }
-.gly-card:hover { border-color: var(--gly-hl); }
+.gly-card:hover {
+  border-color: var(--gly-hl);
+}
 /* THE KEYBOARD'S RING, ON EVERYTHING THE KEYBOARD LANDS ON. Two weights and no
    more: 2px on a BOX you arrive at (a card, the section grip) and 1px inside a
    box you TYPE in (see `.gly-composer-text:focus-visible`) — the heavier ring
@@ -1411,9 +1608,16 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    outlined. The pin in a figure is the same 2px at 2px of offset, because it
    sits ON a picture and needs the picture's own edge to clear. */
 .gly-card:focus-visible,
-.gly-grip:focus-visible { outline: 2px solid var(--gly-hl); outline-offset: 1px; }
-.gly-card.gly-busy { opacity: 0.5; }
-.gly-card.gly-failed { border-color: var(--gly-del); }
+.gly-grip:focus-visible {
+  outline: 2px solid var(--gly-hl);
+  outline-offset: 1px;
+}
+.gly-card.gly-busy {
+  opacity: 0.5;
+}
+.gly-card.gly-failed {
+  border-color: var(--gly-del);
+}
 /* Adrift: the server reports it, the document has not shown it yet. The card
    still exists — the count would be a lie otherwise — it just has no words of
    its own on the page, which is also why it lights none and needs no rule
@@ -1463,7 +1667,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    with the script the way a per-surface override would. `.gly-adrift` does not
    cover it — a block or document thread is not adrift, it simply never had a
    mark — and a panel override would be a fourth place to keep in step. */
-.gly-card.gly-thread:not([title]) { cursor: default; }
+.gly-card.gly-thread:not([title]) {
+  cursor: default;
+}
 .gly-settled {
   border-style: dashed;
   cursor: default;
@@ -1490,7 +1696,10 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   font: 12px/1 var(--gly-mono);
   cursor: pointer;
 }
-.gly-grip:hover { border-color: var(--gly-hl); color: var(--gly-hl); }
+.gly-grip:hover {
+  border-color: var(--gly-hl);
+  color: var(--gly-hl);
+}
 /* Its focus ring is the card's — see `.gly-card:focus-visible`. */
 
 /* --- the code-block grip ---
@@ -1531,13 +1740,19 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    in capture on `window` hears its own surface, which is why this file already
    says a scroller inside a scroller is a trap to be walked into only once. The
    page is the scroller now, as it is for every other card in the rail. */
-.gly-overall-entries { min-height: 0; }
+.gly-overall-entries {
+  min-height: 0;
+}
 /* No overrides. A conversation in the panel is the same card as a conversation
    in the rail — that is the whole of §3. What used to live here stripped the
    border, the head and the kind edge off it, which is how a rail card came to
    be standing in a toolbar with none of its own furniture. */
-.gly-overall-entries .gly-card { margin-top: 0.4rem; }
-.gly-overall-form { margin-top: 0.45rem; }
+.gly-overall-entries .gly-card {
+  margin-top: 0.4rem;
+}
+.gly-overall-form {
+  margin-top: 0.45rem;
+}
 /* A TEXTAREA now, not an <input> — a note on the whole document is prose and
    gets more than one line (see makeOverallCard). `display: block` because a
    textarea is inline-block by default and would sit on a text baseline,
@@ -1698,13 +1913,34 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
 }
 /* The three recorded differences, each on its own line rather than inside its
    own copy of the voice. */
-.gly-bubble-head { font-size: 0.66rem; }
-.gly-thread-who { opacity: 0.55; }
-.gly-composer-head { font-size: 10.5px; letter-spacing: 0.12em; opacity: 1; }
-.gly-card-body { margin-top: 0.3rem; overflow-wrap: anywhere; }
-.gly-card-actions { display: flex; gap: 0.4rem; margin-top: 0.45rem; }
-.gly-card-note { margin-top: 0.3rem; font-size: 11px; opacity: 0.62; }
-.gly-card-note:empty { display: none; }
+.gly-bubble-head {
+  font-size: 0.66rem;
+}
+.gly-thread-who {
+  opacity: 0.55;
+}
+.gly-composer-head {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  opacity: 1;
+}
+.gly-card-body {
+  margin-top: 0.3rem;
+  overflow-wrap: anywhere;
+}
+.gly-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+.gly-card-note {
+  margin-top: 0.3rem;
+  font-size: 11px;
+  opacity: 0.62;
+}
+.gly-card-note:empty {
+  display: none;
+}
 
 /* --- the comment composer --- */
 
@@ -1716,8 +1952,14 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   font: 13px/1.5 var(--gly-sans);
   animation: gly-rise 0.25s ease;
 }
-.gly-composer-bar { display: flex; gap: 0.3rem; }
-.gly-comment-button:hover { border-color: var(--gly-hl); color: var(--gly-hl); }
+.gly-composer-bar {
+  display: flex;
+  gap: 0.3rem;
+}
+.gly-comment-button:hover {
+  border-color: var(--gly-hl);
+  color: var(--gly-hl);
+}
 /* (.gly-strike-button's rules retired with the button — the trail cut.) */
 /* 21rem AND NOT 16, AND THE HEAD IS WHY. The form was as wide as its textarea
    needed to be and nothing else read across it; the head does — `INSTRUCTION ·
@@ -1836,13 +2078,20 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
    this file asks for: share what is shared, spell what differs. */
 .gly-composer-text:focus-visible,
 .gly-thread-edit-text:focus-visible,
-.gly-overall-input:focus-visible { outline: 1px solid var(--gly-hl); outline-offset: 1px; }
+.gly-overall-input:focus-visible {
+  outline: 1px solid var(--gly-hl);
+  outline-offset: 1px;
+}
 /* The verbs, and the whisper. `esc cancels` is pushed to the far end by
    `margin-left: auto` rather than by a spacer element: there is nothing there
    to be a spacer, and a box with no content is a box a later reader has to work
    out the purpose of. */
 .gly-composer-actions,
-.gly-capture-actions { display: flex; align-items: center; gap: 0.4rem; }
+.gly-capture-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 /* A PER-ELEMENT CLASS LOSES TO ITS OWN CONTAINER, and `.gly-composer button`
    (0,1,1) sets the border, the background, the colour and the radius of every
    button in here. Both of these are written at (0,2,0) — the container class
@@ -1870,7 +2119,9 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   padding-right: 0.2rem;
 }
 .gly-composer .gly-composer-cancel:hover:not([disabled]),
-.gly-capture .gly-capture-cancel:hover:not([disabled]) { color: var(--gly-fg); }
+.gly-capture .gly-capture-cancel:hover:not([disabled]) {
+  color: var(--gly-fg);
+}
 .gly-composer-esc,
 .gly-capture-esc {
   margin-left: auto;
@@ -1881,9 +2132,18 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
 }
 /* Red is for a request that FAILED. A strike that is simply unavailable for
    this selection is information, not an error, so it gets the muted voice. */
-.gly-composer-note { margin-top: 0.3rem; max-width: 21rem; color: var(--gly-del); font-size: 12px; }
-.gly-composer-note.gly-quiet { color: var(--gly-muted); }
-.gly-composer-note:empty { display: none; }
+.gly-composer-note {
+  margin-top: 0.3rem;
+  max-width: 21rem;
+  color: var(--gly-del);
+  font-size: 12px;
+}
+.gly-composer-note.gly-quiet {
+  color: var(--gly-muted);
+}
+.gly-composer-note:empty {
+  display: none;
+}
 
 /* The refusal shown instead of the comment button where a comment cannot be
    made — muted rather than alarming: nothing went wrong, the answer is just
@@ -1898,7 +2158,12 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
 /* The suggestion chips: a shortcut for the phrasing typed most often.
    Clicking one prefills the textarea (chipPrefill, web/composer.ts) rather
    than sending straight away — the reviewer still finishes the sentence. */
-.gly-composer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gly-composer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
 .gly-chip {
   background: transparent;
   border: 1px solid var(--gly-line);
@@ -1908,17 +2173,29 @@ body.gly-collapsed > main { max-width: var(--gly-col-wide); padding-right: var(-
   font: 13px var(--gly-sans);
   cursor: pointer;
 }
-.gly-chip:hover { border-color: var(--gly-accent); color: var(--gly-accent); }
+.gly-chip:hover {
+  border-color: var(--gly-accent);
+  color: var(--gly-accent);
+}
 
 /* DIMMING: while an instruction is being composed, every other block fades
    so the reviewer's eye has exactly one thing to read. openComposerForm
    marks the anchor block `.gly-composing-target`; hideComposer clears it and
    the body class together (web/composer.ts). */
-body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; transition: opacity 0.3s; }
+body.gly-composing .ProseMirror > *:not(.gly-composing-target) {
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
 
 @keyframes gly-rise {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* --- a refused fence edit ---
@@ -1944,7 +2221,11 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
   font: 13px/1.45 var(--gly-sans);
   pointer-events: none;
 }
-.gly-refusal-hint { margin-top: 0.2rem; opacity: 0.6; font-size: 12px; }
+.gly-refusal-hint {
+  margin-top: 0.2rem;
+  opacity: 0.6;
+  font-size: 12px;
+}
 
 /* --- narrow: one surface, two states ---
 
@@ -2039,7 +2320,9 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    bordered chrome it has always actually rendered with, which is also what
    every other control in this bar wears. `flex` and `text-align` DO apply —
    nothing competes for either. */
-.gly-bar-count { text-align: left; }
+.gly-bar-count {
+  text-align: left;
+}
 
 /* THE TWO DOORS ARE ADJACENT AND THE SPACER IS AFTER THEM, which is board 1i's
    whole layout and the top bar's own rule read at the other end of the page:
@@ -2047,7 +2330,9 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    with goes after. `.gly-bar-count` used to carry `flex: 1` and so WAS the
    spacer, which is why anything put beside it landed hard against the right
    edge with the count stretched across the window. */
-.gly-bar-spacer { flex: 1; }
+.gly-bar-spacer {
+  flex: 1;
+}
 
 /* THE NARROW BAR'S HISTORY CHIP IS DELETED. `.gly-bar-versions` was the bottom
    bar's door to the History landing, painted in step with the wide bar's chip
@@ -2085,7 +2370,9 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
   font-family: var(--gly-mono);
   font-size: 12px;
 }
-.gly-sheet-untracked { color: var(--gly-muted); }
+.gly-sheet-untracked {
+  color: var(--gly-muted);
+}
 /* The document's own measure, centred — not the full window. A card sized for
    a 300px rail read as a different kind of thing stretched to 870px, so the
    sheet is set at the measure the PROSE takes when nothing is beside it:
@@ -2113,8 +2400,15 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    they did when the sheet's own inset squeezed the space this is centred
    within — and it is the sheet's own centring, no longer a claim about where
    `main` happens to sit at the same moment. */
-.gly-sheet-body { max-width: var(--gly-col-wide); margin: 0 auto; padding: 0 var(--gly-gutter); }
-.gly-sheet-card { position: static; margin-bottom: var(--gly-rail-gap); }
+.gly-sheet-body {
+  max-width: var(--gly-col-wide);
+  margin: 0 auto;
+  padding: 0 var(--gly-gutter);
+}
+.gly-sheet-card {
+  position: static;
+  margin-bottom: var(--gly-rail-gap);
+}
 /* NOTHING TO SUPPRESS HERE, and its absence is the claim. A card used to carry
    its own connector leg and arm as children, so every surface the card renders
    on had to switch them off. There is no connector, and the LIGHT is not the
@@ -2131,15 +2425,22 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    cap and no scroller of its own either — the sheet already scrolls, and a
    scroller inside a scroller is the gesture trap the bubble had to be rescued
    from. */
-.gly-sheet-settled { padding-top: 8px; }
-.gly-sheet-settled-list { padding-top: 8px; }
+.gly-sheet-settled {
+  padding-top: 8px;
+}
+.gly-sheet-settled-list {
+  padding-top: 8px;
+}
 
 /* Touch: 44px targets on every decision verb, per the handoff. Keyed on the
    pointer rather than the width — a touchscreen laptop is wide and still has
    fingers on it. */
 @media (pointer: coarse) {
   .gly-card button,
-  .gly-bubble button { min-height: 44px; min-width: 44px; }
+  .gly-bubble button {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 /* A FOLDED CONTROL STAYS WITH ITS GROUP. Above the breakpoint the bar reads as
@@ -2160,7 +2461,9 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    rule is (0,1,0) in a <style> that loads after this file, so a bare class
    here loses the tie on source order. */
 @media (min-width: 992px) {
-  body > .gly-bar { justify-content: flex-end; }
+  body > .gly-bar {
+    justify-content: flex-end;
+  }
 }
 
 /* THE STATUS MAY NOT DECIDE WHERE THE BAR FOLDS.
@@ -2207,9 +2510,25 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
 }
 
 /* --- the readout dot, and the restyled header lockup (Task 3) --- */
-.gly-bar { height: 58px; padding: 0 28px; gap: 18px; font-size: 12px; color: var(--gly-muted); border-bottom: 1px solid var(--gly-panel-bg); }
-.gly-mark { width: 10px; height: 10px; background: var(--gly-accent); border-radius: 2px; transform: rotate(45deg); }
-.gly-doc { color: var(--gly-fg); gap: 10px; }
+.gly-bar {
+  height: 58px;
+  padding: 0 28px;
+  gap: 18px;
+  font-size: 12px;
+  color: var(--gly-muted);
+  border-bottom: 1px solid var(--gly-panel-bg);
+}
+.gly-mark {
+  width: 10px;
+  height: 10px;
+  background: var(--gly-accent);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+.gly-doc {
+  color: var(--gly-fg);
+  gap: 10px;
+}
 /* `flex: 1 1 0` rather than the brief's bare shrink: a flex container decides
    which line an item joins by its HYPOTHETICAL (pre-shrink) main size, and an
    `auto` basis on a long path is that path's full, un-ellipsized width — a
@@ -2222,12 +2541,39 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) { opacity: 0.35; 
    is decided by the OTHER items alone and the path only grows into what is
    left over; `min-width: 0` is still what lets that grown box then shrink
    back down to the ellipsis. */
-.gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.gly-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: none; margin-right: 8px; background: var(--gly-green); }
-.gly-dot[data-tone="coral"] { background: var(--gly-coral); }
-.gly-dot[data-tone="accent"] { background: var(--gly-accent); }
-body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
-@keyframes gly-readout-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.gly-doc-path {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gly-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  margin-right: 8px;
+  background: var(--gly-green);
+}
+.gly-dot[data-tone="coral"] {
+  background: var(--gly-coral);
+}
+.gly-dot[data-tone="accent"] {
+  background: var(--gly-accent);
+}
+body.gly-revising .gly-dot {
+  animation: gly-readout-pulse 1s infinite;
+}
+@keyframes gly-readout-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
 
 /* --- the bar's controls, and who owns their chrome ---
 
@@ -2261,19 +2607,64 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    action colour. This said "amber is for on, arrived, or here — and hover is
    `here`" back when amber did five jobs; hover is the ACTION about to happen,
    and arrival is the one thing amber still says. */
-.gly-bar button:hover { border-color: var(--gly-signal); }
-.gly-bar button[disabled] { color: var(--gly-muted); cursor: default; opacity: 0.6; }
-.gly-bar button[disabled]:hover { border-color: var(--gly-line); }
+.gly-bar button:hover {
+  border-color: var(--gly-signal);
+}
+.gly-bar button[disabled] {
+  color: var(--gly-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+.gly-bar button[disabled]:hover {
+  border-color: var(--gly-line);
+}
+/* AND THE NARROW BAR'S, WHICH SHARES THE LIVE FACE AND DID NOT SHARE THE DEAD
+   ONE. `.gly-bar button, .gly-bottombar button` is one rule (see THE CHROME
+   BUTTON, ONCE, above) and this line was `.gly-bar` alone, so the bottom bar's
+   `Instructions · N` — `.gly-bar-count`, which joined SEALED_VERBS when the
+   census strip's count was retired onto it — was DISABLED by the seal and
+   painted byte-identical either way. Measured by web/layers.mjs §8, which reads
+   the constant whole and compares each selector's paint live against sealed:
+   `1 | rgb(20, 22, 28) | rgba(0, 0, 0, 0) | rgb(211, 209, 199) | none` on both
+   sides. A dead control must look dead, and the door into a list whose every
+   verb the seal owns is exactly the one a reviewer will press first. */
+.gly-bottombar button[disabled] {
+  color: var(--gly-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+.gly-bottombar button[disabled]:hover {
+  border-color: var(--gly-line);
+}
 
 .gly-theme {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 9ch;
-  background: transparent; border: 1px solid var(--gly-line); color: var(--gly-muted);
-  border-radius: 999px; padding: 4px 10px; font: inherit; cursor: pointer; white-space: nowrap;
+  background: transparent;
+  border: 1px solid var(--gly-line);
+  color: var(--gly-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.gly-theme:hover { color: var(--gly-fg); }
-.gly-theme-swatch { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--gly-muted); background: #ffffff; }
-.gly-theme-swatch[data-theme="dark"] { background: #0b0d12; }
+.gly-theme:hover {
+  color: var(--gly-fg);
+}
+.gly-theme-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--gly-muted);
+  background: #ffffff;
+}
+.gly-theme-swatch[data-theme="dark"] {
+  background: #0b0d12;
+}
 
 /* --- the mode toggle ---
    `on ask` is the resting state and reads as muted chrome; `● live` is the
@@ -2307,7 +2698,10 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
 /* ON, and the class says so. It was `.gly-amber` — a state named for a paint
    value — and when the paint moved to the action colour the name became a rule
    that lies to the next reader. Renamed with its three writers in entry.js. */
-.gly-mode.gly-on { color: var(--gly-signal); border-color: var(--gly-signal); }
+.gly-mode.gly-on {
+  color: var(--gly-signal);
+  border-color: var(--gly-signal);
+}
 .gly-switch {
   position: relative;
   flex: none;
@@ -2325,9 +2719,13 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   height: 8px;
   border-radius: 50%;
   background: var(--gly-muted);
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease;
 }
-.gly-mode[aria-checked="true"] .gly-switch { border-color: var(--gly-signal); }
+.gly-mode[aria-checked="true"] .gly-switch {
+  border-color: var(--gly-signal);
+}
 .gly-mode[aria-checked="true"] .gly-switch-knob {
   transform: translateX(12px);
   background: var(--gly-signal);
@@ -2361,11 +2759,19 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   place-items: center;
   white-space: nowrap;
 }
-.gly-hold-label { grid-area: label; white-space: nowrap; }
-.gly-hold.gly-on { color: var(--gly-signal); border-color: var(--gly-signal); }
+.gly-hold-label {
+  grid-area: label;
+  white-space: nowrap;
+}
+.gly-hold.gly-on {
+  color: var(--gly-signal);
+  border-color: var(--gly-signal);
+}
 /* Laid out, not drawn. Visibility is inherited, so the button carrying this
    hides its labels with it, and a label carrying it hides alone. */
-.gly-reserved { visibility: hidden; }
+.gly-reserved {
+  visibility: hidden;
+}
 
 /* THE HANDOFF CANCEL is a reserved box for the bar's own rule: the agent's
    window opening and closing must move nothing. One fixed label, so nothing
@@ -2374,8 +2780,12 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    Container-specified (`.gly-bar .gly-handoff-cancel`) so it actually wins
    against `.gly-bar button` — a bare class here is a rule that does not
    apply. */
-.gly-bar .gly-handoff-cancel { white-space: nowrap; }
-.gly-bar .gly-handoff-cancel.gly-cancel-hidden { visibility: hidden; }
+.gly-bar .gly-handoff-cancel {
+  white-space: nowrap;
+}
+.gly-bar .gly-handoff-cancel.gly-cancel-hidden {
+  visibility: hidden;
+}
 
 /* REVISE IS THE SECOND BUTTON WHOSE LABEL CHANGES ON ITS OWN CLICK, and it is
    the worst of them, because the new label then keeps changing on its own:
@@ -2400,8 +2810,15 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   grid-template-areas: "label";
   place-items: center;
 }
-.gly-revise-label { grid-area: label; white-space: nowrap; }
-.gly-revise-secs { display: inline-block; min-width: 4ch; text-align: left; }
+.gly-revise-label {
+  grid-area: label;
+  white-space: nowrap;
+}
+.gly-revise-secs {
+  display: inline-block;
+  min-width: 4ch;
+  text-align: left;
+}
 
 /* THE ONE FILLED BOX ON THE PAGE, AND THAT IS WHAT MAKES IT THE PRIMARY.
    Nothing else in this stylesheet is filled with --gly-signal, so a reviewer
@@ -2425,7 +2842,10 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   color: var(--gly-signal-ink);
   font-weight: 600;
 }
-.gly-bar .gly-revise:hover { border-color: var(--gly-signal); filter: brightness(1.08); }
+.gly-bar .gly-revise:hover {
+  border-color: var(--gly-signal);
+  filter: brightness(1.08);
+}
 .gly-bar .gly-revise[disabled] {
   background: transparent;
   border-color: var(--gly-line);
@@ -2531,7 +2951,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   text-align: left;
   white-space: nowrap;
 }
-.gly-verdict-menu button:hover { border-color: var(--gly-signal); }
+.gly-verdict-menu button:hover {
+  border-color: var(--gly-signal);
+}
 
 /* THE ARRIVAL STRIP IS DELETED — `.gly-strip` and its four children, its
    entry animation and its above-the-bottom-bar offset. It announced an arrival
@@ -2553,16 +2975,26 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
 /* The count is the durable record, so its pulse is the arrival's only
    permanent trace on screen. One count carries it now: the census strip's copy
    is deleted with the strip, and the narrow bar's is the only one left. */
-.gly-bar-count.gly-pulse { animation: gly-pulse 900ms ease-out; }
+.gly-bar-count.gly-pulse {
+  animation: gly-pulse 900ms ease-out;
+}
 @keyframes gly-pulse {
-  0% { color: var(--gly-accent); transform: scale(1.12); }
-  100% { color: inherit; transform: none; }
+  0% {
+    color: var(--gly-accent);
+    transform: scale(1.12);
+  }
+  100% {
+    color: inherit;
+    transform: none;
+  }
 }
 
 /* Everything above is motion for its own sake to a reader who asked for none.
    The states stay; only the movement goes. */
 @media (prefers-reduced-motion: reduce) {
-  .gly-bar-count.gly-pulse { animation: none; }
+  .gly-bar-count.gly-pulse {
+    animation: none;
+  }
 }
 
 /* THE CENSUS STRIP IS DELETED — `.gly-census`, its count button, its own
@@ -2589,7 +3021,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
      sitting under the bottom bar. This is a tighter fit, not a guarantee of
      one — a long enough document name still folds the bar, which is what
      folding is for. */
-  body > .gly-bar { gap: 8px; }
+  body > .gly-bar {
+    gap: 8px;
+  }
 
   /* The document's name truncates here rather than leaving the window. It is a
      readout, its text never changes, and `doc.md` fits anywhere — but a real
@@ -2613,9 +3047,15 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
 }
 
 /* --- a comment is one card with one verb --- */
-.gly-thread { border-left: 3px solid var(--gly-hl); }
-.gly-thread-entry { margin-top: 0.4rem; }
-.gly-thread-entry p { margin: 0.15rem 0 0; }
+.gly-thread {
+  border-left: 3px solid var(--gly-hl);
+}
+.gly-thread-entry {
+  margin-top: 0.4rem;
+}
+.gly-thread-entry p {
+  margin: 0.15rem 0 0;
+}
 /* `.gly-thread-who` is the chrome voice — see `.gly-card-head`, where the four
    spellings of it became one and this one's quieter opacity is its own line. */
 /* `.gly-thread-reply` AND `.gly-thread-resolve:hover` ARE DELETED, and the
@@ -2661,7 +3101,7 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
      as wide as the wider label, exactly, rather than as wide as a number
      someone guessed. */
   display: inline-grid;
-  grid-template-areas: 'label';
+  grid-template-areas: "label";
   place-items: center;
 }
 .gly-card .gly-thread-delete > span {
@@ -2698,14 +3138,18 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    entries, so the card grows rather than a second surface opening over the
    prose — and the band already chose sliding over overlapping (see the
    declared exemption in web/motion.mjs). */
-.gly-thread-editor { margin-top: 0.45rem; }
+.gly-thread-editor {
+  margin-top: 0.45rem;
+}
 .gly-thread-edit-text {
   font-size: 13px;
   width: 100%;
   box-sizing: border-box;
   padding: 0.3rem 0.4rem;
 }
-.gly-thread-editor-actions { justify-content: flex-end; }
+.gly-thread-editor-actions {
+  justify-content: flex-end;
+}
 /* The armed state is the only resting-adjacent red in the product, which is
    exactly what makes it legible as a warning rather than as decoration. */
 .gly-card .gly-thread-delete.gly-armed {
@@ -2713,7 +3157,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   color: var(--gly-del);
   opacity: 1;
 }
-.gly-card.gly-resolved { opacity: 0.55; }
+.gly-card.gly-resolved {
+  opacity: 0.55;
+}
 /* A settled card is quieter than a live one and still fully operable — it
    replies, it reopens, it deletes. Dimming says "this is done", never "this is
    inert": the same distinction the fold clusters had to make, and the reason
@@ -2730,8 +3176,12 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    enough that nobody reading either end saw the other. Moving either of these
    two rules above `.gly-card.gly-resolved` reinstates that bug in silence;
    `just layers` asserts the 0.8 on a real settled card. */
-.gly-card.gly-settled-card { opacity: 0.8; }
-.gly-card.gly-settled-card:hover { opacity: 1; }
+.gly-card.gly-settled-card {
+  opacity: 0.8;
+}
+.gly-card.gly-settled-card:hover {
+  opacity: 1;
+}
 
 /* A DECLINED NO STAYS VISIBLE. A declined proposal settles into the region
    above as a thread whose head reads `declined · <what>` (entry.js writes the
@@ -2743,10 +3193,15 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    declares color and nothing else; (0,3,0) beats `.gly-card-head`'s (0,1,0)
    outright, so it needs no source-order trick — it sits with the settled rules
    because a declined card is always a settled card. */
-.gly-card.gly-declined .gly-card-head { color: var(--gly-del); }
+.gly-card.gly-declined .gly-card-head {
+  color: var(--gly-del);
+}
 
 /* The stepped card, so j/k is legible in the rail as well as in the text. */
-.gly-card.gly-stepped { border-color: var(--gly-signal); box-shadow: 0 0 0 1px var(--gly-signal); }
+.gly-card.gly-stepped {
+  border-color: var(--gly-signal);
+  box-shadow: 0 0 0 1px var(--gly-signal);
+}
 
 /* --- the seal: the terminal bar ---
 
@@ -2777,19 +3232,46 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    `.gly-mode` is inline-flex — and each of those is (0,1,0). A bare
    `.gly-seal-off` would tie the ones declared later in this file and lose to
    them on order, hiding some controls and not others. (0,2,0) beats all of
-   them outright. */
-.gly-bar .gly-seal-off { display: none; }
+   them outright.
+
+   AND `.gly-timeline` IS THE SECOND CONTAINER, because the verdict button left
+   the bar. `#gly-revise` is drawn in the timeline's footer row now (Task 4,
+   verdict.ts) and `paintSeal` still marks it `.gly-seal-off` — but a descendant
+   selector scoped to `.gly-bar` stopped reaching it, so a sealed review kept
+   offering its primary. Measured by `web/layers.mjs` §8: `#gly-revise` computed
+   `display: flex` on a page whose every other live control was gone. This is
+   exactly the class of bug that gate exists for — a rule that ships reviewed
+   and never applies — and the repair is the container it moved to, at the same
+   specificity, rather than a bare class that would lose to its own
+   `inline-grid`. */
+.gly-bar .gly-seal-off,
+.gly-timeline .gly-seal-off {
+  display: none;
+}
 
 /* The readout sits BEFORE the bar's one flexible cell, with the buttons after
    it — the bar's own order rule, and the reason is that this text changes
    width as a verdict is read (`Approved 11:42 · 2 notes entrusted` against
    `Discarded 11:42 · markup thrown away`). A readout that pushed a button
    would be the same defect as a button that pushed its neighbour. */
+/* AND IT YIELDS RATHER THAN SPILLING. `white-space: nowrap` alone made this a
+   483px cell that a flex row cannot shrink: measured by web/layers.mjs §8 at
+   390px, `Approved 02:52 · review closed · restart` put the bar's content
+   114px past the window with the readout's right edge at 503 — a record nobody
+   can read, which is the same covered-control defect §7a sweeps the live bar
+   for. `min-width: 0` is what lets a flex item shrink below its content at all
+   (the initial `auto` is why it did not), and the ellipsis is what a cut cell
+   has to say about itself. `title` carries the whole sentence for the width
+   where it does not fit, which is the one thing an ellipsis owes the reader —
+   seal.ts writes it beside the text. */
 .gly-seal {
   font-family: var(--gly-mono);
   font-size: 13px;
   color: var(--gly-fg);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* THE TERMINAL VERBS ARE DELETED, AND SO ARE THE THREE RULES THAT DRESSED
    THEM. `.gly-seal-actions` was the group `makeSeal` built, set `hidden` and
@@ -2988,12 +3470,18 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
    exactly what `web/rounds-ux.mjs` measured (draft 0/0 against History's
    116.2/34). `visibility` and not `display`: the ink goes, the box stays, and
    the reviewer sees an empty rail rather than a head above nothing. */
-.gly-overall-quiet .gly-overall-head { visibility: hidden; }
+.gly-overall-quiet .gly-overall-head {
+  visibility: hidden;
+}
 .gly-overall-rail .gly-overall-entries .gly-card {
   margin: var(--gly-rail-gap) 0 0;
 }
-.gly-overall-rail .gly-overall-form { margin-top: 8px; }
-.gly-overall-rail .gly-overall-input { width: 100%; }
+.gly-overall-rail .gly-overall-form {
+  margin-top: 8px;
+}
+.gly-overall-rail .gly-overall-input {
+  width: 100%;
+}
 
 /* --- the capture card: where a whole-document instruction is WRITTEN --- */
 
@@ -3022,7 +3510,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
 .gly-capture {
   cursor: default;
 }
-.gly-capture-head { margin-bottom: 0.4rem; }
+.gly-capture-head {
+  margin-bottom: 0.4rem;
+}
 
 /* --- the right-click menu --- */
 
@@ -3044,7 +3534,11 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   box-shadow: 0 10px 28px rgb(15 18 28 / 22%);
   overflow: hidden;
 }
-.gly-menu-list { display: flex; flex-direction: column; padding: 4px; }
+.gly-menu-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
 /* A ROW IS A BUTTON. Not a div with a click handler: the keyboard has to reach
    it (moveMenuFocus walks these), and a focusable, activatable row is what the
    platform already spells `button`. */
@@ -3066,7 +3560,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   outline: none;
   color: var(--gly-hl);
 }
-.gly-menu-label { display: block; }
+.gly-menu-label {
+  display: block;
+}
 /* The scope, in the chrome voice, under the verb. It is the whole reason there
    is no mode switch on this page: the row says what it is ON, so the reviewer
    reads the scope instead of choosing it. */
@@ -3079,8 +3575,12 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.gly-menu-detail:empty { display: none; }
-.gly-instruction-actions { justify-content: flex-end; }
+.gly-menu-detail:empty {
+  display: none;
+}
+.gly-instruction-actions {
+  justify-content: flex-end;
+}
 
 /* --- WHAT `hidden` MEANS HERE, ONCE AND LAST ---
 
@@ -3136,7 +3636,9 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
 .gly-sheet-settled[hidden],
 .gly-sheet-settled-list[hidden],
 .gly-verdict-menu[hidden],
-.gly-versions-restore[hidden] { display: none; }
+.gly-versions-restore[hidden] {
+  display: none;
+}
 
 /* THE REVIEWER'S OWN EDITS, IN THE RAIL. One surface: the rail is the list of
    what pressing Revise will send, and a hand edit is half of that. The other
@@ -3193,7 +3695,7 @@ body.gly-revising .gly-dot { animation: gly-readout-pulse 1s infinite; }
   color: var(--gly-muted);
   opacity: 0.75;
   display: inline-grid;
-  grid-template-areas: 'label';
+  grid-template-areas: "label";
   place-items: center;
 }
 .gly-card .gly-change-revert > span {
@@ -3304,13 +3806,21 @@ body.gly-page #gly-preview {
    view shows it, and keeping the rail painted means every view shares the same
    right edge (no blank strip where the reserve sits). `main` keeps its constant
    geometry so the centred view toggle never shifts. */
-body.gly-page.gly-view-html #editor { display: none; }
-body.gly-page.gly-view-html #gly-preview { flex-basis: 100%; }
+body.gly-page.gly-view-html #editor {
+  display: none;
+}
+body.gly-page.gly-view-html #gly-preview {
+  flex-basis: 100%;
+}
 
 /* Content: the editor fills the width (up to the rail, which stays — you are
    editing, and instructions collect there). The iframe steps out. */
-body.gly-page.gly-view-content #gly-preview { display: none; }
-body.gly-page.gly-view-content #editor { flex-basis: 100%; }
+body.gly-page.gly-view-content #gly-preview {
+  display: none;
+}
+body.gly-page.gly-view-content #editor {
+  flex-basis: 100%;
+}
 
 /* Cap the prose reading measure in page mode so Content view's full-width
    editor does not run prose edge-to-edge. The cap and centering compose safely
@@ -3341,31 +3851,137 @@ body.gly-page .ProseMirror p.gly-shell-marker {
 }
 
 /* --- the footer --- */
-.gly-timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--gly-footer-fade); padding: 28px 28px 22px; font-family: var(--gly-mono); }
-.gly-timeline-grid { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
-.gly-timeline-left { min-width: 0; }
-.gly-timeline-right { display: flex; align-items: center; gap: 10px; padding-bottom: 22px; position: relative; }
-.gly-revise-trail { font-size: 11px; color: var(--gly-muted); white-space: nowrap; min-width: 23ch; text-align: right; }
+.gly-timeline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: var(--gly-footer-fade);
+  padding: 28px 28px 22px;
+  font-family: var(--gly-mono);
+}
+.gly-timeline-grid {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+}
+.gly-timeline-left {
+  min-width: 0;
+}
+.gly-timeline-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 22px;
+  position: relative;
+}
+.gly-revise-trail {
+  font-size: 11px;
+  color: var(--gly-muted);
+  white-space: nowrap;
+  min-width: 23ch;
+  text-align: right;
+}
 
 /* THE SCRUBBER. Keyframes over a track over two end labels, all in the
    footer's left column. The track is the only thing the pointer drags, and it
    moves nothing in the bar: the handle and the fill are absolutely placed
    inside it, and the `now` readout sits in a row whose ends are fixed text. */
-.gly-scrub { font-family: var(--gly-mono); font-size: 11px; }
-.gly-scrub-keys { position: relative; height: 22px; }
-.gly-scrub-key { position: absolute; transform: translateX(-50%); background: none; border: 0; padding: 0; cursor: pointer; color: var(--gly-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; white-space: nowrap; font: inherit; }
-.gly-scrub-key.is-near { color: var(--gly-fg); }
-.gly-scrub-key[data-tone="accent"] { color: var(--gly-accent); }
-.gly-scrub-key[data-tone="coral"] { color: var(--gly-coral); }
-.gly-scrub-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid currentColor; background: var(--gly-muted); display: block; box-sizing: border-box; }
-.gly-scrub-key[data-fill="none"] .gly-scrub-dot { background: transparent; }
-.gly-scrub-key[data-fill="accent"] .gly-scrub-dot { background: var(--gly-accent); }
-.gly-scrub-track { position: relative; height: 28px; cursor: ew-resize; touch-action: none; user-select: none; }
-.gly-scrub-rail { position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: var(--gly-line); }
-.gly-scrub-fill { position: absolute; left: 0; top: 13px; height: 2px; background: var(--gly-accent); opacity: .5; }
-.gly-scrub-handle { position: absolute; top: 0; width: 14px; height: 28px; margin-left: -7px; border-radius: 3px; background: var(--gly-accent); box-shadow: 0 0 0 4px rgba(214, 255, 61, .18), 0 0 24px rgba(214, 255, 61, .45); }
-.gly-scrub-labels { display: flex; justify-content: space-between; color: var(--gly-muted); margin-top: 6px; }
-.gly-scrub-now { color: var(--gly-fg); }
+.gly-scrub {
+  font-family: var(--gly-mono);
+  font-size: 11px;
+}
+.gly-scrub-keys {
+  position: relative;
+  height: 22px;
+}
+.gly-scrub-key {
+  position: absolute;
+  transform: translateX(-50%);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--gly-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font: inherit;
+}
+.gly-scrub-key.is-near {
+  color: var(--gly-fg);
+}
+.gly-scrub-key[data-tone="accent"] {
+  color: var(--gly-accent);
+}
+.gly-scrub-key[data-tone="coral"] {
+  color: var(--gly-coral);
+}
+.gly-scrub-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  background: var(--gly-muted);
+  display: block;
+  box-sizing: border-box;
+}
+.gly-scrub-key[data-fill="none"] .gly-scrub-dot {
+  background: transparent;
+}
+.gly-scrub-key[data-fill="accent"] .gly-scrub-dot {
+  background: var(--gly-accent);
+}
+.gly-scrub-track {
+  position: relative;
+  height: 28px;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+.gly-scrub-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  height: 2px;
+  background: var(--gly-line);
+}
+.gly-scrub-fill {
+  position: absolute;
+  left: 0;
+  top: 13px;
+  height: 2px;
+  background: var(--gly-accent);
+  opacity: 0.5;
+}
+.gly-scrub-handle {
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 28px;
+  margin-left: -7px;
+  border-radius: 3px;
+  background: var(--gly-accent);
+  box-shadow:
+    0 0 0 4px rgba(214, 255, 61, 0.18),
+    0 0 24px rgba(214, 255, 61, 0.45);
+}
+.gly-scrub-labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--gly-muted);
+  margin-top: 6px;
+}
+.gly-scrub-now {
+  color: var(--gly-fg);
+}
 /* THE STAGE IS WHAT THE SECOND PAPER IS ABSOLUTE AGAINST, and it sits in the
    frame beside the draft's own paper — same column, same measure, same scroll.
    It is out of flow entirely until the handle leaves the head: two empty papers
@@ -3378,31 +3994,151 @@ body.gly-page .ProseMirror p.gly-shell-marker {
    offset to keep an anchor still. That adjustment lands AFTER leaveHistory has
    put the reviewer's own position back, which is the one thing this mode
    promises (history.ts). Measured: asked for 228, read back 330. */
-.gly-scrub-stage, .gly-scrub-paper, .ProseMirror { overflow-anchor: none; }
-.gly-scrub-stage { display: none; position: relative; }
-body.gly-scrubbing .gly-scrub-stage { display: block; }
-body.gly-scrubbing .ProseMirror { display: none; }
-.gly-scrub-paper { transition: opacity .08s, filter .08s; }
-.gly-scrub-paper + .gly-scrub-paper { position: absolute; inset: 0; }
-main { padding-bottom: 220px; }
+.gly-scrub-stage,
+.gly-scrub-paper,
+.ProseMirror {
+  overflow-anchor: none;
+}
+.gly-scrub-stage {
+  display: none;
+  position: relative;
+}
+body.gly-scrubbing .gly-scrub-stage {
+  display: block;
+}
+body.gly-scrubbing .ProseMirror {
+  display: none;
+}
+.gly-scrub-paper {
+  transition:
+    opacity 0.08s,
+    filter 0.08s;
+}
+.gly-scrub-paper + .gly-scrub-paper {
+  position: absolute;
+  inset: 0;
+}
+main {
+  padding-bottom: 220px;
+}
 
-#gly-revise.gly-revise { border: 0; border-radius: 8px; padding: 11px 18px; font: 600 14px/1.2 var(--gly-sans); display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; cursor: pointer; background: var(--gly-accent); color: var(--gly-on-accent); box-shadow: var(--gly-accent-glow); transition: filter .15s; }
-#gly-revise.gly-revise:hover { filter: brightness(1.1); }
-#gly-revise .gly-revise-label { font-variant-numeric: tabular-nums; }
-#gly-revise.gly-approve-zero { background: var(--gly-fg); color: var(--gly-bg); box-shadow: none; }
-#gly-revise.gly-busy { background: var(--gly-panel-bg); color: var(--gly-muted); box-shadow: none; min-width: 13ch; cursor: default; }
-#gly-revise.gly-done { background: var(--gly-panel-bg); color: var(--gly-muted); box-shadow: none; cursor: default; }
-.gly-handoff-cancel { background: transparent; border: 1px solid var(--gly-line); color: var(--gly-fg); border-radius: 8px; padding: 10px 14px; font: 14px/1.2 var(--gly-sans); cursor: pointer; }
-.gly-handoff-cancel:hover { border-color: var(--gly-coral); color: var(--gly-coral); }
-.gly-handoff-cancel[disabled] { display: none; }
+#gly-revise.gly-revise {
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 18px;
+  font: 600 14px/1.2 var(--gly-sans);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--gly-accent);
+  color: var(--gly-on-accent);
+  box-shadow: var(--gly-accent-glow);
+  transition: filter 0.15s;
+}
+#gly-revise.gly-revise:hover {
+  filter: brightness(1.1);
+}
+#gly-revise .gly-revise-label {
+  font-variant-numeric: tabular-nums;
+}
+/* AND THE SEAL HAS TO BEAT THE RULE ABOVE, WHICH IS WHY IT IS SPELLED HERE.
+   `.gly-bar .gly-seal-off` / `.gly-timeline .gly-seal-off` is (0,2,0) and
+   `#gly-revise.gly-revise` is (1,1,0), so the primary's own timeline treatment
+   won and a SEALED review went on painting its filled Revise button — the exact
+   shape that block's own comment names, a more-specific selector silently
+   beating an intended one. (1,1,0) against (1,1,0), declared after, is what
+   takes it: the same tie-plus-order the shell's `:where()` fallback is built on
+   one screen up, and the narrowest selector that can win. */
+#gly-revise.gly-seal-off {
+  display: none;
+}
+#gly-revise.gly-approve-zero {
+  background: var(--gly-fg);
+  color: var(--gly-bg);
+  box-shadow: none;
+}
+#gly-revise.gly-busy {
+  background: var(--gly-panel-bg);
+  color: var(--gly-muted);
+  box-shadow: none;
+  min-width: 13ch;
+  cursor: default;
+}
+#gly-revise.gly-done {
+  background: var(--gly-panel-bg);
+  color: var(--gly-muted);
+  box-shadow: none;
+  cursor: default;
+}
+.gly-handoff-cancel {
+  background: transparent;
+  border: 1px solid var(--gly-line);
+  color: var(--gly-fg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font: 14px/1.2 var(--gly-sans);
+  cursor: pointer;
+}
+.gly-handoff-cancel:hover {
+  border-color: var(--gly-coral);
+  color: var(--gly-coral);
+}
+.gly-handoff-cancel[disabled] {
+  display: none;
+}
 
-.gly-verdict-menu { width: 300px; background: var(--gly-panel-bg); border: 1px solid var(--gly-line); border-radius: 10px; padding: 6px; box-shadow: var(--gly-menu-shadow); animation: rise .18s ease; font: 14px/1.4 var(--gly-sans); }
-.gly-verdict-menu button { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 10px 12px; color: var(--gly-fg); font: inherit; cursor: pointer; }
-.gly-verdict-menu button:hover { background: var(--gly-panel-hover); }
-.gly-verdict-title { display: flex; justify-content: space-between; font-weight: 600; }
-.gly-verdict-tag { color: var(--gly-accent); font: 11px var(--gly-mono); }
-.gly-verdict-explain { display: block; color: var(--gly-muted); font-size: 12.5px; margin-top: 2px; }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.gly-verdict-menu {
+  width: 300px;
+  background: var(--gly-panel-bg);
+  border: 1px solid var(--gly-line);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: var(--gly-menu-shadow);
+  animation: rise 0.18s ease;
+  font: 14px/1.4 var(--gly-sans);
+}
+.gly-verdict-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--gly-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.gly-verdict-menu button:hover {
+  background: var(--gly-panel-hover);
+}
+.gly-verdict-title {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+.gly-verdict-tag {
+  color: var(--gly-accent);
+  font: 11px var(--gly-mono);
+}
+.gly-verdict-explain {
+  display: block;
+  color: var(--gly-muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* --- the frame around the sheet (web/frame.ts) ---
 
@@ -3411,11 +4147,33 @@ main { padding-bottom: 220px; }
    inside #editor, so it takes the paper's own column and scrolls with it —
    which is what makes the whole-doc verb reachable at any scroll position
    without the bar's stickiness doing it. */
-.gly-frame { max-width: 760px; margin: 36px auto 0; }
-.gly-eyebrow { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; font: 11px var(--gly-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--gly-muted); }
-.gly-eyebrow > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gly-eyebrow > span[data-tone="coral"] { color: var(--gly-coral); }
-.gly-eyebrow > span[data-tone="accent"] { color: var(--gly-accent); }
+.gly-frame {
+  max-width: 760px;
+  margin: 36px auto 0;
+}
+.gly-eyebrow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  font: 11px var(--gly-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gly-muted);
+}
+.gly-eyebrow > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gly-eyebrow > span[data-tone="coral"] {
+  color: var(--gly-coral);
+}
+.gly-eyebrow > span[data-tone="accent"] {
+  color: var(--gly-accent);
+}
 
 /* `restore vN as draft`, IN THE EYEBROW, WHILE THE SCRUBBER IS OFF THE HEAD.
    Its old home was History's sub-bar, which is deleted with the landing. It is
@@ -3427,14 +4185,14 @@ main { padding-bottom: 220px; }
    the confirming one. */
 .gly-eyebrow .gly-versions-restore {
   display: inline-grid;
-  grid-template-areas: 'label';
+  grid-template-areas: "label";
   place-items: center;
   background: none;
   border: 0;
   padding: 0;
   color: var(--gly-accent);
   font: 11px var(--gly-mono);
-  letter-spacing: .14em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -3444,29 +4202,145 @@ main { padding-bottom: 220px; }
    rule above and loses on source order, so the attribute did nothing and three
    labels sat in the eyebrow of every draft. That is exactly the failure the
    list's own header describes; the fix is a rule that cannot tie. */
-.gly-eyebrow .gly-versions-restore[hidden] { display: none; }
-.gly-eyebrow .gly-versions-restore.is-armed { color: var(--gly-coral); }
-.gly-help-open { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gly-line); background: transparent; color: var(--gly-muted); font: 11px var(--gly-mono); cursor: pointer; }
-.gly-help { background: var(--gly-panel-bg); border: 1px solid var(--gly-line); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font: 13px/1.5 var(--gly-sans); color: var(--gly-muted2); }
-.gly-help p { margin: 0 0 4px; }
-.gly-docslot { margin-bottom: 12px; }
-.gly-docslot.is-off { display: none; }
-.gly-docslot-empty { font: 13px/1.5 var(--gly-sans); color: var(--gly-muted); margin-bottom: 8px; }
-.gly-docslot-add { display: block; width: 100%; text-align: left; background: transparent; border: 1px dashed var(--gly-line); color: var(--gly-muted); border-radius: 8px; padding: 8px 12px; font: 13px var(--gly-sans); cursor: pointer; }
-.gly-docslot-add:hover { border-color: var(--gly-accent); color: var(--gly-accent); }
-.gly-row-doc { display: flex; align-items: center; gap: 10px; font: 14px var(--gly-sans); color: var(--gly-fg); background: var(--gly-panel-bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; animation: rise .25s ease; }
+.gly-eyebrow .gly-versions-restore[hidden] {
+  display: none;
+}
+.gly-eyebrow .gly-versions-restore.is-armed {
+  color: var(--gly-coral);
+}
+.gly-help-open {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--gly-line);
+  background: transparent;
+  color: var(--gly-muted);
+  font: 11px var(--gly-mono);
+  cursor: pointer;
+}
+.gly-help {
+  background: var(--gly-panel-bg);
+  border: 1px solid var(--gly-line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font: 13px/1.5 var(--gly-sans);
+  color: var(--gly-muted2);
+}
+.gly-help p {
+  margin: 0 0 4px;
+}
+.gly-docslot {
+  margin-bottom: 12px;
+}
+.gly-docslot.is-off {
+  display: none;
+}
+.gly-docslot-empty {
+  font: 13px/1.5 var(--gly-sans);
+  color: var(--gly-muted);
+  margin-bottom: 8px;
+}
+.gly-docslot-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px dashed var(--gly-line);
+  color: var(--gly-muted);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: 13px var(--gly-sans);
+  cursor: pointer;
+}
+.gly-docslot-add:hover {
+  border-color: var(--gly-accent);
+  color: var(--gly-accent);
+}
+/* AND ITS DEAD FACE. `.gly-capture-open` carries this class and is named
+   directly in SEALED_VERBS (seal.ts:268) — it left the census strip, so the
+   strip's own `.gly-census button` entry stopped covering it — but no rule
+   here answered `[disabled]`, so the seal disabled a door that went on
+   inviting the press. Same measurement and same sentence as the bottom bar's
+   count one screen up: a dead control must look dead. `:hover` is stopped in
+   the same breath, because a border that lights under the pointer is the
+   loudest thing on this control saying it is live. */
+.gly-docslot-add[disabled] {
+  cursor: default;
+  opacity: 0.55;
+}
+.gly-docslot-add[disabled]:hover {
+  border-color: var(--gly-line);
+  color: var(--gly-muted);
+}
+/* `flex-wrap: wrap` + the note at `flex-basis: 100%` is the bar rule applied to
+   a pill: a click moves nothing except the thing that was clicked. `delete`
+   arms in two clicks and writes `DELETE_ARM_NOTE` into the card's
+   `.gly-card-note`; on a single flex LINE that note joined the row beside the
+   buttons and shoved `delete` 150px left and 9px down (`align-items: center`
+   re-centring it in a row the note had grown), so the second click — the
+   irreversible one — landed where the first one had not been. The note drops
+   to its own line under the pill instead. `.gly-card-note:empty` is
+   `display: none` (:1707), so at rest the row is exactly the one line it was.
+   Caught by `web/layers.mjs` §4, `delete keeps its box when it arms`. */
+.gly-row-doc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font: 14px var(--gly-sans);
+  color: var(--gly-fg);
+  background: var(--gly-panel-bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  animation: rise 0.25s ease;
+}
+.gly-row-doc > .gly-card-note {
+  flex-basis: 100%;
+  margin-top: 0;
+}
 /* Scoped `.gly-frame > .gly-cannot` rather than a bare `.gly-cannot` — `body`
    already carries that same class (verdict.ts, for the marked-block coral
    deepen) and a bare selector would turn `body` itself into this grid. */
-.gly-frame > .gly-cannot { margin-bottom: 12px; background: var(--gly-panel-bg); border: 1px solid var(--gly-coral); border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; animation: rise .25s ease; }
-.gly-cannot-label { font: 11px var(--gly-mono); color: var(--gly-coral); letter-spacing: .12em; text-transform: uppercase; padding-top: 2px; }
-.gly-cannot-body { font: 14px/1.5 var(--gly-sans); color: var(--gly-fg); }
-.gly-cannot-why { color: var(--gly-muted2); margin-top: 2px; }
-.gly-cannot-fixed { color: var(--gly-muted); margin-top: 6px; font-size: 13px; }
+.gly-frame > .gly-cannot {
+  margin-bottom: 12px;
+  background: var(--gly-panel-bg);
+  border: 1px solid var(--gly-coral);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 14px;
+  animation: rise 0.25s ease;
+}
+.gly-cannot-label {
+  font: 11px var(--gly-mono);
+  color: var(--gly-coral);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.gly-cannot-body {
+  font: 14px/1.5 var(--gly-sans);
+  color: var(--gly-fg);
+}
+.gly-cannot-why {
+  color: var(--gly-muted2);
+  margin-top: 2px;
+}
+.gly-cannot-fixed {
+  color: var(--gly-muted);
+  margin-top: 6px;
+  font-size: 13px;
+}
 /* An instruction about the whole document is about all of it, so all of it
    recedes while one is being written — the selection composer's own dimming,
    asked on the other scope. Paint only: opacity takes no space. */
-body.gly-doc-composing .ProseMirror > * { opacity: .35; transition: opacity .3s; }
+body.gly-doc-composing .ProseMirror > * {
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
 
 /* --- the rows pinned inside the paper (web/rows.ts) ---
 
@@ -3479,11 +4353,37 @@ body.gly-doc-composing .ProseMirror > * { opacity: .35; transition: opacity .3s;
    margins pull the wash out to the column's own edge without moving the text
    inside it — a click that marks a block must not reflow the words under the
    caret (the bar rule, asked of the paper). */
-.ProseMirror > .gly-marked { background: var(--gly-coral-fill); border-radius: 6px; padding: 8px 12px; margin-left: -12px; margin-right: -12px; transition: background .3s; }
-body.gly-cannot .ProseMirror > .gly-marked { background: var(--gly-coral-fill-deep); }
-body.gly-revising .ProseMirror > .gly-marked { background: var(--gly-accent-fill-16); outline: 1.5px dashed var(--gly-dashed); }
-.ProseMirror > .gly-revised { background: var(--gly-accent-fill-18); border-radius: 6px; padding: 8px 12px; margin-left: -12px; margin-right: -12px; animation: gly-glow 1.2s ease-out 1; }
-@keyframes gly-glow { 0% { box-shadow: 0 0 0 0 rgba(214, 255, 61, .5); } 100% { box-shadow: 0 0 0 18px rgba(214, 255, 61, 0); } }
+.ProseMirror > .gly-marked {
+  background: var(--gly-coral-fill);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-left: -12px;
+  margin-right: -12px;
+  transition: background 0.3s;
+}
+body.gly-cannot .ProseMirror > .gly-marked {
+  background: var(--gly-coral-fill-deep);
+}
+body.gly-revising .ProseMirror > .gly-marked {
+  background: var(--gly-accent-fill-16);
+  outline: 1.5px dashed var(--gly-dashed);
+}
+.ProseMirror > .gly-revised {
+  background: var(--gly-accent-fill-18);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-left: -12px;
+  margin-right: -12px;
+  animation: gly-glow 1.2s ease-out 1;
+}
+@keyframes gly-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(214, 255, 61, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(214, 255, 61, 0);
+  }
+}
 
 /* --- what the block said before, and why it changed ---
 
@@ -3497,35 +4397,120 @@ body.gly-revising .ProseMirror > .gly-marked { background: var(--gly-accent-fill
    (`ChangeView.note`) and is styled as a message rather than a quotation —
    filled, rounded, labelled — because it comes from the other party to the
    review and the struck text above it does not. */
-.gly-was-wrap { margin: 12px 0 0; user-select: none; }
-.gly-was { padding: 8px 12px; border-left: 2px solid var(--gly-coral); font: 14px/1.5 var(--gly-sans); color: var(--gly-was-ink); animation: rise .3s ease; }
-.gly-was-eyebrow { font: 10.5px var(--gly-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gly-coral); margin-right: 10px; }
-.gly-was s { text-decoration-color: var(--gly-coral); }
-.gly-agent-note { margin: 8px 0 0; display: flex; gap: 10px; align-items: flex-start; font: 13.5px/1.45 var(--gly-sans); color: var(--gly-muted2); background: var(--gly-bg); border-radius: 8px; padding: 8px 12px; animation: rise .35s ease; }
-.gly-agent-note-label { font: 11px var(--gly-mono); color: var(--gly-accent); white-space: nowrap; padding-top: 2px; }
+.gly-was-wrap {
+  margin: 12px 0 0;
+  user-select: none;
+}
+.gly-was {
+  padding: 8px 12px;
+  border-left: 2px solid var(--gly-coral);
+  font: 14px/1.5 var(--gly-sans);
+  color: var(--gly-was-ink);
+  animation: rise 0.3s ease;
+}
+.gly-was-eyebrow {
+  font: 10.5px var(--gly-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gly-coral);
+  margin-right: 10px;
+}
+.gly-was s {
+  text-decoration-color: var(--gly-coral);
+}
+.gly-agent-note {
+  margin: 8px 0 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font: 13.5px/1.45 var(--gly-sans);
+  color: var(--gly-muted2);
+  background: var(--gly-bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  animation: rise 0.35s ease;
+}
+.gly-agent-note-label {
+  font: 11px var(--gly-mono);
+  color: var(--gly-accent);
+  white-space: nowrap;
+  padding-top: 2px;
+}
 
 /* The instruction itself, under the block it is about. `user-select: none`
    because it is a readout inside editable prose and a selection dragged
    through the paragraph must not pick it up. */
-.gly-row { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; font: 14px/1.4 var(--gly-sans); color: var(--gly-fg); background: var(--gly-bg); border-radius: 8px; padding: 8px 12px; animation: rise .25s ease; user-select: none; }
-.gly-row-arrow, .gly-row-state { font: 11px var(--gly-mono); color: var(--gly-coral); white-space: nowrap; }
-.gly-row[data-tone="accent"] .gly-row-arrow, .gly-row[data-tone="accent"] .gly-row-state { color: var(--gly-accent); }
-.gly-row-text { flex: 1; min-width: 0; }
-.gly-row-remove { background: none; border: 0; color: var(--gly-muted); cursor: pointer; font-size: 16px; padding: 0 2px; }
-.gly-row-remove:hover { color: var(--gly-coral); }
+.gly-row {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 14px/1.4 var(--gly-sans);
+  color: var(--gly-fg);
+  background: var(--gly-bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  animation: rise 0.25s ease;
+  user-select: none;
+}
+.gly-row-arrow,
+.gly-row-state {
+  font: 11px var(--gly-mono);
+  color: var(--gly-coral);
+  white-space: nowrap;
+}
+.gly-row[data-tone="accent"] .gly-row-arrow,
+.gly-row[data-tone="accent"] .gly-row-state {
+  color: var(--gly-accent);
+}
+.gly-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.gly-row-remove {
+  background: none;
+  border: 0;
+  color: var(--gly-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 2px;
+}
+.gly-row-remove:hover {
+  color: var(--gly-coral);
+}
 /* THE STEP LANDS ON THE ROW, and it says so in the ring `.gly-card.gly-stepped`
    already uses — one class, one look, on whichever surface the instruction has.
    Paint only: a border-width here would move the prose under the key that was
    pressed. */
-.gly-row.gly-stepped { box-shadow: 0 0 0 1px var(--gly-signal); }
+.gly-row.gly-stepped {
+  box-shadow: 0 0 0 1px var(--gly-signal);
+}
 /* Nothing is removable while the agent is holding the round. */
-body.gly-revising .gly-row-remove { display: none; }
+body.gly-revising .gly-row-remove {
+  display: none;
+}
 
 /* The pill that offers a deletion back. Absolute in DOCUMENT coordinates, like
    the gutter grips, so scrolling moves it with the ghost it names. */
-.gly-revert-float { position: absolute; z-index: 20; background: var(--gly-bg); color: var(--gly-muted); border: 1px solid var(--gly-line); border-radius: 999px; padding: 2px 8px; font: 11px var(--gly-mono); cursor: pointer; }
-.gly-revert-float:hover { color: var(--gly-coral); border-color: var(--gly-coral); }
+.gly-revert-float {
+  position: absolute;
+  z-index: 20;
+  background: var(--gly-bg);
+  color: var(--gly-muted);
+  border: 1px solid var(--gly-line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font: 11px var(--gly-mono);
+  cursor: pointer;
+}
+.gly-revert-float:hover {
+  color: var(--gly-coral);
+  border-color: var(--gly-coral);
+}
 
 /* A marked fence carries no wash — its panel already has one — so it says the
    same thing with its own edge. */
-.ProseMirror pre.gly-marked { outline: 2px solid rgba(255, 92, 57, .6); background: var(--gly-fence); }
+.ProseMirror pre.gly-marked {
+  outline: 2px solid rgba(255, 92, 57, 0.6);
+  background: var(--gly-fence);
+}

@@ -693,7 +693,7 @@ export const sealMethods = {
       this.paintRevise();
     }
     this.sealUI.readout.classList.toggle('gly-seal-off', !sealed);
-    this.sealUI.readout.textContent = sealed
+    const line = sealed
       ? sealLine(
           this.sealVerdict,
           this.sealAt,
@@ -702,6 +702,18 @@ export const sealMethods = {
           this.sealLanding,
         )
       : '';
+    this.sealUI.readout.textContent = line;
+    // AND THE WHOLE SENTENCE IS REACHABLE WHERE THE CELL CANNOT HOLD IT. The
+    // readout yields and ellipsises rather than pushing the bar past the window
+    // (`.gly-seal`, editor.css) — measured 114px of spill at 390px — and an
+    // ellipsis owes the reader the text it ate. `title` is the bar's own
+    // mechanism for that; it is set from the same string, so the two can never
+    // disagree.
+    if (line) {
+      this.sealUI.readout.title = line;
+    } else {
+      this.sealUI.readout.removeAttribute('title');
+    }
     this.applySealedVerbs();
   },
 

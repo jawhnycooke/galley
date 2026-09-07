@@ -2049,14 +2049,33 @@ class App implements AppState {
   // a consumer of a value that only exists to be written. The bottom bar is
   // absent above the breakpoint, and `hidden` is exactly what paintSurfaces
   // toggles, so its height is 0 there without a width test here.
+  // AND THE FOOT IS THE LOWEST OF THE FIXED SURFACES, NOT THE BOTTOM BAR ALONE.
+  // `.gly-timeline` is the second one: `position: fixed; bottom: 0`, on the
+  // body at every width, and taller than the bar (its own padding puts its top
+  // about 90px up, against the bar's 40). It sits at `z-index: 10` under the
+  // bar's 50, so the bar is not covered — but the strip of window ABOVE the bar
+  // and under the timeline is chrome the prose is not readable through, and
+  // this function did not know it existed. Measured in `web/layers.mjs` §7c: a
+  // mark scrolled to just above `.gly-bottombar` answered `elementFromPoint`
+  // with `.gly-timeline` and the click that would open its conversation never
+  // reached the prose; the bubble, which places against this band, could be
+  // clamped to a floor inside the timeline for the same reason. Reading the
+  // lower of the two tops is the same claim this function always made, over the
+  // surfaces the page actually has.
   chromeFrame() {
     const view =
       document.documentElement.clientHeight || window.innerHeight || 0;
     const head = document.querySelector('.gly-bar');
-    const foot = this.bar && this.bar.root;
     const top = head ? head.getBoundingClientRect().height : 0;
-    const bottom =
-      foot && !foot.hidden ? foot.getBoundingClientRect().height : 0;
+    const feet: (HTMLElement | null)[] = [
+      this.bar ? this.bar.root : null,
+      document.querySelector<HTMLElement>('.gly-timeline'),
+    ];
+    const bottom = feet.reduce(
+      (h: number, el) =>
+        el && !el.hidden ? Math.max(h, el.getBoundingClientRect().height) : h,
+      0,
+    );
     return { top, bottom: view - bottom };
   }
 

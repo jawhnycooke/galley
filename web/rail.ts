@@ -10,20 +10,20 @@
 // sort by anchor top, push down, 10px gap.
 export const RAIL_GAP = 10;
 
-// The gutter reserved to the left of every card, and it is LOAD-BEARING under
-// a name that finally says what it does.
+// GUTTER_PX — DELETED WITH THE MARK-ANCHORED RAIL CARD.
 //
-// It was `CONNECTOR_PX` through two designs: a 26px horizontal arm was once the
-// whole connector, and then the connector was a curve that did not live in the
-// gutter at all, and then the connector was deleted. The number stayed all
-// three times, because what it actually holds is that ONE LEFT EDGE DOWN THE
-// WHOLE RAIL is what the reviewer reads — `.gly-rail-band .gly-card` insets by
-// it, `.gly-rail-notice .gly-card` takes it as a margin, and `just layers` §9
-// asserts every card's left edge is exactly this far from the RAIL's own box,
-// which is what caught a second container laying cards out at full width. The
-// constant is kept and the name is corrected: a rule named for a mechanism that
-// no longer exists is the next reader's excuse to delete it.
-export const GUTTER_PX = 26;
+// 26px, and it held ONE LEFT EDGE DOWN THE WHOLE RAIL: `.gly-rail-band
+// .gly-card` inset by it, `.gly-rail-notice .gly-card` took it as a margin, and
+// `just layers` §9 asserted every card's left edge was exactly this far from
+// the rail's own box — which is what caught a second container laying cards out
+// at full width. It was `CONNECTOR_PX` through two earlier designs and outlived
+// both, on the argument that a rule named for a mechanism that no longer exists
+// is the next reader's excuse to delete it.
+//
+// There is no column of placed cards left to share an edge. A thread on a mark
+// is a pinned row under its own block (`web/rows.ts`), which takes the
+// paragraph's own measure, and a whole-document instruction is a pill in the
+// frame's doc slot. §9 is retired with them, and this was its last reader.
 
 // Below this the rail is replaced (never accompanied) by the bottom bar and the
 // review sheet. PIXELS, and the stylesheet's media query is the same number in
