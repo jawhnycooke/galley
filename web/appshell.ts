@@ -396,6 +396,10 @@ export interface AppState {
   reviseRunning: boolean;
   approveNotBefore: number;
   reviseStartedAt: number;
+  // tick's own 500ms self-chain while a revision is running (web/pending.ts)
+  // — set only while a chain is alive, so the outer setInterval beat never
+  // starts a second concurrent chain.
+  reviseTimer: number | undefined;
 
   // --- the seal and the handoff (web/seal.ts) ---
   // Every one of these is a direct, unconditional constructor line:

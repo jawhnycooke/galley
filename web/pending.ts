@@ -162,9 +162,16 @@ export const pendingMethods = {
     this.readRevise();
     // While the agent is writing, the reviewer wants to see it land as it
     // happens rather than at the normal cadence — so tick reschedules itself
-    // sooner instead of waiting for the outer setInterval's next beat.
-    if (this.reviseRunning) {
-      window.setTimeout(() => this.tick(), 500);
+    // sooner instead of waiting for the outer setInterval's next beat. Guard
+    // with reviseTimer so only one 500ms chain is ever alive: the outer
+    // setInterval (web/entry.ts, POLL_MS) keeps firing every 1500ms
+    // regardless, and without this guard each of those beats would start its
+    // own concurrent chain that never stops for the rest of the revision.
+    if (this.reviseRunning && !this.reviseTimer) {
+      this.reviseTimer = window.setTimeout(() => {
+        this.reviseTimer = undefined;
+        this.tick();
+      }, 500);
     }
     getJSON<SavedView>('/_galley/saved')
       .then((d) => {

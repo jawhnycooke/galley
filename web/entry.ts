@@ -842,6 +842,7 @@ class App implements AppState {
   reviseRunning: boolean;
   approveNotBefore: number;
   reviseStartedAt: number;
+  reviseTimer: number | undefined;
 
   // --- the seal and the handoff (web/seal.ts) ---
   sealVerdict: string;
@@ -1139,6 +1140,7 @@ class App implements AppState {
     this.reviseRunning = false;
     this.approveNotBefore = 0;
     this.reviseStartedAt = 0;
+    this.reviseTimer = undefined;
     // The verdict on offer, and whether an approve has already landed. Revise
     // until the first /_galley/pending answers: it is the today-behaviour, and
     // the safe default while the census is still unknown — an Approve shown
