@@ -8577,8 +8577,13 @@ function bindsContentField(src) {
 
 // --- frame.ts ---
 {
-  const { eyebrowLeft, WHOLE_DOC_LABEL, HELP_LINES } =
+  const { eyebrowLeft, WHOLE_DOC_LABEL, HELP_LINES, cannotSaid, CANNOT_FIXED } =
     await import('./frame.ts');
+  check(
+    'cannot banner copy',
+    cannotSaid(4) === 'round 4 · the agent could not · document unchanged' &&
+      CANNOT_FIXED.startsWith('This is a report'),
+  );
   check(
     'eyebrow: working draft at head',
     eyebrowLeft('markup', 5, 4, { atHead: true, near: 4 }) ===

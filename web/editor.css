@@ -4175,6 +4175,14 @@ main { padding-bottom: 220px; }
 .gly-docslot-add { display: block; width: 100%; text-align: left; background: transparent; border: 1px dashed var(--gly-line); color: var(--gly-muted); border-radius: 8px; padding: 8px 12px; font: 13px var(--gly-sans); cursor: pointer; }
 .gly-docslot-add:hover { border-color: var(--gly-accent); color: var(--gly-accent); }
 .gly-row-doc { display: flex; align-items: center; gap: 10px; font: 14px var(--gly-sans); color: var(--gly-fg); background: var(--gly-panel-bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; animation: rise .25s ease; }
+/* Scoped `.gly-frame > .gly-cannot` rather than a bare `.gly-cannot` — `body`
+   already carries that same class (verdict.ts, for the marked-block coral
+   deepen) and a bare selector would turn `body` itself into this grid. */
+.gly-frame > .gly-cannot { margin-bottom: 12px; background: var(--gly-panel-bg); border: 1px solid var(--gly-coral); border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; animation: rise .25s ease; }
+.gly-cannot-label { font: 11px var(--gly-mono); color: var(--gly-coral); letter-spacing: .12em; text-transform: uppercase; padding-top: 2px; }
+.gly-cannot-body { font: 14px/1.5 var(--gly-sans); color: var(--gly-fg); }
+.gly-cannot-why { color: var(--gly-muted2); margin-top: 2px; }
+.gly-cannot-fixed { color: var(--gly-muted); margin-top: 6px; font-size: 13px; }
 /* An instruction about the whole document is about all of it, so all of it
    recedes while one is being written — the selection composer's own dimming,
    asked on the other scope. Paint only: opacity takes no space. */

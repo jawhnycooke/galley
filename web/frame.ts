@@ -21,6 +21,12 @@ export const HELP_LINES = [
   'Drag the timeline to read any earlier version; ← → step it, Esc returns to now.',
 ];
 
+export const CANNOT_FIXED =
+  'This is a report, not a conversation. Answer it with a different instruction in the next round.';
+export function cannotSaid(round: number): string {
+  return `round ${round} · the agent could not · document unchanged`;
+}
+
 export interface FrameUI {
   root: HTMLElement;
   eyebrowL: HTMLElement;
@@ -133,4 +139,24 @@ export function paintFrame(this: AppShell): void {
     'is-off',
     !s.atHead || phase === 'revising' || phase === 'approved',
   );
+  const cannot = phase === 'cannot' && s.atHead;
+  f.banner.hidden = !cannot;
+  if (cannot) {
+    f.banner.replaceChildren();
+    const label = document.createElement('span');
+    label.className = 'gly-cannot-label';
+    label.textContent = 'COULD NOT';
+    const body = document.createElement('div');
+    body.className = 'gly-cannot-body';
+    const head = document.createElement('div');
+    head.textContent = cannotSaid(round);
+    const why = document.createElement('div');
+    why.className = 'gly-cannot-why';
+    why.textContent = this.seenCannot;
+    const fixed = document.createElement('div');
+    fixed.className = 'gly-cannot-fixed';
+    fixed.textContent = CANNOT_FIXED;
+    body.append(head, why, fixed);
+    f.banner.append(label, body);
+  }
 }
