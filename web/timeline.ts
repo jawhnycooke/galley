@@ -323,9 +323,11 @@ export function scrubTo(this: AppShell, t: number): void {
     return;
   }
   // THE PANEL IS THE STAGE, so the panel is what is opened and closed — not
-  // `gly-history-mode` directly. `show`/`hide` are what un-hide `.gly-versions`
-  // and fire onOpen/onClose, which is where enterHistory and leaveHistory hang;
-  // setting the body class alone would enter the mode over a hidden surface.
+  // `body.gly-scrubbing` directly. `show`/`hide` are what un-hide
+  // `.gly-versions` and fire onOpen/onClose, which is where enterHistory and
+  // leaveHistory hang; setting the body class alone would enter the mode over a
+  // hidden surface. Both are RENDERS of `atHead()` (see it), written here and
+  // nowhere else.
   if (s.atHead) {
     if (this.versionsPanel.open) {
       this.versionsPanel.hide();

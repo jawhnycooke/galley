@@ -97,15 +97,29 @@ async function selectPhrase(page, phrase) {
     editor.commands.setTextSelection({ from: at, to: at + want.length });
     editor.view.focus();
   }, phrase);
+  // THE FORM IS WHAT A SELECTION OPENS NOW (spec §1) — there is no
+  // `Add instruction` press between the two — so the box the reviewer types
+  // into is what says the composer is ready.
+  //
+  // AND THE ANCHOR IS READ OFF THE EDITOR, NOT OFF `window.getSelection()`.
+  // Opening the box focuses the textarea, which takes the DOM selection with
+  // it — so that clause went permanently false the moment the box appeared,
+  // which is the harness measuring a side effect of its own success. The
+  // editor's own selection is the anchor the composer was placed from and the
+  // one `sendComment` posts.
   await page.waitForFunction((want) => {
     const root = document.querySelector('.gly-composer');
-    const button = document.querySelector('.gly-comment-button');
+    const form = document.querySelector('.gly-composer-form');
+    const st = window.galleyEdit?.editor?.state;
+    const sel = st
+      ? st.doc.textBetween(st.selection.from, st.selection.to, ' ')
+      : '';
     return (
       !!root &&
       !root.hidden &&
-      !!button &&
-      button.offsetParent !== null &&
-      window.getSelection().toString() === want
+      !!form &&
+      form.offsetParent !== null &&
+      sel === want
     );
   }, phrase);
 }
@@ -156,11 +170,31 @@ function proseRects(page) {
   );
 }
 
+// THE GESTURE IS MADE AGAIN IF THE BOX GOES, and that is a fact about the
+// product rather than about this harness. A selection opens the box directly
+// now (spec §1), and a selection is something the page can lose without the
+// reviewer doing anything: the document is rebuilt whenever a projection or a
+// remote edit lands, and a rebuilt document has no selection in it. galley
+// keeps a box the reviewer is IN or has WRITTEN in (composer.ts's hide branch,
+// and the editor's blur timer) — an empty one it has just opened is not worth
+// defending, and reopening it is the same one gesture. So this loop is what a
+// reviewer does: select the words again. Each attempt is bounded so a box that
+// never opens fails as a timeout rather than hanging the run.
 async function addRangeInstruction(page, text) {
-  await selectRetryBudget(page);
-  await page.click('.gly-comment-button');
-  await page.fill('.gly-composer-text', text);
-  await page.click('.gly-composer-send');
+  let filed = false;
+  for (let attempt = 0; attempt < 6 && !filed; attempt += 1) {
+    await selectRetryBudget(page);
+    try {
+      await page.fill('.gly-composer-text', text, { timeout: 3000 });
+      await page.click('.gly-composer-send', { timeout: 3000 });
+      filed = true;
+    } catch {
+      // The box closed under us between the wait and the write. Select again.
+    }
+  }
+  if (!filed) {
+    throw new Error('the composer never stayed open long enough to file');
+  }
   await page.waitForFunction(
     async () =>
       (await (await fetch('/_galley/pending')).json()).instructions.length ===
@@ -350,11 +384,15 @@ try {
       slotDoor.abovePaper,
     JSON.stringify(slotDoor),
   );
+  // The two `.gly-rail …` clauses that stood here were counts of zero inside a
+  // container the branch deleted, so they could not fail. What survives is the
+  // claim that can: there is exactly ONE capture door on the page, and the bar
+  // is not where it is.
   check(
-    'and neither the rail nor the bar carries a capture control at all',
-    (await page.locator('.gly-rail .gly-overall-toggle').count()) === 0 &&
-      (await page.locator('.gly-rail .gly-capture-open').count()) === 0 &&
-      (await page.locator('.gly-bar .gly-capture-open').count()) === 0,
+    'and there is exactly one capture control, and the bar does not carry it',
+    (await page.locator('.gly-capture-open').count()) === 1 &&
+      (await page.locator('.gly-bar .gly-capture-open').count()) === 0 &&
+      (await page.locator('.gly-overall-toggle').count()) === 0,
   );
   // AND AT THE FOOT OF THE DOCUMENT IT IS THE RIGHT-CLICK THAT ANSWERS. §13's
   // "reachable at any scroll position" was a claim about the BAR, which is
@@ -381,37 +419,15 @@ try {
     await page.isVisible('.gly-docslot-add'),
   );
 
-  // THE EMPTY RAIL TEACHES, AND THE NOTICE IT REPLACED SAID SOMETHING THE BAR
-  // WAS ALREADY SAYING. `nothing pending — the document is settled` was a
-  // second, quieter voice for what an Approve-faced primary states outright;
-  // what a first-time reviewer actually does not know is how to ask for
-  // anything at all, and nothing on a cold-open page told them. Board 1a.
-  const teach = await page.evaluate(() => {
-    const card = document.querySelector('.gly-rail-notice .gly-rail-teach');
-    if (!card) return null;
-    const s = getComputedStyle(card);
-    return {
-      head: (card.querySelector('.gly-card-head') || {}).innerText || '',
-      body: (card.querySelector('.gly-card-body') || {}).innerText || '',
-      border: s.borderTopStyle,
-      settled: document.querySelectorAll('.gly-rail-notice .gly-settled')
-        .length,
-      teaching: document.querySelectorAll('.gly-rail-teach').length,
-    };
-  });
-  check(
-    'the empty rail teaches instead of repeating what the primary already says',
-    teach !== null &&
-      /HOW THIS WORKS/i.test(teach.head) &&
-      /^Select any words in the document to ask for a change\./.test(
-        teach.body,
-      ) &&
-      /one round\.$/.test(teach.body) &&
-      teach.border === 'dashed' &&
-      teach.settled === 0 &&
-      teach.teaching === 1,
-    JSON.stringify(teach),
-  );
+  // `the empty rail teaches instead of repeating what the primary already says`
+  // — RETIRED WITH THE TEACH CARD. It read `HOW THIS WORKS — select any words
+  // in the document to ask for a change` off a dashed card in the rail's
+  // margin, and the rail is deleted: the card was the last thing it drew, at
+  // the right of a page whose design has no right-hand column. What it said is
+  // on screen without it, and both halves are asserted where they now live —
+  // the slot's own empty line (`the whole-doc slot says where an instruction
+  // goes`, layers.mjs §14) and the `?` sheet's five gestures (probe.mjs,
+  // `help has the five gestures`).
 
   // --- ONE NOUN, ONE VERB, NO SYSTEM RING ---
   //
@@ -424,13 +440,20 @@ try {
   await selectRetryBudget(page);
   const selBox = await selectionBox(page);
   const proseBefore = await proseRects(page);
-  const opener = await textOf(page, '.gly-comment-button');
+  // `the affordance that opens the composer says what it makes` — RETIRED WITH
+  // THE AFFORDANCE. It read `Add instruction` off `.gly-comment-button`, the
+  // press that stood between selecting words and getting a box. Spec §1 gives
+  // the selection itself that job, so there is no label to read: what the
+  // gesture makes is said by the composer's HEAD (`INSTRUCTION · ON "…"`,
+  // checked a few lines down) and by the verb that files it, below.
+  const openedOnSelection = await page.evaluate(() => {
+    const form = document.querySelector('.gly-composer-form');
+    return !!form && !form.hidden && form.offsetParent !== null;
+  });
   check(
-    'the affordance that opens the composer says what it makes',
-    opener === 'Add instruction',
-    JSON.stringify(opener),
+    'selecting words opens the box itself — no press in between',
+    openedOnSelection === true,
   );
-  await page.click('.gly-comment-button');
   const send = await textOf(page, '.gly-composer-send');
   check(
     // Task 8 restyles the send verb to a keyboard-shaped whisper — Enter
@@ -598,7 +621,6 @@ try {
   // longer than the bound on purpose: with a short one this check is
   // arithmetic, not evidence.
   await selectPhrase(page, 'budget should stay explicit and readable');
-  await page.click('.gly-comment-button');
   const longHead = await page.evaluate(() => {
     const el = document.querySelector('.gly-composer-head');
     return {
@@ -728,6 +750,16 @@ try {
     // there deliberately. A check run with the panel up would report the
     // stepper dead and be reading the guard, not the stepper.
     const panel = document.querySelector('.gly-versions');
+    // AND FOCUS MUST BE OUT OF EVERY BOX, for the same class of reason: `j` is
+    // a LETTER inside a textarea, and onKey returns early when focus is in one
+    // (keyTargetIsEditable). The composer opens its box on a selection now
+    // (spec §1), so a box holding focus is the ordinary state after any
+    // instruction is filed rather than a rare one — and a check that dispatches
+    // `j` into it reads the guard, not the stepper. This is the reviewer
+    // pressing Esc, which is the gesture the guard is there to respect.
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     const before = document.querySelectorAll('.gly-stepped').length;
     document.body.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'j', bubbles: true }),
@@ -996,7 +1028,19 @@ try {
   // suggestion to 81 and the `.md` gained the card's text as paragraphs). The
   // menu is on `body` and nothing in the editable subtree, and that is read off
   // the DOM rather than trusted.
-  await page.evaluate(() => window.getSelection().removeAllRanges());
+  // NOTHING SELECTED MEANS THE EDITOR'S OWN SELECTION, NOT THE DOM'S. This
+  // block asserts what the menu offers with no passage under the cursor, and
+  // `menuItems` reads `editor.state.selection` — `removeAllRanges` clears the
+  // browser's selection and leaves ProseMirror's exactly where the last
+  // instruction left it. It went unnoticed while the composer opened on a
+  // press: the selection was stale then too, and a right-click happened to
+  // collapse the caret before the menu read it. The state is set here rather
+  // than relied on.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    window.galleyEdit.editor.commands.setTextSelection({ from: 1, to: 1 });
+    window.getSelection().removeAllRanges();
+  });
   await page.locator('.ProseMirror p').first().click({ button: 'right' });
   await page.waitForSelector('.gly-menu:not([hidden])');
   const menuHome = await page.evaluate(() => {
@@ -1685,7 +1729,10 @@ try {
   );
   const back = await page.evaluate(() => ({
     prose: !!document.querySelector('.ProseMirror'),
-    mode: document.body.classList.contains('gly-history-mode'),
+    // `gly-scrubbing`, NOT `gly-history-mode`. Nothing has set the latter since
+    // the reading mode became the scrubber's stage, so `!back.mode` was
+    // vacuously true and this check could not fail on the half it names.
+    mode: document.body.classList.contains('gly-scrubbing'),
     primary: document.getElementById('gly-revise').innerText.trim(),
     scroll: window.scrollY,
   }));
@@ -1756,7 +1803,9 @@ try {
           return !!at && b.contains(at);
         })(),
       })),
-      rail: !document.querySelector('.gly-rail').hidden,
+      // The rail is deleted; `!document.querySelector('.gly-rail').hidden` read
+      // a column that is not in the DOM. Its absence is the claim.
+      railGone: document.querySelector('.gly-rail') === null,
     };
   });
   // THE HISTORY DOOR IS DELETED, so `Instructions and History are adjacent` is
@@ -1779,23 +1828,55 @@ try {
   // stays selectable by `#gly-revise`, outside `.gly-bottombar`, and stays
   // pressable when the rail is gone — not that it stays in the top bar,
   // which Task 4 moved it out of into the fixed footer (`.gly-timeline`).
+  //
+  // AND THE WIDTH IS MEASURED, WHICH IS THE HALF THAT WENT MISSING. This block
+  // shipped with `inTopBar: true` HARDCODED into the evaluate — a field the
+  // page never answered — under a title that said the opposite of the comment
+  // above it, and `width` was collected and only tested `> 0`. That is the one
+  // measurement that would have caught the primary rendering ~425px wide with
+  // its four faces laid out side by side: `#gly-revise.gly-revise` shipped
+  // `display: inline-flex` and beat the one-cell grid the reserve is built on.
+  // So the reserve itself is what is asserted — the four `.gly-revise-label`
+  // rects share ONE ORIGIN, which is what "one grid cell" means in pixels, and
+  // the button is under 200px, which is what it means in width.
   const primaryHere = await page.evaluate(() => {
     const b = document.getElementById('gly-revise');
     if (!b) return null;
     const r = b.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    const labels = [...b.querySelectorAll('.gly-revise-label')].map((el) => {
+      const lr = el.getBoundingClientRect();
+      return {
+        x: Math.round(lr.x),
+        mid: Math.round(lr.x + lr.width / 2),
+        y: Math.round(lr.y),
+        text: el.textContent,
+      };
+    });
     return {
-      inTopBar: true,
+      inTimeline: !!document.querySelector('.gly-timeline-right #gly-revise'),
       width: Math.round(r.width),
       top: Math.round(r.top),
       reachable: !!at && b.contains(at),
       inFoot: !!document.querySelector('.gly-bottombar #gly-revise'),
+      labels,
+      // ONE CELL IS ONE CENTRE, NOT ONE LEFT EDGE. `place-items: center`
+      // centres each face in the shared cell, so four faces of four widths
+      // have four different `x` and the SAME midpoint and the same `y`. Laid
+      // out side by side — the `inline-flex` this check was written to catch —
+      // the midpoints march rightwards and no two of them agree.
+      oneCell:
+        labels.length === 4 &&
+        labels.every((l) => l.mid === labels[0].mid && l.y === labels[0].y),
     };
   });
   check(
-    'and Revise never leaves the top bar, where it is at every width',
+    'Revise is in the timeline footer, one grid cell wide, and pressable there',
     primaryHere !== null &&
+      primaryHere.inTimeline === true &&
+      primaryHere.oneCell === true &&
       primaryHere.width > 0 &&
+      primaryHere.width < 200 &&
       primaryHere.reachable === true &&
       primaryHere.inFoot === false,
     JSON.stringify(primaryHere),
@@ -1832,7 +1913,9 @@ try {
   await page.click('.gly-bar-count');
   const narrowDoor = await page.evaluate(() => ({
     sheet: !document.querySelector('.gly-sheet').hidden,
-    rail: !document.querySelector('.gly-rail').hidden,
+    // The rail is deleted; this read `.hidden` on a column that is not in the
+    // DOM. `railGone` is the claim that survives — one surface, one state.
+    railGone: document.querySelector('.gly-rail') === null,
     cards: document.querySelectorAll('.gly-sheet .gly-thread').length,
     text: document.querySelector('.gly-sheet')?.innerText || '',
     barOverSheet: (() => {
@@ -1847,8 +1930,8 @@ try {
   }));
   check(
     'the Instructions door at 620px opens the review’s list instead of nothing',
-    narrowDoor.sheet === true && narrowDoor.rail === false,
-    JSON.stringify({ sheet: narrowDoor.sheet, rail: narrowDoor.rail }),
+    narrowDoor.sheet === true && narrowDoor.railGone === true,
+    JSON.stringify({ sheet: narrowDoor.sheet, railGone: narrowDoor.railGone }),
   );
 
   // THE SHEET'S OWN ✕ HAS A NAME. The bottom bar's rule two checks up — every
@@ -1928,9 +2011,13 @@ try {
   // it was what said the browser had finished landing the round. With it gone
   // the wait re-points to the frame the arrival repaints: the primary leaves
   // `revising`. That is the arrival landing in the UI, not a claim about it.
-  // Bounded and swallowed, so a build that never lands reports the reds below
-  // instead of one TimeoutError.
-  await page
+  // BOUNDED, AND THE TIMEOUT IS A RED CHECK RATHER THAN A SWALLOW. It was
+  // `.catch(() => {})`, which turns "the round never landed" into a silent
+  // fifteen-second pause followed by whatever the reds below happen to say —
+  // and a wait that cannot fail is not a wait, it is a sleep. The failure has a
+  // name now, so a build where the arrival never reaches the UI reports THAT
+  // and not a scatter of downstream confusion.
+  const landedInUI = await page
     .waitForFunction(
       () =>
         !(
@@ -1939,7 +2026,9 @@ try {
       undefined,
       { timeout: 15000 },
     )
-    .catch(() => {});
+    .then(() => true)
+    .catch(() => false);
+  check('the arrival reached the UI — the primary left `revising`', landedInUI);
   const record6 = await page.evaluate(
     async () => (await (await fetch('/_galley/versions')).json()).rounds,
   );
@@ -2210,32 +2299,15 @@ try {
     JSON.stringify(handEdit),
   );
 
-  // §6.4a — THE BAND RESERVES HEIGHT ONLY FOR CARDS IT HOLDS.
-  //
-  // `paintAnchors` writes `.gly-rail-band`'s height from the stacker's bottom,
-  // and the stacker's adrift tail sums the height of every card whose anchor it
-  // could not measure. So a card that is in `this.cards` but NOT in the band —
-  // an anchorless one, appended in flow to the notice — would be counted into a
-  // height the band then draws as a column of empty air above the sections at
-  // the rail's end. `threadCard` returns before recording those (its
-  // `if (!anchored)` early return) and `paintAnchors` writes 0 when the list is
-  // empty; this is the invariant those two lines exist for, stated as an
-  // implication so it holds at any moment of the run, whatever the rail holds.
-  const band = await page.evaluate(() => {
-    const el = document.querySelector('.gly-rail-band');
-    if (!el) {
-      return null;
-    }
-    return {
-      children: el.children.length,
-      height: Math.round(el.getBoundingClientRect().height),
-    };
-  });
-  check(
-    'a band that holds no cards reserves no height',
-    band !== null && (band.children > 0 || band.height === 0),
-    JSON.stringify(band),
-  );
+  // §6.4a — `a band that holds no cards reserves no height` IS RETIRED WITH THE
+  // BAND. It stated the invariant `paintAnchors` and `threadCard` kept between
+  // them: the band's height came from the stacker's bottom, the stacker's
+  // adrift tail summed every card whose anchor it could not measure, and an
+  // anchorless card counted into that height would have drawn a column of empty
+  // air above the rail's flow sections. `.gly-rail-band` is deleted, and so are
+  // both of its keepers — an instruction with a place in the document is a
+  // ProseMirror widget row under its block, and the anchorless ones are in flow
+  // in the sheet's slot with no height to reserve for anybody.
 
   // §6.5 — A SELECTION THAT CROSSES A BLOCK BOUNDARY CAN BE COMMENTED ON.
   //
@@ -2282,10 +2354,9 @@ try {
     JSON.stringify(crossed),
   );
   if (crossed) {
-    await page.waitForSelector('.gly-comment-button:not([hidden])', {
+    await page.waitForSelector('.gly-composer-form:not([hidden])', {
       timeout: 5000,
     });
-    await page.click('.gly-comment-button');
     await page.fill('.gly-composer-text', 'tighten this passage');
     const before = await page.evaluate(
       async () =>
@@ -2369,13 +2440,16 @@ try {
       shown: getComputedStyle(key).display !== 'none',
       disabled: key.disabled,
       reachable: !!at && key.contains(at),
-      // The instruction list's door SHOULD be gone: on a sealed page every verb
+      // The instruction list's door SHOULD be gone on a sealed page: every verb
       // on every one of those cards is dead, so it leads to a surface nothing
       // can be done on. The record is the opposite — reading is all that is
-      // left.
+      // left. `.gly-census-count` was the wide bar's door and IS DELETED with
+      // the census strip, so that clause could not fail; the door that still
+      // exists is the narrow bar's `.gly-bar-count`, which the seal kills
+      // (SEALED_VERBS, web/seal.ts), and it is what is read.
       countShown: (() => {
-        const count = document.querySelector('.gly-census-count');
-        return !!count && getComputedStyle(count).display !== 'none';
+        const count = document.querySelector('.gly-bar-count');
+        return !!count && !count.disabled;
       })(),
     };
   });

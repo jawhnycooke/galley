@@ -49,10 +49,6 @@
 // Enter to be shown the words this card is about). A builder that knows what a
 // thread is stays in the file that knows what a thread is.
 
-// The pure half of the collapse, which stays where probe.mjs can drive it with
-// no browser. See the paragraph above about the split.
-import { stackCards, RAIL_GAP } from './rail.ts';
-
 /**
  * cardShell builds the one card anatomy: an `<article class="gly-card">` with a
  * `.gly-card-head` already in it.
@@ -89,20 +85,12 @@ export function cardShell(...classes: string[]): {
   return { el, head };
 }
 
-/**
- * cardBody appends the card's body and hands it back.
- *
- * Separate from cardShell because the order of what follows the head is the
- * caller's: a thread card puts entries, a reply box and its verbs after the head
- * with no body between them, and a body created eagerly would render as an empty
- * box in the middle of that stack.
- */
-export function cardBody(el: HTMLElement): HTMLElement {
-  const body = document.createElement('div');
-  body.className = 'gly-card-body';
-  el.appendChild(body);
-  return body;
-}
+/* `cardBody` IS DELETED WITH ITS LAST CALLER, the rail's teach card. It made a
+   `.gly-card-body` lazily, separately from `cardShell`, because the order of
+   what follows a card's head is the caller's — a thread card puts entries and
+   verbs there with no body between them, and an eager one rendered as an empty
+   box in the middle of that stack. The `.gly-card-body` rule stays: History's
+   round cards still carry the class. */
 
 /** What a card that can point at something says it does. ONE SPELLING: it is
  *  also the predicate `.gly-card.gly-thread:not([title])` keys its `cursor:
@@ -377,143 +365,19 @@ export function revealMark(el: Element): void {
 
 // --- placing a column of cards against the prose it is a map of ---
 
-// The last height written per container, so `placeCards` can compare before it
-// writes. A WeakMap rather than a field on the caller: the container is rebuilt
-// on every repaint and the entry goes with it, where a field would have to be
-// reset by hand on every rebuild and would be forgotten on the third surface.
-const heights = new WeakMap<HTMLElement, string>();
+/* `placeCards` AND `setStackHeight` ARE DELETED WITH THE RAIL. Between them
+   they were the one placement arithmetic both rails shared: stack the measured
+   cards from their anchors, put the un-anchored tail after them, and write the
+   container's own height once, comparing before writing so a scroll frame did
+   not dirty layout for nothing. The draft's caller (`paintAnchors`) is gone with
+   the column it placed into, and History's version rail measures its own. What
+   survives is `stackCards` (rail.ts), which is the pure arithmetic and is where
+   probe.mjs asserts it. */
 
-// One card as placeCards receives it: an element, its anchor's top (in the
-// same page coordinates as `ceiling`, or null when this pass could not
-// measure it), and its height.
-type CardMeasurement = {
-  el: HTMLElement;
-  anchorTop: number | null;
-  height: number;
-};
-
-/**
- * placeCards is the WHOLE placement pass, and it is one function because it was
- * two.
- *
- * The instruction rail's `paintAnchors` and History's `align()` were the same
- * twenty-five lines with five accidental differences between them, every one of
- * which was a defect on the History side — no sort, a wider gap, reads
- * interleaved with writes, a rounded top fed forward unrounded, and a height
- * written unconditionally with a trailing gap. The arithmetic was already
- * shared-able (`stackCards` has always been in rail.ts); what was not was the
- * PASS around it, so the pass is here now and neither caller owns a copy.
- *
- * WHAT EACH CALLER STILL OWNS IS THE MEASUREMENT, and that is the real
- * difference between the two rails rather than an accident: the draft measures a
- * mark through ProseMirror (`coordsAtPos`, or a block's element) and History
- * measures a diff mark through `querySelector` on rendered HTML. Neither can be
- * expressed in the other's terms. So the caller hands over what it measured and
- * this places it.
- *
- * READS ARE ALREADY DONE. Every `anchorTop` and `height` in `measured` was read
- * before this was called, which is the contract that keeps one reflow from
- * becoming one per card: `getBoundingClientRect` forces layout and every style
- * assignment invalidates it, so a pass that interleaves them pays per card.
- *
- * NOTHING BUT A POSITION IS WRITTEN ON A CARD. That is what makes it safe for a
- * `ResizeObserver` over those same cards to schedule this pass: a re-measure
- * cannot resize anything, so the observer cannot feed itself. The ONE size
- * written is the CONTAINER's, and it is the stated exception — the container's
- * children are absolutely positioned and contribute no height of their own, so
- * without it whatever follows the map is drawn over the top of it; and a card is
- * inset `left`/`right` inside the container, so its box depends on the
- * container's WIDTH and never on its height.
- *
- * ADRIFT CARDS GO AFTER THE MAP, IN ORDER, AND ARE COUNTED. A card whose anchor
- * this pass could not measure has `top: auto` — its static position, the
- * container's own top — so it would be drawn at the top of the map while
- * contributing nothing to the height below it; with every card adrift the
- * container stayed 0 tall and the whole map was underneath them. The end of the
- * map is the honest place: a card that points at nothing has no mark to be
- * beside, and that is where everything else with nowhere to be already goes.
- *
- * @param container the positioned context the cards live in
- * @param measured
- * @param ceiling the highest page position a card may take — the
- *   container's own top, in the same coordinates as every anchorTop
- * @returns the height written
- */
-export function placeCards(
-  container: HTMLElement,
-  measured: CardMeasurement[],
-  ceiling: number,
-  gap: number = RAIL_GAP,
-): number {
-  let bottom = 0;
-  const anchored = measured.filter(
-    (m): m is CardMeasurement & { anchorTop: number } => m.anchorTop !== null,
-  );
-  for (const placed of stackCards(anchored, gap, ceiling)) {
-    // NOT ROUNDED, and the two halves of that are one decision. `align()` wrote
-    // a rounded top and fed the UNROUNDED value to the next card's floor, so
-    // what was on screen and what the next placement assumed disagreed by up to
-    // half a pixel each time, compounding down the column. The arithmetic is
-    // exact and the browser lays out sub-pixel; rounding buys nothing and costs
-    // that.
-    placed.el.style.top = `${placed.top - ceiling}px`;
-    bottom = Math.max(bottom, placed.top + placed.height - ceiling);
-  }
-  for (const m of measured) {
-    if (m.anchorTop !== null) {
-      continue;
-    }
-    if (bottom > 0) {
-      bottom += gap;
-    }
-    m.el.style.top = `${bottom}px`;
-    bottom += m.height;
-  }
-  setStackHeight(container, bottom);
-  return bottom;
-}
-
-/**
- * setStackHeight is the one size write, and it COMPARES BEFORE IT WRITES.
- *
- * This runs on every scroll frame in the draft and from a ResizeObserver in
- * History; assigning an unchanged height would dirty layout for nothing and hand
- * the observer a reason to fire again. `null` clears it, which is what a
- * container whose cards are in flow needs — at a width where the rail goes under
- * the paper there is no "beside its mark" to aim at and no height to reserve.
- */
-export function setStackHeight(
-  container: HTMLElement,
-  px: number | null,
-): void {
-  const next = px === null ? '' : `${Math.max(0, Math.round(px))}px`;
-  if (heights.get(container) !== next) {
-    heights.set(container, next);
-    container.style.height = next;
-  }
-}
-
-/**
- * coalesce turns a burst of events into one pass in the next animation frame.
- *
- * A scroll fires faster than a layout read can answer and a drag-resize is a
- * burst, and every read in a placement pass forces layout. Both rails need
- * exactly this and both had written their own; it is four lines, which is
- * precisely the size at which two copies drift without anyone noticing.
- */
-export function coalesce(run: () => void): () => void {
-  let queued = false;
-  return () => {
-    if (queued) {
-      return;
-    }
-    queued = true;
-    window.requestAnimationFrame(() => {
-      queued = false;
-      run();
-    });
-  };
-}
+/* `coalesce` IS DELETED WITH `scheduleAnchors`, its one caller. It turned a
+   burst of scroll and resize events into one pass in the next animation frame,
+   because every read in a placement pass forces layout. Nothing places anything
+   against a mark any more. */
 
 /**
  * growthWatch watches cards for the one thing a placement pass cannot see: a

@@ -612,7 +612,6 @@ await page.waitForTimeout(750);
 // the wrong actor.
 await select(ANCHOR);
 await page.waitForTimeout(300);
-await page.click('.gly-composer .gly-comment-button');
 await page.fill('.gly-composer .gly-composer-text', REVIEWER_ASKED);
 await page.click('.gly-composer .gly-composer-send');
 await page.waitForTimeout(1000);

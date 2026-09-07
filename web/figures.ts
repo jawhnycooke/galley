@@ -27,6 +27,7 @@ import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AppShell, Thread } from './appshell.ts';
 import type { BlockRef, Region } from './wire';
+import type { Composer } from './composer.ts';
 
 // How far into the left gutter the section grip sits, from the heading's own
 // left edge. The document column has 20px of padding around it (see editor.css),
@@ -44,6 +45,25 @@ const CODE_GRIP_GUTTER_PX = 40;
 // built the button — and it is optional because the element exists before
 // the first paint has told it what block it is.
 type FigureElement = HTMLElement & { __glyBlock?: BlockRef | null };
+
+// openBlockBox puts the composer up as an EMPTY BOX over a block the caller has
+// already identified — the section §, the fence's {}, the figure's region. All
+// three arrive with the anchor decided, so none of them has a deny line to show
+// or a selection to quote; what they share is the reset, which is why it is one
+// function. (A SELECTION's opening is openComposerForm's, in composer.ts: it
+// has a refusal to consider and a caret to leave in the prose.)
+function openBlockBox(c: Composer): void {
+  c.root.hidden = false;
+  c.deny.hidden = true;
+  c.deny.textContent = '';
+  c.form.hidden = false;
+  c.input.value = '';
+  // Assigning `value` fires no `input` event, so the box would keep the height
+  // the last instruction grew it to. See growOnInput.
+  c.input.dispatchEvent(new Event('input'));
+  c.note.textContent = '';
+  c.note.classList.remove('gly-quiet');
+}
 
 export const figureMethods = {
   // --- figures, and the regions on them ---
@@ -223,8 +243,6 @@ export const figureMethods = {
     const c = this.composer;
     this.hideComposer();
     c.root.hidden = false;
-    c.bar.hidden = true;
-    c.button.hidden = true;
     c.deny.hidden = true;
     c.form.hidden = false;
     c.input.value = '';
@@ -359,18 +377,7 @@ export const figureMethods = {
     view.focus();
 
     const c = this.composer;
-    c.root.hidden = false;
-    c.bar.hidden = true;
-    c.button.hidden = true;
-    c.deny.hidden = true;
-    c.deny.textContent = '';
-    c.form.hidden = false;
-    c.input.value = '';
-    // Assigning `value` fires no `input` event, so the box would keep the
-    // height the last instruction grew it to. See openComposerForm.
-    c.input.dispatchEvent(new Event('input'));
-    c.note.textContent = '';
-    c.note.classList.remove('gly-quiet');
+    openBlockBox(c);
 
     // The block key comes from the SERVER's block list — it is a content hash,
     // and nothing in the browser can compute one. openSectionComposer's rule,
@@ -446,14 +453,11 @@ export const figureMethods = {
 
     const c = this.composer;
     const heading = doc.child(index);
-    c.root.hidden = false;
-    c.bar.hidden = false;
-    c.button.hidden = false;
-    c.deny.hidden = true;
-    c.deny.textContent = '';
-    c.form.hidden = true;
-    c.note.textContent = '';
-    c.note.classList.remove('gly-quiet');
+    // THE FORM, NOT A BAR WITH A BUTTON ON IT. The grip's gesture already says
+    // which section, so the box is what it should produce — the same one-step
+    // opening a selection now gets (composer.ts, placeComposerButton). The
+    // `Add instruction` bar it used to open is deleted.
+    openBlockBox(c);
 
     // The block key comes from the SERVER's block list — it is a content hash,
     // and nothing in the browser can compute one. A heading the last pending
@@ -465,12 +469,16 @@ export const figureMethods = {
     c.block = ref
       ? { key: ref.key, label: heading.textContent, region: null }
       : null;
+    // AND THE REFUSAL LANDS ON THE CONTROL THAT WOULD FILE IT. It used to
+    // disable the `Add instruction` button, which was the step BEFORE the box;
+    // there is no such step, so the box opens and its `file` is what is dead —
+    // the reviewer reads why beside the button they were about to press.
     if (!ref) {
-      c.button.disabled = true;
+      c.send.disabled = true;
       c.note.textContent =
         'not in the document yet — it lands on the next sync';
     } else {
-      c.button.disabled = false;
+      c.send.disabled = false;
     }
 
     // BELOW THE HEADING, for placeComposer's reason and one of its own: the
@@ -484,6 +492,7 @@ export const figureMethods = {
     this.placeComposer(start, end);
     this.headComposer(heading.textContent);
     this.grip.hidden = true;
+    c.input.focus();
   },
 };
 

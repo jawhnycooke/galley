@@ -502,7 +502,6 @@ const select = (phrase) =>
 const instructAndSend = async (quote, ask) => {
   await select(quote);
   await page.waitForTimeout(300);
-  await page.click('.gly-composer .gly-comment-button');
   await page.fill('.gly-composer .gly-composer-text', ask);
   await page.click('.gly-composer .gly-composer-send');
   // WAIT FOR THE INSTRUCTION TO BE PENDING, not for the clock: the verdict

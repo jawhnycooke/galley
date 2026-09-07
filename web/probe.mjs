@@ -6551,7 +6551,7 @@ function bindsContentField(src) {
     check(
       'the built bundle seals the composer textarea, and releases it again',
       src.includes('.gly-composer button, .gly-composer-text') &&
-        src.includes('.gly-comment-button, .gly-composer-text'),
+        src.includes('.gly-composer-cancel, .gly-composer-text'),
     );
     // AND THE HALF THE SEAL OWNS OUTRIGHT — the controls with no painter the
     // unseal EDGE runs, which is the sharpened form of the invariant (a
@@ -6574,7 +6574,7 @@ function bindsContentField(src) {
     check(
       'the built bundle carries the verbs the seal owns in both directions',
       src.includes('.gly-overall-input, .gly-composer-send, ') &&
-        src.includes('.gly-comment-button, .gly-composer-text') &&
+        src.includes('.gly-composer-cancel, .gly-composer-text') &&
         !src.includes('.gly-census-count, .gly-overall-input'),
     );
     // And the Strike button is GONE — with its class, its label and its

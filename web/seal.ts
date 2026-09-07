@@ -292,12 +292,14 @@ export const SEALED_VERBS =
  *     `this.sealed` every time it opens.
  *   - `.gly-composer-send` is built once in `makeComposer` and appended to the
  *     body.
- *   - `.gly-comment-button`, its sibling, was left OUT of this list for one
- *     round on the strength of "it recovers through
- *     `placeComposerButton`/`hideComposer`" — and it does, but only when the
- *     reviewer makes a gesture, and a gesture is not an edge. Its three writers
- *     are `placeComposerButton` (only on the `place` verdict; a selection that
- *     has not moved is `keep`, which writes no flag), `hideComposer` and
+ *   - `.gly-comment-button`, its sibling, was here for the same reason and is
+ *     DELETED WITH THE BUTTON: the composer opens its form on the selection
+ *     now (spec §1), so there is no intermediate press to seal. It was left
+ *     OUT of this list for one round first, on the strength of "it recovers
+ *     through `placeComposerButton`/`hideComposer`" — which it did, but only
+ *     when the reviewer made a gesture, and a gesture is not an edge. Its
+ *     writers were `placeComposerButton` (only on the `place` verdict; a
+ *     selection that has not moved is `keep`, which writes no flag) and
  *     `openSectionComposer`, and the unseal edge runs none of them. So a
  *     composer left placed across a seal came back from Reopen with a dead
  *     comment button, and clicking it could not even fix it: `.gly-composer`
@@ -394,7 +396,7 @@ export const SEALED_VERBS =
  * failure instead of a silent subtraction from a group query. */
 export const SEAL_ONLY_VERBS =
   '.gly-overall-input, .gly-composer-send, ' +
-  '.gly-composer-cancel, .gly-comment-button, .gly-composer-text, ' +
+  '.gly-composer-cancel, .gly-composer-text, ' +
   '.gly-capture-cancel';
 
 export function reopenLine(by: string, note: string): string {

@@ -991,7 +991,6 @@ if (anchor) {
   note(`anchoring the pre-flight thread on ${JSON.stringify(anchor)}`);
   await select(anchor);
   await page.waitForTimeout(400);
-  await page.click('.gly-composer .gly-comment-button');
   await page.fill('.gly-composer .gly-composer-text', REVIEWER_ASKED);
   await page.click('.gly-composer .gly-composer-send');
   await page.waitForTimeout(1200);

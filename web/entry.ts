@@ -1280,12 +1280,32 @@ class App implements AppState {
       // a popover that is about the reviewer's newest selection. The handle is
       // held so `placeComposerButton` can cancel it; nothing else in this file
       // may hide the composer from a timer without doing the same.
+      //
+      // AND AN OPEN BOX IS NEVER DISMISSED BY A BLUR AT ALL. This timer was
+      // written for the popover's RESTING face — a bar with one button on it,
+      // over a selection the reviewer had finished with — and dismissing that
+      // on a click elsewhere was free, because reopening it was one gesture.
+      // A selection opens the BOX now (spec §1), and the editor loses focus for
+      // reasons that are not the reviewer walking away: the textarea itself
+      // takes it, a remote rebuild moves it, the window loses it. Throwing a
+      // half-written instruction away on any of those is unrecoverable —
+      // nothing in galley un-deletes typing.
+      //
+      // WHAT CLOSES AN OPEN BOX IS THE SELECTION, WHICH IS THE HONEST OWNER:
+      // clicking into other words is a new placement, and `placeComposerButton`
+      // hides an EMPTY box on the way (see its `hide` branch, which keeps one
+      // the reviewer is in or has written in). Esc and `cancel` close it
+      // outright. The blur timer keeps only the case it was built for.
       window.clearTimeout(this.blurDismiss);
       this.blurDismiss = window.setTimeout(() => {
         this.blurDismiss = 0;
-        if (!this.composer.root.contains(document.activeElement)) {
-          this.hideComposer();
+        if (this.composer.root.contains(document.activeElement)) {
+          return;
         }
+        if (!this.composer.form.hidden) {
+          return;
+        }
+        this.hideComposer();
       }, 0);
     });
 

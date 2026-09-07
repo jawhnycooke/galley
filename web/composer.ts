@@ -109,8 +109,6 @@ export interface DocRange {
 // declared here rather than assumed always present.
 export interface Composer {
   root: HTMLElement;
-  bar: HTMLElement;
-  button: HTMLButtonElement;
   deny: HTMLElement;
   form: HTMLElement;
   head: HTMLElement;
@@ -316,29 +314,22 @@ export const composerMethods = {
     root.className = 'gly-composer';
     root.hidden = true;
 
-    // ONE NOUN FOR THE THING THE REVIEWER IS MAKING. The surface is called
-    // Instructions, the card it produces says INSTRUCTION, and this button
-    // said `comment` — two nouns and a third verb for one object, on the very
-    // first gesture a reviewer makes. `comment` was honest about the WIRE
-    // (/_galley/instruct still takes `op: 'comment'`, and the server's thread
-    // model is a conversation) and that is exactly the wrong audience for a
-    // label: the reviewer is not filing a remark for someone to reply to, they
-    // are adding an instruction that the next revision discharges. The wire's
-    // spelling is deliberately left alone — renaming it would be a protocol
-    // change wearing a copy fix's clothes.
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'gly-comment-button';
-    button.textContent = 'Add instruction';
-
-    // The Strike button that used to sit beside comment is RETIRED (the
-    // 2026-08-15 trail spec): it was a way to REQUEST a deletion when
-    // deletions were proposals, and under the reviewer's-hand contract delete
-    // just deletes — the button was a second spelling of Backspace, and its
-    // cross-block conservatism died with it. Deletion is the keyboard's.
-    const bar = document.createElement('div');
-    bar.className = 'gly-composer-bar';
-    bar.append(button);
+    // `.gly-comment-button` AND `.gly-composer-bar` ARE DELETED, AND THAT IS
+    // THE SPEC'S OWN RULING. 02-states-and-behavior.md §1: *selecting words
+    // opens the composer*. What shipped was a bar carrying one button reading
+    // `Add instruction`, so the reviewer selected, then pressed a control that
+    // had just appeared under their cursor, and only then got a box — two
+    // gestures for one intent, with the first of them a press on something
+    // that moved into the place they were pointing.
+    //
+    // The bar existed to hold that button and nothing else, and the deny line
+    // was written as its replacement ("deny replaces the whole BAR"), so the
+    // deny line simply becomes the composer's other face: a placement is
+    // either a box to type in or the reason there is not one.
+    //
+    // (The Strike button that once sat beside it was retired earlier, by the
+    // 2026-08-15 trail spec: it requested a deletion back when deletions were
+    // proposals, and under the reviewer's-hand contract delete just deletes.)
 
     const form = document.createElement('div');
     form.className = 'gly-composer-form';
@@ -436,9 +427,9 @@ export const composerMethods = {
 
     // A native prompt() would block the whole page and is unreachable from a
     // browser test; an inline composer is neither.
-    // deny replaces the whole BAR, not just the comment button: in a fence
-    // neither affordance is available, and the reason is the same one for both.
-    root.append(bar, deny, form, note);
+    // The deny line is the composer's other face — see the note above the
+    // deleted bar. In a fence there is no box, and this is the reason why.
+    root.append(deny, form, note);
     // Keeping focus in the editor keeps the selection alive — a blurred
     // ProseMirror selection is not a selection any more.
     root.addEventListener('mousedown', (e) => {
@@ -448,11 +439,14 @@ export const composerMethods = {
     });
     document.body.appendChild(root);
 
-    // ONE OPENING, TWO DOORS. `Add instruction` on the popover is one; the
-    // right-click menu's `on this passage` is the other, and both have to leave
-    // the composer in exactly the same state or the two gestures are two
-    // features. See openComposerForm.
-    button.addEventListener('click', () => this.openComposerForm());
+    // ONE OPENING, TWO DOORS. The SELECTION is one — placeComposerButton opens
+    // the form on a fresh placement — and the right-click menu's `on this
+    // passage` is the other; both go through openComposerForm, so the two
+    // gestures cannot become two features.
+    // AND ENTERING THE BOX IS WHAT DIMS THE PAGE. A selection opens the box
+    // without taking the caret, so the reviewer may still be typing into their
+    // own words; the document recedes when they move into the instruction.
+    input.addEventListener('focus', () => this.dimForComposing());
     send.addEventListener('click', () => this.sendComment());
     // hideComposer and not merely "close the form": cancelling an instruction
     // is abandoning the whole placement, and a composer left showing its bar
@@ -462,8 +456,6 @@ export const composerMethods = {
 
     return {
       root,
-      bar,
-      button,
       deny,
       form,
       head,
@@ -489,21 +481,59 @@ export const composerMethods = {
    * would be offering a write the server will 400 — the deny line's whole job
    * is that the refusal arrives before the typing.
    */
-  openComposerForm(this: AppShell) {
+  /* AND IT DOES NOT ALWAYS TAKE THE CARET, WHICH IS THE WHOLE OF `focus`.
+   *
+   * A selection opens this box now (spec §1), and a selection is ALSO how the
+   * reviewer edits by hand: select the words, type the replacement. If opening
+   * the box took focus, that gesture would type the reviewer's correction into
+   * an instruction to the agent instead of into their own document — the exact
+   * inversion of galley's contract, on its most ordinary edit. So a selection
+   * opens the box and LEAVES THE CARET IN THE PROSE: typing replaces the words,
+   * and clicking or tabbing into the box is what says "this one is for you".
+   *
+   * The doors that already name a target — the right-click menu's `on this
+   * passage`, the section §, the fence's `{}`, the figure's region — do take
+   * the caret, because the reviewer has just asked for a box and there is
+   * nothing else their next keystroke could mean.
+   */
+  openComposerForm(this: AppShell, focus = true) {
     const c = this.composer;
     if (c.root.hidden || !c.deny.hidden) {
       return;
     }
     c.form.hidden = false;
-    c.bar.hidden = true;
     c.note.textContent = '';
     c.note.classList.remove('gly-quiet');
     c.input.value = '';
     // Assigning `value` fires no `input` event, so the box would keep the
     // height the LAST instruction grew it to. See growOnInput.
     c.input.dispatchEvent(new Event('input'));
+    if (!focus) {
+      return;
+    }
     c.input.focus();
+    // AND THE DISMISSAL THIS FOCUS JUST QUEUED IS CANCELLED. Focusing the box
+    // BLURS the editor, and the editor's blur handler queues a zero-timeout
+    // check that hides the composer when focus is not inside it — a check
+    // written for a click that landed somewhere else entirely. It normally
+    // resolves harmlessly (focus IS inside the composer by then), but anything
+    // that returns focus to the prose within that tick — the reviewer clicking
+    // straight back into the words, a harness re-making the selection — makes
+    // the queued callback dismiss a box the page opened a moment ago. The blur
+    // handler's own comment states the rule: nothing may hide the composer from
+    // a timer without cancelling the handle, and this is the second holder of
+    // it after placeComposerButton.
+    window.clearTimeout(this.blurDismiss);
+    this.blurDismiss = 0;
 
+    this.dimForComposing();
+  },
+
+  /* THE DOCUMENT RECEDES WHEN THE REVIEWER IS IN THE BOX, and not merely when
+   * the box is on screen. The box opens on a selection without taking the caret
+   * (see openComposerForm), and dimming the page while they are still typing
+   * INTO the prose would fade the words they are correcting. */
+  dimForComposing(this: AppShell) {
     // Dim everything but the block the selection is in, so the reviewer's
     // eye has one thing to read while they type.
     //
@@ -603,6 +633,26 @@ export const composerMethods = {
       c.root.hidden ? null : c.key,
     );
     if (next.action === 'hide') {
+      // A BOX WITH WORDS IN IT IS NOT CLOSED BY LOSING THE SELECTION. The
+      // selection can go without the reviewer doing anything: focusing this
+      // textarea takes it, and every remote rebuild — the agent's save, the
+      // reviewer's own debounced projection — replaces the document and drops
+      // it. Under the old two-step that window was small, because the form
+      // only opened on a deliberate press; now that a selection opens the box
+      // directly (spec §1), a rebuild landing a beat later would take a
+      // half-typed instruction off the screen with no gesture behind it.
+      //
+      // The anchor is safe either way — `c.range`/`c.key` were taken at
+      // placement and are what sendComment posts — so what is kept here is the
+      // reviewer's place in the box: it is open and they are either in it or
+      // have already written something. An open box nobody is in and nothing
+      // is written in still closes, because that IS the selection going away.
+      if (
+        !c.form.hidden &&
+        (c.input.value.trim() || document.activeElement === c.input)
+      ) {
+        return;
+      }
       this.hideComposer();
       return;
     }
@@ -618,7 +668,6 @@ export const composerMethods = {
     // new selection — and a block target left behind would file the next
     // comment against the previous section's heading.
     c.block = null;
-    c.button.disabled = false;
     // A PLACEMENT OUTRANKS A DEFERRED DISMISSAL. See the blur handler: its
     // zero-timeout check can be queued behind the very selection that opens
     // this composer, and it would then hide a popover the reviewer had just
@@ -632,8 +681,6 @@ export const composerMethods = {
     // a fence, a table. `button.hidden` is set as well as the bar's so the
     // DOM says which affordance is unavailable and not merely that a
     // container is hidden.
-    c.bar.hidden = next.denied;
-    c.button.hidden = next.denied;
     c.deny.hidden = !next.denied;
     c.deny.textContent = next.denyReason;
     c.form.hidden = true;
@@ -661,7 +708,7 @@ export const composerMethods = {
     // line, and `openComposerForm` is already a no-op over one — the refusal
     // has to arrive before the typing, not after it.
     if (!next.denied) {
-      this.openComposerForm();
+      this.openComposerForm(false);
     }
   },
 
@@ -717,8 +764,6 @@ export const composerMethods = {
   hideComposer(this: AppShell) {
     this.composer.root.hidden = true;
     this.composer.form.hidden = true;
-    this.composer.bar.hidden = false;
-    this.composer.button.hidden = false;
     this.composer.deny.hidden = true;
     this.composer.deny.textContent = '';
     this.composer.note.textContent = '';
@@ -727,7 +772,6 @@ export const composerMethods = {
     this.composer.range = null;
     this.composer.key = null;
     this.composer.block = null;
-    this.composer.button.disabled = false;
     document.body.classList.remove('gly-composing');
     document
       .querySelectorAll('.gly-composing-target')

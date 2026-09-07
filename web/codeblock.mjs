@@ -301,7 +301,9 @@ await page.waitForTimeout(400);
     };
     const deny = document.querySelector('.gly-composer-deny');
     return {
-      button: shown('.gly-composer .gly-comment-button'),
+      // `button:` read `.gly-comment-button`, the press that used to stand
+      // between a selection and its box; the box opens on the selection now
+      // (spec §1) and the button is deleted, so the FORM is the whole claim.
       form: shown('.gly-composer .gly-composer-form'),
       deny: shown('.gly-composer-deny'),
       said: deny ? deny.textContent : '',
@@ -310,7 +312,7 @@ await page.waitForTimeout(400);
   });
   check(
     'a selection inside the fence offers NO range composer',
-    refused.selected === COMMAND && !refused.button && !refused.form,
+    refused.selected === COMMAND && !refused.form,
     refused,
   );
   check(
@@ -343,7 +345,10 @@ await page.waitForSelector('.gly-composer-form:not([hidden])', {
   const opened = await page.evaluate(() => {
     const el = (sel) => document.querySelector(sel);
     return {
-      bar: !el('.gly-composer-bar').hidden,
+      // `bar:` read `.gly-composer-bar`, the strip that held the intermediate
+      // `Add instruction` press. It is deleted with the press (spec §1): a
+      // gesture that already says which block opens the box itself, so the
+      // FORM being up — waited for above — is the whole of that claim.
       deny: !el('.gly-composer-deny').hidden,
       head: el('.gly-composer-head').textContent,
       send: el('.gly-composer-send').disabled,
@@ -354,8 +359,8 @@ await page.waitForSelector('.gly-composer-form:not([hidden])', {
     };
   });
   check(
-    'clicking the grip opens the FORM \u2014 no bar to press, no deny line',
-    !opened.bar && !opened.deny && !opened.send,
+    'clicking the grip opens the FORM \u2014 no press in between, no deny line',
+    !opened.deny && !opened.send,
     opened,
   );
   check(

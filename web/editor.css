@@ -1842,14 +1842,9 @@ body.gly-collapsed > main {
   font: 13px/1.5 var(--gly-sans);
   animation: gly-rise 0.25s ease;
 }
-.gly-composer-bar {
-  display: flex;
-  gap: 0.3rem;
-}
-.gly-comment-button:hover {
-  border-color: var(--gly-hl);
-  color: var(--gly-hl);
-}
+/* `.gly-composer-bar` and `.gly-comment-button` are deleted with the
+   intermediate `Add instruction` press — the composer opens its form on the
+   selection (spec §1, web/composer.ts). */
 /* (.gly-strike-button's rules retired with the button — the trail cut.) */
 /* 21rem AND NOT 16, AND THE HEAD IS WHY. The form was as wide as its textarea
    needed to be and nothing else read across it; the head does — `INSTRUCTION ·
@@ -3475,7 +3470,6 @@ body.gly-revising .gly-dot {
 .gly-bubble[hidden],
 .gly-bottombar[hidden],
 .gly-composer[hidden],
-.gly-composer-bar[hidden],
 .gly-composer-deny[hidden],
 .gly-composer-form[hidden],
 .gly-capture[hidden],

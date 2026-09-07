@@ -1441,17 +1441,25 @@ await page.waitForTimeout(300);
   // unchanged and is asserted the same way: the rail holds NONE of it. Where
   // the door does live is asserted positively so this cannot pass on a page
   // that has simply lost it.
+  // THE `.gly-rail` CLAUSES ARE RETIRED, NOT WEAKENED. `.gly-overall-toggle`
+  // and `.gly-capture-open` inside `.gly-rail` were two counts of zero inside a
+  // container that is not in the DOM — they could not fail. The toggle is
+  // deleted outright, so its ABSENCE FROM THE PAGE is what is asserted; the
+  // door exists and its place is asserted positively, which is the clause that
+  // can go red if it is ever lost.
   const railChrome = await page.evaluate(() => ({
-    toggle: document.querySelectorAll('.gly-rail .gly-overall-toggle').length,
-    door: document.querySelectorAll('.gly-rail .gly-capture-open').length,
+    toggle: document.querySelectorAll('.gly-overall-toggle').length,
+    railGone: document.querySelector('.gly-rail') === null,
     bar: document.querySelectorAll('.gly-bar .gly-capture-open').length,
+    doors: document.querySelectorAll('.gly-capture-open').length,
     slot: document.querySelectorAll('.gly-docslot .gly-capture-open').length,
   }));
   check(
-    'capture is chrome — the door is in the doc slot and the rail holds none of it',
+    'capture is chrome — one door, in the doc slot, and nowhere else',
     railChrome.toggle === 0 &&
-      railChrome.door === 0 &&
+      railChrome.railGone &&
       railChrome.bar === 0 &&
+      railChrome.doors === 1 &&
       railChrome.slot === 1,
     railChrome,
   );
@@ -3382,11 +3390,20 @@ await page.waitForTimeout(500);
 //   exactly one surface, and rows.ts's own header is where that is argued.
 //
 //   §10 asked whether the rail scrolled with the document, and lit the words a
-//   card was about. Both halves are answered by the row being AT the block: a
-//   decoration on the node scrolls with the node, and the words a row is about
-//   are the words it is pinned under. The light (`.gly-lit`) survives as a
-//   mechanism and is read in `web/rounds-ux.mjs`; the card-to-mark link it was
-//   read through here does not exist to break.
+//   card was about. The scrolling half is answered by the row being AT the
+//   block: a decoration on the node scrolls with the node, and the words a row
+//   is about are the words it is pinned under.
+//
+//   THE LIGHT'S OWN HALF WAS RETIRED ON A FALSE PREMISE, and this is the
+//   correction. The note here read "the light survives as a mechanism and is
+//   read in `web/rounds-ux.mjs`" — `grep -c gly-lit web/rounds-ux.mjs` is 0,
+//   and it always was. `web/lit.ts` and entry.ts's hover/focus wiring are live
+//   and resolve from a PROSE MARK (`.ProseMirror [data-run]`), not from a card:
+//   the card end of the pairing went with the rail, the prose end did not. So
+//   the prose half is asserted here, in §10b below, over the three claims that
+//   are still true of it — it lights on hover, it is a different wash from the
+//   highlight underneath it, and it SURVIVES A SERVER MUTATION, which is the
+//   whole reason it is a decoration rather than a class.
 //
 //   §10a asked whether the rail began BELOW the bar, and its subject was the
 //   rail's `position: absolute` with `top: 0` — an element out of flow whose
@@ -3590,7 +3607,7 @@ console.log('\n--- §8a · a live page owns its own disabled flags ---');
   // the other end). `.gly-overall-input` and `.gly-composer-text` have no
   // painter at all: the whole-document form is built once and only its entries
   // are rebuilt, and the composer's box is placed by GESTURES — the reason
-  // `.gly-comment-button` is in SEAL_ONLY_VERBS at all.
+  // `.gly-composer-text` is in SEAL_ONLY_VERBS at all.
   //
   // THE SECOND SELECTOR WAS `.gly-census-overall`, which is not built any
   // more: the whole-document handle was a bar control opening a floating
@@ -4296,21 +4313,24 @@ const placeComposer = (nth = 0) =>
   // reviewer is in when one lands — a selection made, the comment affordance
   // showing — and it is the state the reopen read below cannot fail without.
   //
-  // `.gly-comment-button` is in SEALED_VERBS through `.gly-composer button`, so
+  // `.gly-composer-send` is in SEALED_VERBS through `.gly-composer button`, so
   // the seal kills it; what it does NOT have is anything that hands it back on
   // the unseal edge. Its writers are all GESTURES — `placeComposerButton` on a
   // selectionUpdate, `hideComposer`, `openSectionComposer` — and the edge runs
   // none of them. The gate could not see that because the only drive it made
   // came AFTER the reopen and moved the selection, which yields
-  // `composerPlacement`'s `place` and re-enables the button on the way past;
+  // `composerPlacement`'s `place` and re-enables the control on the way past;
   // `keep`, the verdict for a selection that has not moved, writes no flag at
-  // all. So the flag is read here BEFORE any gesture, and the fix was to make
-  // the seal own both of the composer's buttons rather than one.
+  // all. So the flag is read here BEFORE any gesture.
+  //
+  // IT WAS `.gly-comment-button` UNTIL THE COMPOSER LOST ITS INTERMEDIATE
+  // PRESS. The selection opens the box directly now (spec §1), so the control
+  // that has to survive a reopen is the one that FILES — read below.
   await placeComposer(0);
   await page.waitForTimeout(400);
   const placed = await page.evaluate(() => {
     const c = document.querySelector('.gly-composer');
-    const b = document.querySelector('.gly-comment-button');
+    const b = document.querySelector('.gly-composer-send');
     return { open: !!c && !c.hidden, live: !!b && !b.disabled };
   });
   check(

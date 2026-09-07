@@ -16,6 +16,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { EditorView } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AppShell } from './appshell.ts';
+import type { AskView, RoundView } from './wire';
 import { postJSON } from './net.ts';
 
 export interface RowSpec {
@@ -107,9 +108,9 @@ function blockRange(doc: PMNode, index: number): [number, number] | null {
 // renders three regions, all matching that paragraph, and three strips stacked
 // under it read as three separate rewrites of the same words. The longest
 // deletion is kept because it is the one that shows most of what was there.
-export const PROBE_MIN_INS = 8;
+const PROBE_MIN_INS = 8;
 export const PROBE_MIN_DEL = 20;
-export const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 export function matchBlocks(
   changes: { ins: string; del: string }[],
   blocks: string[],
@@ -369,6 +370,42 @@ export function runBlockIndex(
   return -1;
 }
 
+// The asks of the newest REVISE round, or none. `reason` tells a revise apart
+// from the other things a round can be (a restore, a could-not); the newest one
+// is the round whose answers the page is showing.
+function latestRevise(rounds: RoundView[] | null | undefined): AskView[] {
+  let round: RoundView | null = null;
+  for (const r of rounds ?? []) {
+    if (r.reason === 'revise' && (!round || r.n > round.n)) {
+      round = r;
+    }
+  }
+  return round?.asks ?? [];
+}
+
+// Where a SENT ask's row hangs. The pending thread is gone by definition, but a
+// thread that has not been sent yet can still be keyed the same way (the
+// arrival poll and the versions poll are on different beats), so its anchor is
+// preferred while it lasts — a key is exact and a quote is a text match.
+function askBlockIndex(shell: AppShell, doc: PMNode, ask: AskView): number {
+  const thread = shell.comments.find((t) => t.key === ask.key);
+  const block = thread?.anchorKey
+    ? shell.blocks.find((b) => b.key === thread.anchorKey)
+    : undefined;
+  return block ? block.index : quoteBlockIndex(doc, ask.quote ?? '');
+}
+
+// The word a sent ask's row reads, per spec §2-§4.
+function askState(
+  phase: 'revising' | 'review' | 'cannot',
+  answered: boolean,
+): RowSpec['state'] {
+  if (phase === 'revising') {
+    return 'writing…';
+  }
+  return phase === 'review' && answered ? 'applied' : 'not applied';
+}
+
 // The mixin: rows follow the pending instructions; WAS/revised follow the
 // arrival (Task 11).
 export const rowMethods = {
@@ -387,44 +424,24 @@ export const rowMethods = {
   // instruction is a fact about the past, and a `×` on it would be offering to
   // un-say something the agent has already read.
   sentRows(this: AppShell, phase: 'revising' | 'review' | 'cannot'): RowSpec[] {
-    const rounds = this.versionsPanel?.rounds ?? [];
-    let round = null;
-    for (const r of rounds) {
-      if (r.reason === 'revise' && (!round || r.n > round.n)) {
-        round = r;
-      }
-    }
     const doc = this.editor.state.doc;
-    const rows: RowSpec[] = [];
-    for (const a of round?.asks ?? []) {
-      // The pending thread is gone by definition, but a thread that has NOT
-      // been sent yet can still be keyed the same way (the arrival poll and the
-      // versions poll are on different beats), so its anchor is preferred while
-      // it lasts — a key is exact and a quote is a text match.
-      const thread = this.comments.find((t) => t.key === a.key);
-      const block = thread?.anchorKey
-        ? this.blocks.find((b) => b.key === thread.anchorKey)
-        : undefined;
-      const index = block ? block.index : quoteBlockIndex(doc, a.quote ?? '');
+    return latestRevise(this.versionsPanel?.rounds).flatMap((a) => {
+      const index = askBlockIndex(this, doc, a);
       if (index < 0) {
-        continue;
+        return [];
       }
-      const state: RowSpec['state'] =
-        phase === 'revising'
-          ? 'writing…'
-          : phase === 'review' && a.answered
-            ? 'applied'
-            : 'not applied';
-      rows.push({
-        key: a.key,
-        index,
-        text: a.text,
-        state,
-        tone: state === 'not applied' ? 'coral' : 'accent',
-        removable: false,
-      });
-    }
-    return rows;
+      const state = askState(phase, a.answered);
+      return [
+        {
+          key: a.key,
+          index,
+          text: a.text,
+          state,
+          tone: state === 'not applied' ? 'coral' : 'accent',
+          removable: false,
+        },
+      ];
+    });
   },
 
   paintRows(this: AppShell): void {

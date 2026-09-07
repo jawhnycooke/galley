@@ -492,7 +492,8 @@ export interface AppMethods {
   closeSheet(): void;
   closeVerdictMenu(): void;
   hideComposer(): void;
-  openComposerForm(): void;
+  openComposerForm(focus?: boolean): void;
+  dimForComposing(): void;
   menuItems(): MenuItem[];
   hideRefusal(): void;
   runsNow(): SuggestionRun[];
