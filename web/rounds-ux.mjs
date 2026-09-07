@@ -2596,47 +2596,40 @@ try {
       },
     ],
   );
-  // A MISSING SURFACE FAILS A CHECK, IT DOES NOT THROW THE RUN AWAY. A gate
-  // that dies on the first absence reports one red where there are several, and
-  // the several are what say whether the diagnosis is right — run against a
-  // build whose arrival raises no strip, an unguarded wait here took every
-  // check below it with it and reported a TimeoutError instead of a claim.
-  // AND IT MUST BE THE STRIP FOR *THIS* ARRIVAL. `:not([hidden])` waits for A
-  // strip, and by this point in the file an EARLIER arrival has already raised
-  // one — so the wait returned instantly and every check below read the
-  // previous round's sentence. It reported `round 3 answered · v6 · 2 changes`
-  // against a record whose last round was v8, which reads as the server cutting
-  // phantom rounds and is nothing of the kind: the strip was two arrivals
-  // stale. Measured at #181 with a true baseline worktree — the SAME eight-round
-  // record, 129 ok, 0 failed — so the record was never what moved. What moved
-  // was how long the sections above take, which is not something a check about
-  // an arrival should depend on.
+  // AN ARRIVAL NO LONGER RAISES THE STRIP — TASK 11 MOVED THAT SENTENCE INTO
+  // THE PAPER. The round now says which words moved and what they said before
+  // where it happened (the tinted block, the WAS strip under it, the eyebrow's
+  // NEEDS YOUR APPROVAL), so `showArrival` stopped calling `showStrip` and the
+  // three claims that read the strip's ARRIVAL SENTENCE — that an arrival
+  // raises it at all, what that sentence says, and that the proposal strip's
+  // `show me`/fade suffix are absent from it — are retired here rather than
+  // left red. TASK 14 IS THE DELETER: it removes the strip surface itself
+  // (`makeStrip`/`showStrip`/`hideStrip`, `.gly-strip*` CSS) and with it the
+  // checks below that still measure the element's geometry, verbs and border,
+  // which are stale-proposal-strip readings from this point on and pass only
+  // because the element outlives its arrival role.
   //
-  // The round is committed by the time `agentReturns` returns, so the record is
-  // authoritative here and the strip is what has to catch up to it.
-  const landedN = await page.evaluate(async () => {
-    const rounds = (await (await fetch('/_galley/versions')).json()).rounds;
-    return rounds[rounds.length - 1].n;
-  });
-  let stripUp = true;
-  try {
-    await page.waitForSelector('.gly-strip:not([hidden])', { timeout: 15000 });
-    await page.waitForFunction(
-      (n) =>
-        (document.querySelector('.gly-strip-text')?.innerText || '').includes(
-          `v${n}`,
-        ),
-      landedN,
+  // THE STRIP'S SENTENCE WAS ALSO THIS SECTION'S CLOCK — the wait for `v{n}` on
+  // it was what said the browser had finished landing the round. With it gone
+  // the wait re-points to the frame the arrival repaints: the primary leaves
+  // `revising`. That is the arrival landing in the UI, not a claim about it —
+  // which verb replaces `revising`, and whether the History chip goes amber,
+  // are still asserted below. Bounded and swallowed, so a build that never
+  // lands reports the several reds below instead of one TimeoutError.
+  await page
+    .waitForFunction(
+      () =>
+        !(
+          document.getElementById('gly-revise')?.innerText || 'revising'
+        ).includes('revising'),
+      undefined,
       { timeout: 15000 },
-    );
-  } catch {
-    stripUp = false;
-  }
-  check('a round coming back raises the arrival strip at all', stripUp);
-  if (!stripUp)
-    await page.evaluate(() => {
-      document.querySelector('.gly-strip').hidden = false;
-    });
+    )
+    .catch(() => {});
+  await page.evaluate(() => {
+    const el = document.querySelector('.gly-strip');
+    if (el) el.hidden = false;
+  });
   const arrived = await page.evaluate(() => {
     const el = document.querySelector('.gly-strip');
     const r = el.getBoundingClientRect();
@@ -2687,24 +2680,9 @@ try {
     async () => (await (await fetch('/_galley/versions')).json()).rounds,
   );
   const arrivedRound = record6[record6.length - 1];
-  check(
-    'the strip says which round came back, which version it made, and how much moved',
-    arrived.text ===
-      `round ${
-        record6
-          .filter((r) => !(r.n === 1 && r.reason === 'opened'))
-          .filter((r) => !record6.some((o) => o.answers === r.n)).length
-      } answered · v${arrivedRound.n} · ${
-        arrivedRound.changed === 1
-          ? '1 change'
-          : `${arrivedRound.changed} changes`
-      }`,
-    JSON.stringify({
-      said: arrived.text,
-      n: arrivedRound.n,
-      changed: arrivedRound.changed,
-    }),
-  );
+  // (Retired with the strip's arrival sentence — see the note above: the round
+  // says which version it made and how much moved inside the paper now, and
+  // Task 14 deletes the strip.)
   // THE COUNT IS THE SERVER'S. `changed` comes off `/_galley/versions`, computed
   // by diff.Regions per request, and the strip is the FIRST surface to say how
   // much moved — before anything has been rendered that a count could be
@@ -2738,11 +2716,9 @@ try {
       arrived.dismissColor === arrived.muted,
     JSON.stringify(arrived),
   );
-  check(
-    'the old proposal strip’s verb and its fade suffix are not on an arrival',
-    arrived.showMe === false && arrived.fade === false,
-    JSON.stringify(arrived),
-  );
+  // (Retired with the strip's arrival sentence — see the note above: what is
+  // up here is the previous PROPOSAL strip, `show me` and fade suffix and all,
+  // because an arrival no longer replaces it. Task 14 deletes the strip.)
   check(
     'the History chip is amber until the round is read',
     arrived.chipNew === true && arrived.chipColor === arrived.accent,
