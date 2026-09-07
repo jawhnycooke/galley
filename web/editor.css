@@ -4088,3 +4088,29 @@ body.gly-page #editor .ProseMirror {
 body.gly-page .ProseMirror p.gly-shell-marker {
   display: none;
 }
+
+/* --- the footer --- */
+.gly-timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--gly-footer-fade); padding: 28px 28px 22px; font-family: var(--gly-mono); }
+.gly-timeline-grid { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
+.gly-timeline-left { min-width: 0; }
+.gly-timeline-right { display: flex; align-items: center; gap: 10px; padding-bottom: 22px; position: relative; }
+.gly-revise-trail { font-size: 11px; color: var(--gly-muted); white-space: nowrap; min-width: 23ch; text-align: right; }
+main { padding-bottom: 220px; }
+
+#gly-revise.gly-revise { border: 0; border-radius: 8px; padding: 11px 18px; font: 600 14px/1.2 var(--gly-sans); display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; cursor: pointer; background: var(--gly-accent); color: var(--gly-on-accent); box-shadow: var(--gly-accent-glow); transition: filter .15s; }
+#gly-revise.gly-revise:hover { filter: brightness(1.1); }
+#gly-revise .gly-revise-label { font-variant-numeric: tabular-nums; }
+#gly-revise.gly-approve-zero { background: var(--gly-fg); color: var(--gly-bg); box-shadow: none; }
+#gly-revise.gly-busy { background: var(--gly-panel-bg); color: var(--gly-muted); box-shadow: none; min-width: 13ch; cursor: default; }
+#gly-revise.gly-done { background: var(--gly-panel-bg); color: var(--gly-muted); box-shadow: none; cursor: default; }
+.gly-handoff-cancel { background: transparent; border: 1px solid var(--gly-line); color: var(--gly-fg); border-radius: 8px; padding: 10px 14px; font: 14px/1.2 var(--gly-sans); cursor: pointer; }
+.gly-handoff-cancel:hover { border-color: var(--gly-coral); color: var(--gly-coral); }
+.gly-handoff-cancel[disabled] { display: none; }
+
+.gly-verdict-menu { width: 300px; background: var(--gly-panel-bg); border: 1px solid var(--gly-line); border-radius: 10px; padding: 6px; box-shadow: var(--gly-menu-shadow); animation: rise .18s ease; font: 14px/1.4 var(--gly-sans); }
+.gly-verdict-menu button { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 10px 12px; color: var(--gly-fg); font: inherit; cursor: pointer; }
+.gly-verdict-menu button:hover { background: var(--gly-panel-hover); }
+.gly-verdict-title { display: flex; justify-content: space-between; font-weight: 600; }
+.gly-verdict-tag { color: var(--gly-accent); font: 11px var(--gly-mono); }
+.gly-verdict-explain { display: block; color: var(--gly-muted); font-size: 12.5px; margin-top: 2px; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

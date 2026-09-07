@@ -454,7 +454,7 @@ export const sealMethods = {
         .then(() => this.readRevise())
         .catch(() => {});
     });
-    anchor.parentNode.insertBefore(b, anchor.nextSibling);
+    anchor.insertAdjacentElement('beforebegin', b);
     this.paintCancelOn(b);
     return b;
   },

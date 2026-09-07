@@ -47,6 +47,7 @@ import { getJSON, postJSON } from './net.ts';
 import { runFor } from './runs.ts';
 import { arrivalMessage, queueArrivals, holdLabel } from './arrivals.ts';
 import { BACK_TO_DRAFT } from './versions.ts';
+import { trailSaid } from './phase.ts';
 import type { AppShell, ArrivalItem } from './appshell.ts';
 import type { ReviseStateView } from './wire';
 import type { SuggestionLike } from './suggestions.ts';
@@ -223,8 +224,41 @@ function reviseFace(
  * Fixed labels on real buttons: neither string ever changes, so the menu
  * cannot resize under the cursor that opened it, and probe.mjs pins both
  * verbatim in the shipped bundle. */
+/** Builds one verdict-menu item: a title (with an optional tag) and its
+ * explanatory line below it — see MENU_REVISE_EXPLAIN/MENU_TRUST_EXPLAIN. */
+function menuItem(
+  cls: string,
+  title: string,
+  explain: string,
+  tag?: string,
+): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.setAttribute('role', 'menuitem');
+  const head = document.createElement('span');
+  head.className = 'gly-verdict-title';
+  head.textContent = title;
+  if (tag) {
+    const t = document.createElement('span');
+    t.className = 'gly-verdict-tag';
+    t.textContent = tag;
+    head.append(t);
+  }
+  const ex = document.createElement('span');
+  ex.className = 'gly-verdict-explain';
+  ex.textContent = explain;
+  b.append(head, ex);
+  return b;
+}
+
 export const MENU_REVISE = 'Revise';
 export const MENU_TRUST = 'Revise & Approve';
+export const MENU_REVISE_EXPLAIN =
+  'Hand the document to the agent with everything pending.';
+export const MENU_TRUST_EXPLAIN =
+  'Approve only after the agent successfully applies them. Stays open on cannot.';
+export const MENU_TRUST_TAG = 'conditional';
 
 /** The three verdicts the server can seal a review with. */
 export const VERDICT_APPROVED = 'approved';
@@ -401,6 +435,24 @@ export const verdictMethods = {
     this.reviseApprove = approve;
     this.reviseBack = back;
     el.addEventListener('click', () => this.askRevise());
+
+    const footer = document.createElement('footer');
+    footer.className = 'gly-timeline';
+    const grid = document.createElement('div');
+    grid.className = 'gly-timeline-grid';
+    const left = document.createElement('div');
+    left.className = 'gly-timeline-left';
+    const right = document.createElement('div');
+    right.className = 'gly-timeline-right';
+    const trail = document.createElement('span');
+    trail.className = 'gly-revise-trail';
+    right.append(trail, el);
+    grid.append(left, right);
+    footer.append(grid);
+    document.body.append(footer);
+    this.timelineLeft = left;
+    this.reviseTrail = trail;
+
     return el;
   },
 
@@ -580,22 +632,17 @@ export const verdictMethods = {
     el.className = 'gly-verdict-menu';
     el.hidden = true;
     el.setAttribute('role', 'menu');
-    const revise = document.createElement('button');
-    revise.type = 'button';
-    revise.className = 'gly-verdict-revise';
-    revise.textContent = MENU_REVISE;
-    revise.title =
-      'hand the document to the agent with everything still pending';
+    const revise = menuItem('gly-verdict-revise', MENU_REVISE, MENU_REVISE_EXPLAIN);
     revise.addEventListener('click', () => {
       this.closeVerdictMenu();
       this.postVerdict({}, false);
     });
-    const trust = document.createElement('button');
-    trust.type = 'button';
-    trust.className = 'gly-verdict-trust';
-    trust.textContent = MENU_TRUST;
-    trust.title =
-      'send these instructions and approve only after the agent successfully applies them';
+    const trust = menuItem(
+      'gly-verdict-trust',
+      MENU_TRUST,
+      MENU_TRUST_EXPLAIN,
+      MENU_TRUST_TAG,
+    );
     trust.addEventListener('click', () => {
       this.closeVerdictMenu();
       this.postVerdict({ approveOnAnswer: true }, false);
@@ -662,10 +709,10 @@ export const verdictMethods = {
     // the menu's own width, because a hidden box measures zero.
     const rect = revise.getBoundingClientRect();
     menu.hidden = false;
-    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-    // Right-aligned under the button: Revise is the rightmost control in the
-    // bar, so the menu grows leftward over the page rather than off its edge.
-    menu.style.left = `${Math.max(4, rect.right + window.scrollX - menu.offsetWidth)}px`;
+    // Above-right of the button: the footer sits at the bottom of the page,
+    // so a menu opening downward would run off the viewport.
+    menu.style.left = `${rect.right + window.scrollX - menu.offsetWidth}px`;
+    menu.style.top = `${rect.top + window.scrollY - menu.offsetHeight - 10}px`;
     this.verdictOpen = true;
   },
 
@@ -752,6 +799,19 @@ export const verdictMethods = {
     revise.disabled = disabled;
     revise.classList.toggle('gly-on', this.reviseWaiting);
     revise.title = title;
+    revise.classList.toggle(
+      'gly-approve-zero',
+      approve && this.pendingCount === 0 && !history,
+    );
+    revise.classList.toggle('gly-busy', !history && this.reviseWaiting);
+    revise.classList.toggle('gly-done', !history && this.approved);
+    if (this.reviseTrail) {
+      const phase = this.phase();
+      this.reviseTrail.textContent =
+        phase === 'markup' || phase === 'cannot'
+          ? trailSaid(this.changes.length, this.pendingCount)
+          : '';
+    }
   },
 
   // --- hold and release ---

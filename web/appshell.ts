@@ -375,6 +375,12 @@ export interface AppState {
   reviseSecs?: HTMLElement;
   reviseApprove?: HTMLElement;
   reviseBack?: HTMLElement;
+  // The footer's left column (Task 6 fills it) and its trail label
+  // (`edits, instructions →`), both built alongside the button in
+  // makeRevise — null until the first build, the same nullability as
+  // `revise` itself.
+  timelineLeft: HTMLElement | null;
+  reviseTrail: HTMLSpanElement | null;
   // The verdict menu — built on the first press that needs it
   // (`this.verdictMenu = null;` is the constructor's own direct,
   // unconditional line; `openVerdictMenu` fills it in later).

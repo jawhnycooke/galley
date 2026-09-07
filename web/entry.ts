@@ -830,6 +830,8 @@ class App implements AppState {
   reviseSecs?: HTMLElement;
   reviseApprove?: HTMLElement;
   reviseBack?: HTMLElement;
+  timelineLeft: HTMLElement | null;
+  reviseTrail: HTMLSpanElement | null;
   verdictMenu: HTMLElement | null;
   reviseRunning: boolean;
   approveNotBefore: number;
@@ -1133,6 +1135,8 @@ class App implements AppState {
     // shell without the Revise button has nothing to hang it off.
     this.verdictMenu = null;
     this.verdictOpen = false;
+    this.timelineLeft = null;
+    this.reviseTrail = null;
     this.revise = this.makeRevise();
 
     // THE HANDOFF. While the agent holds the file the document is read-only

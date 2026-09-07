@@ -291,22 +291,28 @@ try {
     'the Instructions chip is gone at wide widths',
     !(await page.isVisible('.gly-census-count')),
   );
+  // At load nothing is pending, so the verdict on offer is Approve, and the
+  // footer's `.gly-approve-zero` face is fg-on-bg with no glow — see
+  // paintRevise's face-class toggle and editor.css's `/* --- the footer
+  // --- */` section. The filled-with-the-signal-colour face belongs to the
+  // Revise state (a pending instruction), asserted where the count first
+  // appears below.
   const primaryPaint = await page.evaluate(() => {
     const el = document.getElementById('gly-revise');
     const s = getComputedStyle(el);
-    const signal = getComputedStyle(document.documentElement)
-      .getPropertyValue('--gly-signal')
+    const fg = getComputedStyle(document.documentElement)
+      .getPropertyValue('--gly-fg')
       .trim();
     const probe = document.createElement('span');
-    probe.style.color = signal;
+    probe.style.color = fg;
     document.body.appendChild(probe);
     const want = getComputedStyle(probe).color;
     probe.remove();
     return { bg: s.backgroundColor, radius: s.borderTopLeftRadius, want };
   });
   check(
-    'the primary is filled with the signal colour at 6px',
-    primaryPaint.bg === primaryPaint.want && primaryPaint.radius === '6px',
+    'the primary is filled with fg-on-bg at zero pending, 8px',
+    primaryPaint.bg === primaryPaint.want && primaryPaint.radius === '8px',
     JSON.stringify(primaryPaint),
   );
   // --- WHERE CAPTURE LIVES, AND IT IS THE BAR ---
@@ -1330,7 +1336,19 @@ try {
     (await page.locator('#gly-revise').innerText()).includes('Revise'),
   );
   await page.click('#gly-revise');
-  const exits = await page.locator('.gly-verdict-menu button').allInnerTexts();
+  // The title alone, with the tag's own text peeled back off — not the
+  // button's full innerText: each item now carries an explanatory line below
+  // its title (MENU_REVISE_EXPLAIN / MENU_TRUST_EXPLAIN) and the trust item
+  // carries a tag (MENU_TRUST_TAG) inside the title itself, so this check is
+  // about the verb, not the sentence or the tag under/inside it.
+  const exits = await page.evaluate(() =>
+    [...document.querySelectorAll('.gly-verdict-menu .gly-verdict-title')].map(
+      (t) => {
+        const tag = t.querySelector('.gly-verdict-tag');
+        return (tag ? t.textContent.slice(0, -tag.textContent.length) : t.textContent).trim();
+      },
+    ),
+  );
   check(
     'the menu offers Revise and Revise & Approve',
     JSON.stringify(exits) === JSON.stringify(['Revise', 'Revise & Approve']),
@@ -1584,12 +1602,19 @@ try {
   // draft head at 52.2 — the landing and the reading agreeing with each other
   // and both 64px below the draft.
   const railTops = {};
+  // Read as a DOCUMENT-relative offset (rect.top + scrollY), not a
+  // viewport-relative one: `.gly-rail` is `position: absolute` and the
+  // arrival that just landed (agentReturns, above) can leave the window
+  // scrolled to keep its mark centred (card.ts's scrollMarkIntoView) — a
+  // viewport-relative read would then disagree with itself across the three
+  // captures for no reason the layout itself has anything to do with.
   railTops.draft = await page.evaluate(() => {
     const rail = document.querySelector('.gly-rail');
     const head = rail.querySelector('.gly-rail-head');
+    const y = window.scrollY;
     return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
+      rail: +(rail.getBoundingClientRect().top + y).toFixed(1),
+      head: head ? +(head.getBoundingClientRect().top + y).toFixed(1) : null,
       headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
     };
   });
@@ -1636,6 +1661,11 @@ try {
   await page.waitForFunction(
     () => document.querySelector('.gly-versions')?.hidden === true,
   );
+  // Captured for the round-trip scroll check below: the reviewer's actual
+  // scroll position when History was opened, not an assumed 0 — an arrival's
+  // own scrollMarkIntoView (card.ts) can leave the window anywhere, and
+  // History's contract is that it PRESERVES that spot, not that it zeroes it.
+  const enteredHistoryAt = await page.evaluate(() => window.scrollY);
   await page.click('.gly-versions-open');
   await page.waitForSelector('.gly-versions:not([hidden])');
   // THE WAIT IS UNCHANGED; ONLY ITS FAILURE IS. This check timed out once on
@@ -1741,9 +1771,10 @@ try {
   railTops.landing = await page.evaluate(() => {
     const rail = document.querySelector('.gly-versions-rail');
     const head = rail.querySelector('.gly-rail-head');
+    const y = window.scrollY;
     return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
+      rail: +(rail.getBoundingClientRect().top + y).toFixed(1),
+      head: head ? +(head.getBoundingClientRect().top + y).toFixed(1) : null,
       headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
     };
   });
@@ -1884,9 +1915,10 @@ try {
   railTops.reading = await page.evaluate(() => {
     const rail = document.querySelector('.gly-versions-rail');
     const head = rail.querySelector('.gly-rail-head');
+    const y = window.scrollY;
     return {
-      rail: +rail.getBoundingClientRect().top.toFixed(1),
-      head: head ? +head.getBoundingClientRect().top.toFixed(1) : null,
+      rail: +(rail.getBoundingClientRect().top + y).toFixed(1),
+      head: head ? +(head.getBoundingClientRect().top + y).toFixed(1) : null,
       headH: head ? +head.getBoundingClientRect().height.toFixed(1) : null,
     };
   });
@@ -2276,8 +2308,8 @@ try {
   );
   check(
     'and the draft’s scroll position survived the round trip',
-    back.scroll === 0,
-    String(back.scroll),
+    back.scroll === enteredHistoryAt,
+    JSON.stringify({ scroll: back.scroll, enteredHistoryAt }),
   );
   const rounds = await page.evaluate(
     async () => (await (await fetch('/_galley/versions')).json()).rounds.length,
@@ -2352,11 +2384,12 @@ try {
   // which is what a countdown started a few checks earlier is still saying when
   // this runs. Asserting the word made this check a race it lost the first time
   // the timing shifted; what phase 6 actually promises is that the control
-  // stays IN THE TOP BAR and stays pressable when the rail is gone.
+  // stays selectable by `#gly-revise`, outside `.gly-bottombar`, and stays
+  // pressable when the rail is gone — not that it stays in the top bar,
+  // which Task 4 moved it out of into the fixed footer (`.gly-timeline`).
   const primaryHere = await page.evaluate(() => {
     const b = document.getElementById('gly-revise');
-    const bar = document.querySelector('.gly-bar');
-    if (!b || !bar || !bar.contains(b)) return null;
+    if (!b) return null;
     const r = b.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return {
@@ -2371,7 +2404,6 @@ try {
     'and Revise never leaves the top bar, where it is at every width',
     primaryHere !== null &&
       primaryHere.width > 0 &&
-      primaryHere.top < 60 &&
       primaryHere.reachable === true &&
       primaryHere.inFoot === false,
     JSON.stringify(primaryHere),

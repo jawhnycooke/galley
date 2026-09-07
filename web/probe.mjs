@@ -8406,4 +8406,12 @@ function bindsContentField(src) {
   check('composer eyebrow quotes the selection', headComposer('a long, structured research document').startsWith('INSTRUCTION · ON "'));
 }
 
+// --- verdict menu copy ---
+{
+  const v = await import('./verdict.ts');
+  check('menu copy is the spec\'s', v.MENU_REVISE_EXPLAIN === 'Hand the document to the agent with everything pending.'
+    && v.MENU_TRUST_EXPLAIN === 'Approve only after the agent successfully applies them. Stays open on cannot.'
+    && v.MENU_TRUST_TAG === 'conditional');
+}
+
 process.exit(failures === 0 ? 0 : 1);
