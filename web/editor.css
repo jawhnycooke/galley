@@ -3722,6 +3722,32 @@ body.gly-page .ProseMirror p.gly-shell-marker {
   gap: 24px;
   align-items: end;
 }
+/* THE TRACK NEVER COLLAPSES TO NOTHING. Below ~720px the right-hand cell —
+   the trail's 23ch, the cancel's reserve and the primary — was wider than
+   the row, and `minmax(0, 1fr)` handed the track 0px: a scrubber nobody
+   could drag, on exactly the window where the keyframes are the only door
+   to the record. Stacking the row was tried and rejected: a two-row footer
+   is ~200px tall on a phone and the conversation sheet above it (§7c) was
+   squeezed to nothing. So the row stays ONE row and sheds what a phone does
+   not need: the trail's words (the count is on the primary) and the
+   cancel's reserved box while no handoff is open — the primary may shift
+   once when a handoff opens on a phone, which is the smaller cost. */
+@media (max-width: 720px) {
+  .gly-revise-trail {
+    display: none;
+  }
+  .gly-handoff-cancel[disabled] {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border-width: 0;
+    margin-left: -10px;
+    overflow: hidden;
+  }
+  .gly-timeline-grid {
+    gap: 16px;
+  }
+}
 .gly-timeline-left {
   min-width: 0;
 }
@@ -3766,6 +3792,13 @@ body.gly-page .ProseMirror p.gly-shell-marker {
   gap: 4px;
   white-space: nowrap;
   font: inherit;
+}
+/* Thinned labels keep their dot and their press; the words come back on hover. */
+.gly-scrub-key[data-thin] > span:first-child {
+  visibility: hidden;
+}
+.gly-scrub-keys:hover .gly-scrub-key[data-thin] > span:first-child {
+  visibility: visible;
 }
 .gly-scrub-key.is-near {
   color: var(--gly-fg);
@@ -3895,7 +3928,7 @@ main {
   padding: 11px 18px;
   font: 600 14px/1.2 var(--gly-sans);
   display: inline-grid;
-  grid-template-areas: 'label';
+  grid-template-areas: "label";
   place-items: center;
   white-space: nowrap;
   cursor: pointer;
@@ -4293,7 +4326,7 @@ body.gly-revising .ProseMirror > *:not(.gly-marked) {
   transition: opacity 0.3s;
 }
 body.gly-revising .ProseMirror > .gly-marked::after {
-  content: '';
+  content: "";
   display: inline-block;
   width: 2px;
   height: 1em;

@@ -22,6 +22,46 @@ const REASON_COULD_NOT = 'could-not';
 const REASON_LANDED = 'landed';
 const HEAD_EPS = 0.01;
 
+// THE LABELS THIN BEFORE THEY COLLIDE. A keyframe label is ~3ch of mono (`R12`)
+// and the track is a fixed share of the window, so past a dozen rounds the
+// labels overprint. Every stride-th label stays, plus the first, the last and
+// the one nearest the handle; the dots all stay, and hovering the row shows
+// every label. 44px is one label and a breath at 11px mono.
+export const LABEL_GAP_PX = 44;
+export function labelStride(
+  trackWidth: number,
+  count: number,
+  gap = LABEL_GAP_PX,
+): number {
+  if (count < 2 || trackWidth <= 0) return 1;
+  return Math.max(1, Math.ceil(gap / (trackWidth / (count - 1))));
+}
+export function showLabel(
+  i: number,
+  count: number,
+  stride: number,
+  near: number,
+): boolean {
+  return i === 0 || i === count - 1 || i === near || i % stride === 0;
+}
+
+// THE HEAD SNAPS IN PIXELS, NOT VERSIONS. HEAD_EPS is a hundredth of a version,
+// which on a long track is under a pixel: "let go near the right end" landed a
+// hair short of `now` and the page stayed read-only. The last few pixels of
+// the track ARE the head.
+export const HEAD_SNAP_PX = 8;
+export function trackToT(
+  x: number,
+  width: number,
+  max: number,
+  snapPx = HEAD_SNAP_PX,
+): number {
+  if (width <= 0 || max <= 1) return max;
+  if (width - x <= snapPx) return max;
+  const f = Math.min(Math.max(x / width, 0), 1);
+  return 1 + f * (max - 1);
+}
+
 export function keyframesOf(rounds: RoundView[], sealed: boolean): Keyframe[] {
   return rounds.map((r, i) => keyframeAt(r, i + 1, rounds.length, sealed));
 }
@@ -138,9 +178,9 @@ export function makeTimeline(this: AppShell): void {
   let dragging = false;
   const at = (e: PointerEvent) => {
     const b = track.getBoundingClientRect();
-    const f = Math.min(Math.max((e.clientX - b.left) / b.width, 0), 1);
-    this.scrubTo(1 + f * (this.scrubMax() - 1));
+    this.scrubTo(trackToT(e.clientX - b.left, b.width, this.scrubMax()));
   };
+  window.addEventListener('resize', () => this.paintTimeline());
   track.addEventListener('pointerdown', (e) => {
     dragging = true;
     track.setPointerCapture(e.pointerId);
@@ -207,14 +247,21 @@ export function paintTimeline(this: AppShell): void {
   }
   ui.max = max;
   const frames = keyframesOf(rounds, this.sealed);
+  const near = Math.round(this.scrubT) - 1;
+  const stride = labelStride(
+    ui.track.getBoundingClientRect().width,
+    frames.length,
+  );
   ui.keys.replaceChildren(
-    ...frames.map((k) => {
+    ...frames.map((k, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'gly-scrub-key';
       btn.style.left = `${k.left}%`;
       btn.dataset.tone = k.tone;
       btn.dataset.fill = k.fill;
+      btn.title = k.label;
+      if (!showLabel(i, frames.length, stride, near)) btn.dataset.thin = '';
       btn.classList.toggle('is-near', Math.round(this.scrubT) === k.n);
       const text = document.createElement('span');
       text.textContent = k.label;

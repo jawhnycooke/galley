@@ -8018,6 +8018,34 @@ function bindsContentField(src) {
 
 // --- timeline.ts (pure) ---
 {
+  {
+    const { labelStride, showLabel, trackToT } = await import('./timeline.ts');
+    check(
+      'labelStride: wide track keeps every label',
+      labelStride(800, 5) === 1 && labelStride(800, 12) === 1,
+    );
+    check(
+      'labelStride: a crowded track thins to every 2nd, then 3rd',
+      labelStride(400, 20) === 3 && labelStride(600, 20) === 2,
+      [labelStride(400, 20), labelStride(600, 20)],
+    );
+    check(
+      'showLabel: first, last, nearest and every stride-th survive',
+      showLabel(0, 20, 3, 7) &&
+        showLabel(19, 20, 3, 7) &&
+        showLabel(7, 20, 3, 7) &&
+        showLabel(6, 20, 3, 7) &&
+        !showLabel(8, 20, 3, 7),
+    );
+    check(
+      'trackToT: the last pixels are the head',
+      trackToT(795, 800, 12) === 12 && trackToT(792, 800, 12) === 12,
+    );
+    check(
+      'trackToT: elsewhere it is linear',
+      Math.abs(trackToT(400, 800, 5) - 3) < 1e-9 && trackToT(0, 800, 5) === 1,
+    );
+  }
   const { keyframesOf, scrubState, scrubLabel, appearOpacity } =
     await import('./timeline.ts');
   const r = (n, reason, extra = {}) => ({

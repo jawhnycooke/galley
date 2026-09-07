@@ -561,19 +561,31 @@ func roundViewOf(r versions.Round, claimed map[string]bool) roundView {
 		Reason: r.Reason, Instruction: r.Instruction, Answers: r.Answers,
 	}
 	for _, a := range r.Asks {
-		v.Asks = append(v.Asks, askView{Key: a.Key, Text: a.Text, Quote: a.Quote, Answered: claimed[a.Key]})
+		v.Asks = append(v.Asks, askView{Key: a.Key, Text: a.Text, Quote: a.Quote, Answered: claimed["*"] || claimed[a.Key]})
 	}
 	return v
 }
 
-
 // claimedAsks is every ask key the changes of the rounds answering round n
 // named — the landed round (or rounds) whose Answers is n. The revise round
 // itself carries no changes, so read there the set is always empty.
+//
+// A LANDED ROUND WITHOUT A MANIFEST ANSWERS EVERY ASK. `galley ack` refuses a
+// round in which nothing changed, so a landed round IS a changed document
+// and the agent's word that it answered; the manifest (`--changes`) only
+// says WHICH ask each change was for. Read strictly, an agent that did the
+// work and sent no manifest left every row `not applied` under an edit that
+// was plainly made — the worst reading of an honest answer. So: a manifest
+// decides per ask; no manifest at all means all of them (decision recorded
+// 2026-09-07). The special key "*" carries that answer to roundViewOf.
 func claimedAsks(rounds []versions.Round, n int) map[string]bool {
 	claimed := map[string]bool{}
 	for _, r := range rounds {
-		if r.Answers != n {
+		if r.Answers != n || r.Reason != versions.ReasonLanded {
+			continue
+		}
+		if len(r.Changes) == 0 {
+			claimed["*"] = true
 			continue
 		}
 		for _, c := range r.Changes {

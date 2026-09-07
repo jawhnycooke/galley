@@ -429,7 +429,9 @@ function askBlockIndex(shell: AppShell, doc: PMNode, ask: AskView): number {
   // was asked and rewrote them. The change that claimed the ask knows where
   // it landed; without this an answered ask had no row at all, and the only
   // rows left were the ones whose words survived, reading `not applied`.
-  const claimed = (shell.arrivalWas ?? []).find((w) => w.asks?.includes(ask.text));
+  const claimed = (shell.arrivalWas ?? []).find((w) =>
+    w.asks?.includes(ask.text),
+  );
   return claimed ? claimed.index : -1;
 }
 
