@@ -30,6 +30,9 @@ export interface RowSpec {
 export interface WasSpec {
   index: number;
   was: string;
+  /** What a change that removed nothing put there — read under an `ADDED`
+   *  eyebrow, the mirror of `WAS`, so a pure insertion is not silent. */
+  added?: string;
   note?: string;
   /** The asks (by text) the change under this block claimed — the fallback
    *  address for a sent ask whose own words the agent rewrote. */
@@ -220,10 +223,17 @@ function wasDOM(w: WasSpec): HTMLElement {
   const eyebrow = document.createElement('span');
   eyebrow.className = 'gly-was-eyebrow';
   eyebrow.textContent = 'WAS';
-  const s = document.createElement('s');
-  s.textContent = w.was;
-  strip.append(eyebrow, s);
   if (w.was) {
+    const s = document.createElement('s');
+    s.textContent = w.was;
+    strip.append(eyebrow, s);
+    wrap.append(strip);
+  } else if (w.added) {
+    strip.classList.add('gly-added');
+    eyebrow.textContent = 'ADDED';
+    const ins = document.createElement('span');
+    ins.textContent = w.added;
+    strip.append(eyebrow, ins);
     wrap.append(strip);
   }
   if (w.note) {
@@ -283,7 +293,7 @@ function build(
   }
   for (const w of s.was) {
     const end = pinAt(doc, w.index);
-    if (end >= 0 && (w.was || w.note)) {
+    if (end >= 0 && (w.was || w.added || w.note)) {
       decos.push(
         Decoration.widget(end, () => wasDOM(w), {
           side: 1,

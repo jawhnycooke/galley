@@ -324,6 +324,7 @@ export const historyMethods = {
                 {
                   index,
                   was: c.del,
+                  added: c.del ? undefined : c.ins,
                   note: diff.changes?.[c.k]?.note,
                   asks: diff.changes?.[c.k]?.asks,
                 },

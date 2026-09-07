@@ -4377,6 +4377,15 @@ body.gly-revising .ProseMirror > .gly-marked::after {
   color: var(--gly-coral);
   margin-right: 10px;
 }
+/* ADDED is WAS's mirror: a change that removed nothing still gets a strip, in
+   the accent the arrival already speaks, so a pure insertion is not silent. */
+.gly-was.gly-added {
+  border-left-color: var(--gly-accent);
+  color: var(--gly-paper-ink);
+}
+.gly-was.gly-added .gly-was-eyebrow {
+  color: var(--gly-accent);
+}
 .gly-was s {
   text-decoration-color: var(--gly-coral);
 }
