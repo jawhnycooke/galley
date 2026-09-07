@@ -5,17 +5,17 @@ Branch: `feat/timeline-draft`. Decision 2026-09-06: re-value the existing `--gly
 
 | # | Task | Depends on | Status |
 |---|---|---|---|
-| 0 | Branch + clean baseline | — | [ ] |
-| 1 | Tokens, theme switch, white sheet | 0 | [ ] |
-| 2 | Self-hosted fonts | 1 | [ ] |
-| 3 | Phase (pure) + header readout | 1 | [ ] |
-| 4 | Footer: primary, trail, verdict menu, cancel | 3 | [ ] |
-| 5 | Timeline pure functions | — | [ ] |
+| 0 | Branch + clean baseline | — | [x] |
+| 1 | Tokens, theme switch, white sheet | 0 | [x] 76e6e36 |
+| 2 | Self-hosted fonts | 1 | [x] f98fb10 |
+| 3 | Phase (pure) + header readout | 1 | [x] ae6343a |
+| 4 | Footer: primary, trail, verdict menu, cancel | 3 | [x] 7f19bd6 |
+| 5 | Timeline pure functions | — | [x] ce21283 |
 | 6 | Timeline track, drag, crossfade, History replaced | 4, 5 | [ ] |
 | 7 | Frame: eyebrow, whole-doc slot, onboarding, `?` | 3, 6 | [ ] |
-| 8 | Inline composer: eyebrow, bar, chips, dimming | 1 | [ ] |
+| 8 | Inline composer: eyebrow, bar, chips, dimming | 1 | [x] fb89472 |
 | 9 | Pinned rows as decorations, ghost revert, fence grip | 3, 7 | [ ] |
-| 10 | Wire: per-round `asks[].answered` (Go) | — | [ ] |
+| 10 | Wire: per-round `asks[].answered` (Go) | — | [x] 1185c69 |
 | 11 | Arrival inline: WAS strip, agent note, applied rows | 9, 10 | [ ] |
 | 12 | cannot banner | 7 | [ ] |
 | 13 | Keys: ←/→, Esc, j/k over rows | 6, 9 | [ ] |

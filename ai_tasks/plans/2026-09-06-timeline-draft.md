@@ -1088,7 +1088,7 @@ export function scrubHome(this: AppShell): void { this.scrubTo(this.scrubMax());
 
 - [ ] **Step 3: History becomes the scrubber's reading stage.** In `history.ts`:
 - `enterHistory()` (`:197`): remove the `window.scrollTo({ top: 0 })` — scrubbing must not jump; keep everything else.
-- `toggleVersions()` (`:306`): body becomes `this.scrubTo(this.scrubT < this.scrubMax() ? this.scrubMax() : Math.max(1, this.scrubMax() - 1))` — the old chip now just steps the scrubber; Task 14 deletes it.
+- `toggleVersions()` (`:306`): **leave it as it is in this task** (amended 2026-09-06: `rounds-ux.mjs` §5 drives the old landing/reading stages through this chip and hangs if it only steps the scrubber). Task 14 deletes the chip, `toggleVersions`, and the §5 assertions together.
 - `versions.ts` `show()` (`:720`) is called by `enterHistory` through `paintSurfaces`; make sure `.gly-versions-sub` (the old landing/reading chrome) is hidden while `body.gly-scrubbing`: add CSS `body.gly-scrubbing .gly-versions-sub, body.gly-scrubbing .gly-versions-rail { display: none; }`.
 
 - [ ] **Step 4: CSS**
@@ -1818,7 +1818,7 @@ git commit -m "Step the timeline with arrows and walk pinned rows with j/k"
 
 - [ ] **Step 1: Map what is dead** — `cd web && npm run dead-code` (fallow). Delete only what it lists plus the items above; for each export removed, remove its probe block.
 - [ ] **Step 2: Keep `restore vN as draft`** — move `button.gly-versions-restore` (with its two-click arming, `versions.ts:1484`) into the eyebrow row while `body.gly-scrubbing` (`this.frame.eyebrow.append(this.versionsPanel.restoreButton)`), styled as a small link: `.gly-versions-restore { background: none; border: 0; color: var(--gly-accent); font: 11px var(--gly-mono); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }`.
-- [ ] **Step 3: Gates** — `just assets && just verify-web && just gates`. Fix `layers.mjs` §1d and any `.mjs` gate that asserted a removed surface (each says what it measures in its header; update the selector or delete the assertion with a one-line note in the commit body).
+- [ ] **Step 3: Gates** — `just assets && just verify-web && just gates`. Fix `layers.mjs` §1d and any `.mjs` gate that asserted a removed surface (each says what it measures in its header; update the selector or delete the assertion with a one-line note in the commit body). In particular `web/rounds-ux.mjs` §5 (~:1403 clicks `.gly-versions-open` and waits on `.gly-versions-paper[data-to]`; ~:1907 clicks `.gly-versions-round[data-round]` and waits on `.gly-versions-sub`) tests the History landing this task deletes — replace those assertions with the scrubber's equivalents (click a `.gly-scrub-key` → `body.gly-scrubbing` and `.gly-scrub-paper[data-v]` present; press Esc → `body:not(.gly-scrubbing)`). Deleting `toggleVersions` and the chip is explicitly authorised here (deferred from Task 6).
 - [ ] **Step 4: Commit**
 
 ```bash
