@@ -46,7 +46,7 @@ import type { PendingThread } from './rail.ts';
 import { getJSON, postJSON } from './net.ts';
 import { runFor } from './runs.ts';
 import { queueArrivals, holdLabel } from './arrivals.ts';
-import { BACK_TO_DRAFT } from './versions.ts';
+import { BACK_TO_DRAFT, backLabel } from './versions.ts';
 import { trailSaid } from './phase.ts';
 import type { AppShell, ArrivalItem } from './appshell.ts';
 import type { ReviseStateView } from './wire';
@@ -831,6 +831,7 @@ export const verdictMethods = {
     approveLabel.classList.toggle('gly-reserved', !approve);
     if (this.reviseBack) {
       this.reviseBack.classList.toggle('gly-reserved', !history);
+      this.reviseBack.textContent = backLabel(!!this.sealed);
     }
     revise.classList.toggle('gly-history-out', history);
     revise.disabled = disabled;

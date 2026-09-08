@@ -98,6 +98,12 @@ type EditServer struct {
 	// is what stops it.
 	OnApprove func()
 
+	// OnReopen, when set, is called once per reopen — POST /_galley/reopen
+	// on a sealed document. It is OnApprove's inverse: the CLI uses it to put
+	// the channel registry entry back, which is how a channel that detached
+	// on the verdict discovers the document again.
+	OnReopen func()
+
 	// Ledger, when set, is where this server's decisions are remembered.
 	// Nil means the process-wide ledger.DefaultRecorder, which is what every
 	// real caller wants; the field exists so a test can supply a recorder whose
@@ -1016,6 +1022,8 @@ func (s *EditServer) Handler() http.Handler {
 	mux.HandleFunc("/_galley/mode", s.handleMode)
 	mux.HandleFunc("/_galley/revise", s.handleRevise)
 	mux.HandleFunc("/_galley/stop", s.handleStop)
+	// The sealed page's way back — see seal.go.
+	mux.HandleFunc("/_galley/reopen", s.handleReopen)
 	mux.HandleFunc("/_galley/ack", s.handleAck)
 	// The reviewer taking the document back mid-window — see handoff.go.
 	mux.HandleFunc("/_galley/handoff/cancel", s.handleHandoffCancel)

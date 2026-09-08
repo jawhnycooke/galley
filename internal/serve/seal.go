@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/schuettc/galley/internal/ledger"
 )
 
 const VerdictApproved = "approved"
@@ -32,6 +34,43 @@ func (s *EditServer) seal(verdict string, _ int) {
 	s.verdict = verdict
 	s.verdictAt = time.Now().UTC()
 	s.sealMu.Unlock()
+}
+
+// unseal is the seal's one way back. Approve changes no bytes and cuts no
+// version, so there is nothing to undo but the flag and the verdict it
+// carries; the rounds, the trail and the sidecar are all still there.
+func (s *EditServer) unseal() {
+	s.sealMu.Lock()
+	s.sealed = false
+	s.verdict = ""
+	s.verdictAt = time.Time{}
+	s.sealMu.Unlock()
+}
+
+// handleReopen answers the sealed page's own `reopen` link — POST
+// /_galley/reopen. Restarting `galley edit` was the only way back from a
+// mis-pressed Approve, and the readout said so in words the reviewer had to
+// carry to a terminal; this is the same recovery as a press. Idempotent: a
+// reopen on a live review is a 204 that changes nothing, so a double press
+// or a stale page cannot fail.
+func (s *EditServer) handleReopen(w http.ResponseWriter, r *http.Request) {
+	var in struct{}
+	if !decode(w, r, &in) {
+		return
+	}
+	if !s.Sealed() {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	s.unseal()
+	s.remember(verdictRecord(ledger.KindReopened, ""))
+	if s.OnReopen != nil {
+		s.OnReopen()
+	}
+	if s.Log != nil {
+		s.Log("reopened")
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type sealedVerb int
