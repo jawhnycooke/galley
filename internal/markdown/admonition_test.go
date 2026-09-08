@@ -130,3 +130,33 @@ func TestParse_Admonitions(t *testing.T) {
 		})
 	}
 }
+
+func TestSerialize_Admonitions(t *testing.T) {
+	cases := []struct {
+		name string
+		doc  []docmodel.Block
+		want string
+	}{
+		{"header only", []docmodel.Block{adm("!!!", "warning", "Empty", docmodel.Block{Kind: docmodel.Paragraph})}, "!!! warning \"Empty\"\n"},
+		{"no title", []docmodel.Block{adm("!!!", "note", "", para("Body."))}, "!!! note\n    Body.\n"},
+		{"tab", []docmodel.Block{adm("===", "", "Docker", para("Body."))}, "=== \"Docker\"\n    Body.\n"},
+		{"quote in title", []docmodel.Block{adm("!!!", "check", `Say "hi"`, para("Body."))}, "!!! check \"Say \\\"hi\\\"\"\n    Body.\n"},
+		{"blank lines stay bare", []docmodel.Block{adm("!!!", "note", "N", para("One."), para("Two."))}, "!!! note \"N\"\n    One.\n\n    Two.\n"},
+		{"followed by prose gets a blank line", []docmodel.Block{adm("!!!", "note", "N", para("Body.")), para("After.")}, "!!! note \"N\"\n    Body.\n\nAfter.\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := string(Serialize(docmodel.Doc{Blocks: c.doc}))
+			if got != c.want {
+				t.Fatalf("got %q, want %q", got, c.want)
+			}
+			back, _, err := Parse([]byte(got))
+			if err != nil {
+				t.Fatalf("reparse: %v", err)
+			}
+			if !docmodel.Equal(back, docmodel.Doc{Blocks: c.doc}) {
+				t.Fatalf("did not reparse to itself:\n%#v", back.Blocks)
+			}
+		})
+	}
+}

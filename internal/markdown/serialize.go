@@ -232,6 +232,17 @@ func endsWithParagraph(b docmodel.Block) bool {
 				return endsWithParagraph(b.Children[i])
 			}
 		}
+	case docmodel.Admonition:
+		// Walked from the end down to index 1: the title is index 0 and is
+		// written on the header line, which is never an open paragraph. A
+		// body that writes nothing leaves the header line, which closes
+		// itself.
+		for i := len(b.Children) - 1; i >= 1; i-- {
+			if !rendersNothing(b.Children[i]) {
+				return endsWithParagraph(b.Children[i])
+			}
+		}
+		return false
 	case docmodel.Table:
 		// A table IS a paragraph to goldmark's block scanner: the table
 		// parser is a PARAGRAPH TRANSFORMER that finds a delimiter row among
@@ -278,7 +289,11 @@ func rendersNothing(b docmodel.Block) bool {
 // Rule is the member of the "does not" set that is easy to get wrong: a
 // line of dashes directly under a paragraph line is not a thematic break,
 // it is a SETEXT HEADING underline, and writing one there would turn the
-// paragraph above into an h2 rather than separating the two.
+// paragraph above into an h2 rather than separating the two. Admonition is
+// a member of the "interrupts" set — its header line ("!!! ", "??? ",
+// "???+ ", or "=== ") starts no lazy continuation of a paragraph above —
+// and needs no arm of its own: the default below already answers true for
+// it, matching CanInterruptParagraph.
 func interruptsParagraph(b docmodel.Block) bool {
 	switch b.Kind {
 	case docmodel.Paragraph, docmodel.Image, docmodel.Rule, docmodel.Table, docmodel.Note, docmodel.FrontMatter:
@@ -352,6 +367,12 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 		return strings.TrimRight(b.Text, "\n"), alt
 	case docmodel.Blockquote:
 		return renderBlockquote(b.Children), alt
+	case docmodel.Admonition:
+		return renderAdmonition(b), alt
+	case docmodel.AdmonitionTitle:
+		// Only ever written by renderAdmonition. A stray one from a hand-built
+		// document is its own text rather than a deletion.
+		return admonitionTitleText(b), alt
 	case docmodel.BulletList:
 		return renderList(b.Children, false, alt)
 	case docmodel.OrderedList:
@@ -388,6 +409,50 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 		// switch exhaustive-by-inspection without a panic on new kinds.
 		return "", alt
 	}
+}
+
+// renderAdmonition writes the header line MkDocs reads — marker, type, quoted
+// title — and the body loose under it, every written line indented four
+// columns. Blank lines stay bare (renderListMarked's rule: indenting one puts
+// trailing whitespace into somebody's file), an empty title writes no quotes,
+// and an empty body writes the header alone; legalize's refill paragraph
+// renders to nothing, so it costs no line.
+func renderAdmonition(b docmodel.Block) string {
+	header := b.Attrs[docmodel.MarkerAttr]
+	if header == "" {
+		header = "!!!"
+	}
+	if typ := b.Attrs[docmodel.TypeAttr]; typ != "" {
+		header += " " + typ
+	}
+	children := b.Children
+	if len(children) > 0 && children[0].Kind == docmodel.AdmonitionTitle {
+		if title := admonitionTitleText(children[0]); title != "" {
+			header += ` "` + strings.ReplaceAll(title, `"`, `\"`) + `"`
+		}
+		children = children[1:]
+	}
+	body := renderBlocksLoose(children)
+	if body == "" {
+		return header
+	}
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = "    " + line
+		}
+	}
+	return header + "\n" + strings.Join(lines, "\n")
+}
+
+// admonitionTitleText is the title's text, verbatim: MkDocs reads the quoted
+// string as-is, so no markdown escaping on the way out and none on the way in.
+func admonitionTitleText(b docmodel.Block) string {
+	var sb strings.Builder
+	for _, in := range b.Inlines {
+		sb.WriteString(in.Text)
+	}
+	return sb.String()
 }
 
 // renderBlockquote renders children loose (blank line between blocks, per
