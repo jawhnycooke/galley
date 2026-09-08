@@ -65,6 +65,7 @@ import {
 import { NoteBlock } from './note.ts';
 import { FrontMatterBlock } from './frontmatter.ts';
 import { MathBlock } from './math.ts';
+import { AdmonitionBlock, AdmonitionTitle } from './admonition.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -85,6 +86,8 @@ export const EXTENSIONS = [
   NoteBlock,
   FrontMatterBlock,
   MathBlock,
+  AdmonitionBlock,
+  AdmonitionTitle,
   Ins,
   Del,
   Highlight,
@@ -93,14 +96,17 @@ export const EXTENSIONS = [
 // The extensions that add NO node and NO mark, so they are absent from
 // EXTENSIONS above and must not read as drift. Each is a bare plugin:
 // Collaboration binds the fragment, suggestionMode is the literal-region
-// filter, trailMode paints the reviewer's own edits, and litMode holds which
-// runs are being attended to — all four are view state or transaction guards,
-// and none of them can be built into a schema.
+// filter, trailMode paints the reviewer's own edits, litMode holds which runs
+// are being attended to, and rowsMode pins the instruction rows under their
+// blocks as widget decorations (see rows.ts) — all
+// five are view state or transaction guards, and none of them can be built
+// into a schema.
 export const SCHEMALESS = [
   'Collaboration',
   'suggestionMode',
   'trailMode',
   'litMode',
+  'rowsMode',
 ];
 
 export const fragmentSchema = getSchema(EXTENSIONS);
@@ -174,6 +180,8 @@ export function checkDrift(entryPath = join(HERE, 'entry.ts')) {
     'NoteBlock',
     'FrontMatterBlock',
     'MathBlock',
+    'AdmonitionBlock',
+    'AdmonitionTitle',
     'Ins',
     'Del',
     'Highlight',

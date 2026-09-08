@@ -705,7 +705,11 @@ func removeBlockAt(d docmodel.Doc, path []int) docmodel.Doc {
 		return clone
 	}
 	parent.Children = removeAt(parent.Children, path[len(path)-1])
-	if len(parent.Children) == 0 && mustHoldABlock(parent.Kind) {
+	// The lone survivor is the TITLE, so the refill goes AFTER it: the only
+	// caller removes Note blocks, and a title is never a Note.
+	if parent.Kind == docmodel.Admonition && len(parent.Children) == 1 {
+		parent.Children = append(parent.Children, docmodel.Block{Kind: docmodel.Paragraph})
+	} else if len(parent.Children) == 0 && mustHoldABlock(parent.Kind) {
 		parent.Children = []docmodel.Block{{Kind: docmodel.Paragraph}}
 	}
 	return clone
@@ -728,6 +732,9 @@ func removeBlockAt(d docmodel.Doc, path []int) docmodel.Doc {
 //     STRICTER than block+ and is why this predicate is not "does it have
 //     children": the first child must be a paragraph, so an empty Paragraph is
 //     the only refill that satisfies every member of this list at once.
+//   - admonition — `content: 'admonitionTitle block+'` (web/admonition.ts):
+//     the title is never a Note, so the body is what can be emptied, and an
+//     empty Paragraph after the title is the refill.
 //
 // Deliberately NOT here: table (`tableRow+`) and the lists (`listItem+`) never
 // hold a Note directly, and tableRow is `(tableCell | tableHeader)*`, which an
@@ -740,7 +747,7 @@ func removeBlockAt(d docmodel.Doc, path []int) docmodel.Doc {
 // TestEveryCellCrossesWithABlockInside and web/typing.mjs §0.
 func mustHoldABlock(k docmodel.BlockKind) bool {
 	switch k {
-	case docmodel.TableCell, docmodel.TableHeader, docmodel.ListItem, docmodel.Blockquote:
+	case docmodel.TableCell, docmodel.TableHeader, docmodel.ListItem, docmodel.Blockquote, docmodel.Admonition:
 		return true
 	}
 	return false

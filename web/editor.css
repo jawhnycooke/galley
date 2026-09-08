@@ -522,6 +522,61 @@ body {
   cursor: default;
 }
 
+/* A MkDocs admonition or content tab (docmodel.Admonition), modelled as a
+   container. Blockquote's geometry, an eyebrow naming the type in the same
+   mono voice as every other eyebrow on the page, and the title as an editable
+   line. Tabs are stacked and collapsibles stay open: a review surface has no
+   hidden text. (0,2,1) against `.ProseMirror blockquote`'s (0,1,1). */
+.ProseMirror section.gly-admonition {
+  margin: 1em 0;
+  padding: 8px 0 4px 1rem;
+  border-left: 3px solid var(--gly-accent);
+}
+.ProseMirror section.gly-admonition::before {
+  content: attr(data-type);
+  display: block;
+  font: 10.5px var(--gly-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gly-accent);
+  margin-bottom: 2px;
+}
+.ProseMirror section.gly-admonition[data-marker='==='] {
+  border-left-color: var(--gly-line);
+}
+.ProseMirror section.gly-admonition[data-marker='===']::before {
+  content: 'tab';
+  color: var(--gly-muted);
+}
+.ProseMirror section.gly-admonition[data-marker='???']::before {
+  content: '▸ ' attr(data-type);
+}
+.ProseMirror section.gly-admonition[data-marker='???+']::before {
+  content: '▾ ' attr(data-type);
+}
+.ProseMirror section.gly-admonition[data-type='warning'],
+.ProseMirror section.gly-admonition[data-type='danger'],
+.ProseMirror section.gly-admonition[data-type='failure'],
+.ProseMirror section.gly-admonition[data-type='bug'] {
+  border-left-color: var(--gly-coral);
+}
+.ProseMirror section.gly-admonition[data-type='warning']::before,
+.ProseMirror section.gly-admonition[data-type='danger']::before,
+.ProseMirror section.gly-admonition[data-type='failure']::before,
+.ProseMirror section.gly-admonition[data-type='bug']::before {
+  color: var(--gly-coral);
+}
+.ProseMirror p.gly-admonition-title {
+  margin: 0 0 0.4em;
+  font-weight: 600;
+}
+.ProseMirror p.gly-admonition-title:empty {
+  margin: 0;
+}
+.ProseMirror section.gly-admonition > * + * {
+  margin-top: 0.4em;
+}
+
 /* --- one refusal voice ---
 
    A fence refuses in TWO registers and no more. The passive one is this chip:
@@ -3305,6 +3360,10 @@ body.gly-revising .gly-dot {
 .gly-versions-paper .gly-diff-quote {
   border-left: 2px solid var(--gly-line);
   padding-left: 12px;
+  color: var(--gly-muted);
+}
+.gly-versions-paper .gly-diff-admonition {
+  font: 12px var(--gly-mono);
   color: var(--gly-muted);
 }
 /* A whole block gone, or arrived, is ONE change and reads as one. */

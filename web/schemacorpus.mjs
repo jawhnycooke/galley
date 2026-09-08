@@ -53,6 +53,14 @@ export const CONSTRUCTS = {
   emptyMath: ['$$', '$$'],
   blockquote: ['> quoted words in the slot'],
   emptyBlockquote: ['>'],
+  // MkDocs admonitions and tabs — docmodel.Admonition, a CONTAINER whose
+  // first child is the title. Three shapes: a body, no body (legalize's
+  // refill paragraph), and a body that is only a note (the cascade shape:
+  // the note is a block, so `admonitionTitle block+` still holds).
+  admonition: ['!!! note "Title"', '    prose in the slot'],
+  emptyAdmonition: ['!!! warning "Empty"'],
+  noteAdmonition: ['!!! note "Noted"', '    {>>a block note in the slot<<}'],
+  tab: ['=== "Tab"', '    tab prose in the slot'],
   bulletList: ['- a bullet in the slot'],
   orderedList: ['1. an ordered item in the slot'],
   emptyBullet: ['-'],

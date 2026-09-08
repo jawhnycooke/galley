@@ -50,7 +50,7 @@ import (
 // is not the block's.
 var md = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Footnote),
-	goldmark.WithParserOptions(mathBlockOption()),
+	goldmark.WithParserOptions(mathBlockOption(), admonitionOption()),
 )
 
 // Parse converts markdown source into a docmodel.Doc. It returns an error,
@@ -164,6 +164,8 @@ func legalize(blocks []docmodel.Block) []docmodel.Block {
 			if len(blocks[i].Children) == 0 {
 				blocks[i].Children = []docmodel.Block{{Kind: docmodel.Paragraph}}
 			}
+		case docmodel.Admonition:
+			blocks[i].Children = withTitleAndBody(blocks[i].Children)
 		}
 	}
 	return blocks
@@ -177,6 +179,19 @@ func withLeadingParagraph(children []docmodel.Block) []docmodel.Block {
 		return children
 	}
 	return append([]docmodel.Block{{Kind: docmodel.Paragraph}}, children...)
+}
+
+// withTitleAndBody returns children shaped `admonitionTitle block+`: a title
+// first (a hand-built document may have none) and at least one body block
+// after it — an empty Paragraph, which renders to nothing, is the refill.
+func withTitleAndBody(children []docmodel.Block) []docmodel.Block {
+	if len(children) == 0 || children[0].Kind != docmodel.AdmonitionTitle {
+		children = append([]docmodel.Block{{Kind: docmodel.AdmonitionTitle}}, children...)
+	}
+	if len(children) == 1 {
+		children = append(children, docmodel.Block{Kind: docmodel.Paragraph})
+	}
+	return children
 }
 
 // converter carries the source buffer through the AST walk. (Named converter to
@@ -309,6 +324,28 @@ func (p *converter) block(n ast.Node) (docmodel.Block, error) {
 		return docmodel.Block{
 			Kind: docmodel.MathBlock,
 			Text: string(n.Lines().Value(p.src)),
+		}, nil
+	case kindAdmonition:
+		a := n.(*admonitionNode)
+		body, err := p.blocks(n)
+		if err != nil {
+			return docmodel.Block{}, err
+		}
+		title := docmodel.Block{Kind: docmodel.AdmonitionTitle}
+		if a.title != "" {
+			title.Inlines = []docmodel.Inline{{Text: a.title}}
+		}
+		// TypeAttr only when there is one: a tab has no type, and an empty
+		// attribute is a value the CRDT and docmodel.Equal would both have to
+		// agree about for nothing.
+		attrs := map[string]string{docmodel.MarkerAttr: a.marker}
+		if a.typ != "" {
+			attrs[docmodel.TypeAttr] = a.typ
+		}
+		return docmodel.Block{
+			Kind:     docmodel.Admonition,
+			Attrs:    attrs,
+			Children: append([]docmodel.Block{title}, body...),
 		}, nil
 	case ast.KindParagraph:
 		return p.paragraph(n)

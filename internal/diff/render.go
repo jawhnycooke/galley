@@ -480,6 +480,8 @@ func wrapBlock(b renderBlock) string {
 		return `<ul class="gly-diff-list"><li>` + b.body + `</li></ul>`
 	case KindQuote:
 		return `<blockquote class="gly-diff-quote">` + b.body + `</blockquote>`
+	case KindAdmonition:
+		return `<p class="gly-diff-admonition">` + b.body + `</p>`
 	}
 	return `<p>` + b.body + `</p>`
 }

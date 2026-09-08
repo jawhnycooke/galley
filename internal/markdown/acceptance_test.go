@@ -75,3 +75,49 @@ func pipeLines(src string) []string {
 	}
 	return out
 }
+
+// The failure the MkDocs work exists to remove: an admonition's body reflowed
+// onto its header line. Every header line and every four-space body line of
+// the fixture must come back byte-identical, in order.
+func TestParse_OpensADocumentWithAdmonitions(t *testing.T) {
+	path := filepath.Join("testdata", "mkdocs.md")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	doc, _, err := markdown.Parse(src)
+	if err != nil {
+		t.Fatalf("Parse(%s): %v", path, err)
+	}
+	n := 0
+	docmodel.Walk(doc, func(_ []int, b *docmodel.Block) {
+		if b.Kind == docmodel.Admonition {
+			n++
+		}
+	})
+	if n < 10 {
+		t.Fatalf("parsed only %d admonitions — the fixture this test is about has moved", n)
+	}
+	before, after := admonitionLines(string(src)), admonitionLines(string(markdown.Serialize(doc)))
+	if len(before) != len(after) {
+		t.Fatalf("the fixture has %d admonition lines and writes back %d", len(before), len(after))
+	}
+	for i := range before {
+		if before[i] != after[i] {
+			t.Errorf("line %d moved:\n from: %q\n   to: %q", i+1, before[i], after[i])
+		}
+	}
+}
+
+// admonitionLines is every header line and every indented body line, with any
+// container prefix kept.
+func admonitionLines(src string) []string {
+	var out []string
+	for _, line := range strings.Split(src, "\n") {
+		bare := strings.TrimLeft(strings.TrimPrefix(strings.TrimSpace(line), ">"), " ")
+		if strings.HasPrefix(bare, "!!! ") || strings.HasPrefix(bare, "??? ") || strings.HasPrefix(bare, "???+ ") || strings.HasPrefix(bare, "=== \"") || strings.HasPrefix(line, "    ") {
+			out = append(out, line)
+		}
+	}
+	return out
+}

@@ -232,6 +232,23 @@ func endsWithParagraph(b docmodel.Block) bool {
 				return endsWithParagraph(b.Children[i])
 			}
 		}
+	case docmodel.Admonition:
+		// Walked from the end down to the first BODY child: a title is
+		// written on the header line, which is never an open paragraph. The
+		// start index is computed the way renderAdmonition computes it, since
+		// a hand-built admonition need not carry a title at all and its first
+		// child is then body. A body that writes nothing leaves the header
+		// line, which closes itself.
+		start := 0
+		if len(b.Children) > 0 && b.Children[0].Kind == docmodel.AdmonitionTitle {
+			start = 1
+		}
+		for i := len(b.Children) - 1; i >= start; i-- {
+			if !rendersNothing(b.Children[i]) {
+				return endsWithParagraph(b.Children[i])
+			}
+		}
+		return false
 	case docmodel.Table:
 		// A table IS a paragraph to goldmark's block scanner: the table
 		// parser is a PARAGRAPH TRANSFORMER that finds a delimiter row among
@@ -278,7 +295,11 @@ func rendersNothing(b docmodel.Block) bool {
 // Rule is the member of the "does not" set that is easy to get wrong: a
 // line of dashes directly under a paragraph line is not a thematic break,
 // it is a SETEXT HEADING underline, and writing one there would turn the
-// paragraph above into an h2 rather than separating the two.
+// paragraph above into an h2 rather than separating the two. Admonition is
+// a member of the "interrupts" set — its header line ("!!! ", "??? ",
+// "???+ ", or "=== ") starts no lazy continuation of a paragraph above —
+// and needs no arm of its own: the default below already answers true for
+// it, matching CanInterruptParagraph.
 func interruptsParagraph(b docmodel.Block) bool {
 	switch b.Kind {
 	case docmodel.Paragraph, docmodel.Image, docmodel.Rule, docmodel.Table, docmodel.Note, docmodel.FrontMatter:
@@ -352,6 +373,12 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 		return strings.TrimRight(b.Text, "\n"), alt
 	case docmodel.Blockquote:
 		return renderBlockquote(b.Children), alt
+	case docmodel.Admonition:
+		return renderAdmonition(b), alt
+	case docmodel.AdmonitionTitle:
+		// Only ever written by renderAdmonition. A stray one from a hand-built
+		// document is its own text rather than a deletion.
+		return admonitionTitleText(b), alt
 	case docmodel.BulletList:
 		return renderList(b.Children, false, alt)
 	case docmodel.OrderedList:
@@ -388,6 +415,81 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 		// switch exhaustive-by-inspection without a panic on new kinds.
 		return "", alt
 	}
+}
+
+// renderAdmonition writes the header line MkDocs reads — marker, type, quoted
+// title — and the body loose under it, every written line indented four
+// columns. Blank lines stay bare (renderListMarked's rule: indenting one puts
+// trailing whitespace into somebody's file); an empty body writes the header
+// alone, since legalize's refill paragraph renders to nothing and costs no
+// line.
+//
+// The header is built to be legal BY CONSTRUCTION rather than composed and
+// hoped for: parseAdmonitionHeader's grammar has two marker-specific rules —
+// a `===` tab is only a header with its quotes present (even empty: `=== ""`
+// parses back to a tab with an empty title), and a `!!!`/`???`/`???+`
+// admonition is only a header with a non-empty type word. A model can hold
+// either violation (an editor clears a tab's title, or a fresh node carries
+// TipTap's default empty type), and composing marker+type+title without
+// checking writes a line that reparses as prose — the four-space body then
+// reflows onto it, which is exactly the corruption this whole file exists to
+// prevent, now arriving from the model side. So the two cases are handled
+// here instead of asked about afterward: always quote a `===` title, and
+// substitute MkDocs' plainest type word, "note", for an empty `!!!`/`???`
+// type. Running the result back through parseAdmonitionHeader to verify it
+// would only be able to panic on a model defect, which this codebase does
+// not do for a write path — the by-construction guard is the fix, the
+// hostile-model test table is what proves it (admonition_test.go).
+func renderAdmonition(b docmodel.Block) string {
+	// The marker is a free string on both sides of the bridge, so it is held
+	// to the four the grammar reads; anything else would compose a header
+	// that reparses as prose, which is the same corruption as the two cases
+	// below wearing a different face.
+	marker := b.Attrs[docmodel.MarkerAttr]
+	switch marker {
+	case "!!!", "???", "???+", "===":
+	default:
+		marker = "!!!"
+	}
+	header := marker
+	if marker != "===" {
+		typ := b.Attrs[docmodel.TypeAttr]
+		if typ == "" {
+			typ = "note"
+		}
+		header += " " + typ
+	}
+	children := b.Children
+	if len(children) > 0 && children[0].Kind == docmodel.AdmonitionTitle {
+		title := admonitionTitleText(children[0])
+		if title != "" || marker == "===" {
+			header += ` "` + escapeTitle(title) + `"`
+		}
+		children = children[1:]
+	} else if marker == "===" {
+		header += ` ""`
+	}
+	body := renderBlocksLoose(children)
+	if body == "" {
+		return header
+	}
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = "    " + line
+		}
+	}
+	return header + "\n" + strings.Join(lines, "\n")
+}
+
+// admonitionTitleText is the title's text, verbatim: MkDocs reads the quoted
+// string as-is, so no markdown escaping on the way out and none on the way in.
+func admonitionTitleText(b docmodel.Block) string {
+	var sb strings.Builder
+	for _, in := range b.Inlines {
+		sb.WriteString(in.Text)
+	}
+	return sb.String()
 }
 
 // renderBlockquote renders children loose (blank line between blocks, per

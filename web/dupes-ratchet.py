@@ -59,11 +59,19 @@ not a ratchet.
 So the ceiling stops the number GROWING without demanding it shrink. A
 fifty-first group means duplication somewhere new, which is worth looking at
 even if the answer turns out to be the same one.
+
+The fifty-first group arrived, and it was looked at (2026-09-08): entry.ts's
+extension list beside schemacheck.mjs's EXTENSIONS. That mirror is DELIBERATE
+and already documented in schemacheck.mjs — the gate builds the editor's real
+schema independently and then checks its own list against entry.ts, so a
+node added to one side and not the other is a red gate rather than a deleted
+block. The two MkDocs nodes pushed the shared run over fallow's clone
+threshold. Same price, paid once more; the bound moves to 51.
 """
 import json
 import sys
 
-BOUND = 50
+BOUND = 51
 
 data = json.load(sys.stdin)
 groups = data["clone_groups"]
