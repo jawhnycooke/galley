@@ -441,8 +441,14 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 // not do for a write path — the by-construction guard is the fix, the
 // hostile-model test table is what proves it (admonition_test.go).
 func renderAdmonition(b docmodel.Block) string {
+	// The marker is a free string on both sides of the bridge, so it is held
+	// to the four the grammar reads; anything else would compose a header
+	// that reparses as prose, which is the same corruption as the two cases
+	// below wearing a different face.
 	marker := b.Attrs[docmodel.MarkerAttr]
-	if marker == "" {
+	switch marker {
+	case "!!!", "???", "???+", "===":
+	default:
 		marker = "!!!"
 	}
 	header := marker

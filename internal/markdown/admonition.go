@@ -103,14 +103,22 @@ func parseAdmonitionHeader(line []byte) (marker, typ, title string, ok bool) {
 // `"` first then `\` would double-escape the backslashes it just introduced;
 // escaping `\` first is fine on write, but unescaping is order-sensitive the
 // same way), so both directions walk the string once instead.
+//
+// AND ONLY THE BACKSLASHES THAT WOULD BE READ BACK AS ESCAPES ARE ESCAPED.
+// unescapeTitle consumes a backslash only before `\` or `"`; a lone one
+// (`C:\path`, a LaTeX fragment) is literal on the way in, so it has to be
+// written literal on the way out or an untouched title is rewritten on the
+// next projection — MkDocs itself reads the quoted title verbatim. A `\`
+// before `\` or `"`, or one that is the last byte (where a closing quote
+// would follow it), is doubled; every other one is copied.
 func escapeTitle(s string) string {
 	var sb strings.Builder
 	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\\':
-			sb.WriteString(`\\`)
-		case '"':
+		switch {
+		case s[i] == '"':
 			sb.WriteString(`\"`)
+		case s[i] == '\\' && (i+1 == len(s) || s[i+1] == '\\' || s[i+1] == '"'):
+			sb.WriteString(`\\`)
 		default:
 			sb.WriteByte(s[i])
 		}

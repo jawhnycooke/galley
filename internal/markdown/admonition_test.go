@@ -46,6 +46,7 @@ func TestParseAdmonitionHeader(t *testing.T) {
 		{`a !!! note "Title"`, "", "", "", false},
 		{`!!! note "a\\b"`, "!!!", "note", `a\b`, true},
 		{`=== ""`, "===", "", "", true},
+		{`!!! note "C:\path\to"`, "!!!", "note", `C:\path\to`, true}, // a lone backslash is literal
 	}
 	for _, c := range cases {
 		marker, typ, title, ok := parseAdmonitionHeader([]byte(c.line))
@@ -281,6 +282,8 @@ func TestSerialize_AdmonitionHostileModels(t *testing.T) {
 		{"title that is only whitespace", []docmodel.Block{admonitionModel("!!!", "note", "   ", para("Body."))}},
 		{"collapsed admonition whose body ends in a fence", []docmodel.Block{admonitionModel("???+", "note", "T", para("Body."), fence)}},
 		{"TipTap default pair", []docmodel.Block{admonitionModel("!!!", "note", "", docmodel.Block{Kind: docmodel.Paragraph})}},
+		{"title with a lone backslash", []docmodel.Block{admonitionModel("!!!", "note", `C:\path\to`, para("Body."))}},
+		{"a marker the grammar does not read", []docmodel.Block{admonitionModel("xyz", "note", "T", para("Body."))}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -318,5 +321,28 @@ func TestSerialize_AdmonitionHostileModels(t *testing.T) {
 				t.Fatalf("did not converge:\nsecond: %q\nthird:  %q", out2, out3)
 			}
 		})
+	}
+}
+
+// A LONE BACKSLASH IN A SOURCE TITLE IS NOT REWRITTEN. escapeTitle doubles
+// only the backslashes unescapeTitle would consume, so `C:\path` in a
+// hand-written header is byte-identical after a parse and a write — the
+// branch's headline invariant, which FuzzRoundTrip cannot see (it asserts
+// convergence, not first-write identity). The trade is a `\\` in a source
+// title, which reads as one backslash and is written back as one: SerializeOnto
+// keeps an untouched block's own bytes regardless, and a lone backslash is
+// the common case (paths), a doubled one the rare one.
+func TestAdmonition_LoneBackslashTitleIsSourceStable(t *testing.T) {
+	for _, src := range []string{
+		"!!! note \"C:\\path\\to\"\n    Body.\n",
+		"=== \"a\\b\"\n    Body.\n",
+	} {
+		doc, _, err := Parse([]byte(src))
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", src, err)
+		}
+		if got := string(Serialize(doc)); got != src {
+			t.Errorf("not source-stable:\n src: %q\n got: %q", src, got)
+		}
 	}
 }
