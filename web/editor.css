@@ -3195,6 +3195,25 @@ body.gly-revising .gly-dot {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* THE WAY BACK, as a word in the sentence rather than a button beside it: the
+   readout is the one thing a sealed bar carries, and `reopen` reads as part of
+   it. Scoped under `.gly-bar` so it outranks `.gly-bar button` (0,1,1) — the
+   same trap the deleted `.gly-seal-reopen` fell into, see below. */
+.gly-bar .gly-seal .gly-reopen {
+  all: unset;
+  cursor: pointer;
+  color: var(--gly-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.gly-bar .gly-seal .gly-reopen:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.gly-bar .gly-seal .gly-reopen:focus-visible {
+  outline: 2px solid var(--gly-accent);
+  outline-offset: 2px;
+}
 /* THE TERMINAL VERBS ARE DELETED, AND SO ARE THE THREE RULES THAT DRESSED
    THEM. `.gly-seal-actions` was the group `makeSeal` built, set `hidden` and
    never appended to the bar; `.gly-seal-reopen` and `.gly-seal-done` were its

@@ -114,8 +114,12 @@ export function scrubLabel(
   t: number,
   max: number,
   headRevised: boolean,
+  sealed = false,
 ): string {
   const s = scrubState(t, max);
+  // A SEALED HEAD IS NOT A DRAFT. `v6 → draft` over an approved document
+  // promised a draft to go back to, and the return landed on `approved`.
+  if (s.atHead && sealed) return `v${max} · approved`;
   if (s.atHead)
     return headRevised ? `v${max} · agent revised` : `v${max} → draft`;
   if (s.frac < 0.02) return `v${s.near}`;
@@ -291,6 +295,7 @@ export function paintTimeline(this: AppShell): void {
     this.scrubT,
     max,
     !!head && head.reason === REASON_LANDED && head.answers > 0,
+    !!this.sealed,
   );
 }
 

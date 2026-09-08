@@ -12,7 +12,7 @@ func TestRemovedWorkflowEndpointsAreGone(t *testing.T) {
 		"/_galley/suggest", "/_galley/accept", "/_galley/reject",
 		"/_galley/accept-all", "/_galley/reject-all", "/_galley/sweep",
 		"/_galley/decline", "/_galley/reply", "/_galley/resolve",
-		"/_galley/delete", "/_galley/reopen", "/_galley/discard",
+		"/_galley/delete", "/_galley/discard",
 	} {
 		if rec := post(t, h, path, map[string]any{}); rec.Code != http.StatusNotFound {
 			t.Errorf("POST %s = %d, want 404", path, rec.Code)

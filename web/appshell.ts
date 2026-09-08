@@ -712,6 +712,7 @@ export interface AppMethods {
   // --- the seal and the handoff's own builders (web/seal.ts) ---
   makeHandoffCancel(): HTMLButtonElement | null;
   makeSeal(): { readout: HTMLElement };
+  makeReopenLink(): HTMLButtonElement;
 
   // --- Revise's own builder (web/verdict.ts) ---
   makeRevise(): HTMLButtonElement | null;

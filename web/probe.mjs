@@ -114,6 +114,7 @@ import {
   VERDICT_DISCARDED,
 } from './verdict.ts';
 import {
+  BACK_TO_APPROVED,
   BACK_TO_DRAFT,
   ageSaid,
   workRounds,
@@ -6467,21 +6468,25 @@ function bindsContentField(src) {
     // failure the seal exists to remove, and which no Go test can see. Written
     // red-first against the pre-seal bundle: every one of these is absent
     // there.
-    // AND THE TWO VERBS ARE ASSERTED ABSENT, which is this file's own answer to
-    // a check whose subject left the product: invert it, never delete it, so a
-    // control being quietly put back is something a run can see. `makeSeal`
-    // built `.gly-seal-actions` with `↺ Reopen` and `✓ Done` in it, set it
-    // `hidden` and never appended it — both were unpressable — and they are
-    // deleted now. Reopen is vestigial in every layer (no route, no CLI, and
-    // both rounds_surface_test.go files assert it); `/_galley/stop` is real and
-    // has no browser caller left, which is recorded at makeSeal rather than
-    // smoothed over.
+    // AND THE OLD VERBS ARE ASSERTED ABSENT, which is this file's own answer
+    // to a check whose subject left the product: invert it, never delete it,
+    // so a control being quietly put back is something a run can see.
+    // `makeSeal` built `.gly-seal-actions` with `↺ Reopen` and `✓ Done` in
+    // it, set it `hidden` and never appended it — both were unpressable — and
+    // they are deleted. REOPEN CAME BACK AS A WORD IN THE READOUT, not as
+    // that button: `.gly-reopen` posts to `/_galley/reopen` (seal.go), which
+    // is the recovery the sentence used to describe in words the reviewer had
+    // to carry to a terminal. `/_galley/stop` is real and still has no
+    // browser caller, which is recorded at makeSeal rather than smoothed over.
     check(
       'the built bundle carries no terminal verbs — the seal is a readout',
       !src.includes('gly-seal-reopen') &&
         !src.includes('gly-seal-done') &&
-        !src.includes('/_galley/reopen') &&
         !src.includes('/_galley/stop'),
+    );
+    check(
+      'and the readout carries the way back as a link',
+      src.includes('gly-reopen') && src.includes('/_galley/reopen'),
     );
     check(
       'the built bundle carries the three verdict readouts',
@@ -6836,8 +6841,7 @@ function bindsContentField(src) {
       const at = new Date(2026, 7, 15, 11, 42).getTime();
       check(
         'a pure approve reads as closed',
-        sealLine(VERDICT_APPROVED, at, 0) ===
-          'Approved 11:42 · review closed · restart galley edit to reopen',
+        sealLine(VERDICT_APPROVED, at, 0) === 'Approved 11:42 · review closed',
       );
       check(
         'the trust exit counts what it handed over',
@@ -6897,8 +6901,7 @@ function bindsContentField(src) {
       // closed" with a hole in it.
       check(
         'a verdict with no instant still reads',
-        sealLine(VERDICT_APPROVED, 0, 0) ===
-          'Approved · review closed · restart galley edit to reopen' &&
+        sealLine(VERDICT_APPROVED, 0, 0) === 'Approved · review closed' &&
           clockTime(0) === '',
       );
       // The agent's reopen carries its reason INTO the readout, because the
@@ -7284,7 +7287,7 @@ function bindsContentField(src) {
       'and the census strip is gone, not merely unbuilt',
       !src.includes('gly-census-count') && !src.includes('gly-census'),
     );
-    // AND NONE OF THE TWELVE WORKFLOW ENDPOINTS, asserted as one claim off the
+    // AND NONE OF THE ELEVEN WORKFLOW ENDPOINTS, asserted as one claim off the
     // one list. internal/serve/rounds_surface_test.go asserts every one of these
     // answers 404; this is the same list read from the other end, so a browser
     // that starts posting to one of them again fails here rather than in a
@@ -7292,7 +7295,7 @@ function bindsContentField(src) {
     // whatever the bundle ships, and a stray '✗ all' is a stray button waiting
     // to be appended.
     check(
-      'the built bundle posts to none of the twelve retired endpoints',
+      'the built bundle posts to none of the eleven retired endpoints',
       [
         'suggest',
         'accept',
@@ -7304,7 +7307,6 @@ function bindsContentField(src) {
         'reply',
         'resolve',
         'delete',
-        'reopen',
         'discard',
       ].every((verb) => !src.includes(`/_galley/${verb}`)),
     );
@@ -7895,6 +7897,10 @@ function bindsContentField(src) {
     'the way back out of a version is the primary’s own face',
     BACK_TO_DRAFT === '← back to draft',
   );
+  check(
+    'and on a sealed page it names the approval, not a draft',
+    BACK_TO_APPROVED === '← back to approved',
+  );
 
   const bundle = (() => {
     try {
@@ -8141,6 +8147,11 @@ function bindsContentField(src) {
     scrubLabel(5, 5, true) === 'v5 · agent revised',
   );
   check('label: on a keyframe', scrubLabel(3, 5, true) === 'v3');
+  check(
+    'label: a sealed head is approved, not a draft',
+    scrubLabel(5, 5, true, true) === 'v5 · approved' &&
+      scrubLabel(3, 5, true, true) === 'v3',
+  );
   check('label: between', scrubLabel(2.4, 5, true) === 'v2 → v3');
   check(
     'appear: a block born in v3 fades in over t∈[2,3]',

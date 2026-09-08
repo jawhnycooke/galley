@@ -106,20 +106,13 @@ export function sealLine(
     if (inFlight > 0) return `${handed} · ${inFlight} still landing`;
     return `${handed} · all applied`;
   }
-  // AND HOW TO GET BACK, WHICH THIS DID NOT SAY. The seal is terminal by
-  // design and there is no reopen button — that was decided, and it holds. What
-  // was never decided is that the way back should be INVISIBLE: the seal is
-  // in-memory only, so stopping `galley edit` and starting it again returns a
-  // live review, and Approve changes no bytes, cuts no version and reaches git
-  // not at all. Measured 2026-08-23: approve, restart, `sealed: false`.
-  //
-  // So the whole cost of a mis-pressed Approve is one command — and a reviewer
-  // reading `Approved 14:32 · review closed` has no way to know that. A
-  // recovery that exists and is unmentioned is this codebase's own
-  // invisible-but-present defect wearing the other face, and it is answered
-  // with a clause rather than with a button: a confirmation would tax every
-  // review forever to protect against something a restart undoes.
-  return `Approved${stamp} · review closed · restart galley edit to reopen`;
+  // AND THE WAY BACK IS A LINK BESIDE IT, NOT A CLAUSE. The seal is in-memory
+  // only — Approve changes no bytes, cuts no version and reaches git not at
+  // all — so this sentence used to end `· restart galley edit to reopen`, a
+  // recovery the reviewer had to carry to a terminal. paintSeal appends the
+  // `reopen` link after this text (POST /_galley/reopen, seal.go), so the
+  // sentence itself says only what was decided and when.
+  return `Approved${stamp} · review closed`;
 }
 
 /** reopenLine is what the status readout says when the page comes back from
@@ -574,6 +567,27 @@ export const sealMethods = {
     }
   },
 
+  // makeReopenLink is the sealed readout's one control: press it and the
+  // review is live again. The server answers 204 before the poll has seen
+  // the change, so the poll is asked for at once rather than waited on —
+  // the page comes back on the press, not a second after it.
+  makeReopenLink(this: AppShell): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gly-reopen';
+    b.textContent = 'reopen';
+    b.title = 'take the approval back — the review is live again';
+    b.addEventListener('click', () => {
+      b.disabled = true;
+      void postJSON('/_galley/reopen', {})
+        .then(() => this.readRevise())
+        .catch(() => {
+          b.disabled = false;
+        });
+    });
+    return b;
+  },
+
   // makeSeal builds the terminal bar's two halves and leaves both off.
   //
   // A DIFFERENT SET OF CHILDREN, SWAPPED ON A STATE CHANGE — which is allowed;
@@ -727,6 +741,12 @@ export const sealMethods = {
         )
       : '';
     this.sealUI.readout.textContent = line;
+    // THE WAY BACK, ON THE PAGE. A pure approve is the one ending a reviewer
+    // can take back — the trust exit is work still travelling, and it lands
+    // on its own — so the link is offered there and nowhere else.
+    if (sealed && this.sealVerdict !== VERDICT_ENTRUSTED) {
+      this.sealUI.readout.append(' · ', this.makeReopenLink());
+    }
     // AND THE WHOLE SENTENCE IS REACHABLE WHERE THE CELL CANNOT HOLD IT. The
     // readout yields and ellipsises rather than pushing the bar past the window
     // (`.gly-seal`, editor.css) — measured 114px of spill at 390px — and an

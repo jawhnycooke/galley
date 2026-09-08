@@ -169,6 +169,12 @@ func runEdit(args []string, out, errw io.Writer) error {
 		_ = registry.Remove(srv.Room)
 		fmt.Println("review approved — Ctrl-C to stop")
 	}
+	// And the page's own way back: the entry the verdict withdrew is put
+	// back, which is the whole of how a detached channel finds the review.
+	srv.OnReopen = func() {
+		advertiseEdit(srv, url)
+		fmt.Println("review reopened — live again")
+	}
 
 	fmt.Printf("document  %s\n", srv.MdPath)
 	fmt.Printf("room      %s\n", srv.Room)

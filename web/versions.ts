@@ -55,6 +55,11 @@ export interface Arrival {
 // — the one place on this page a reviewer already looks for "the thing to press
 // next". It is the scrubber's exit now; it was History's before.
 export const BACK_TO_DRAFT = '← back to draft';
+// And the same exit on a sealed page, where there is no draft to go back to.
+export const BACK_TO_APPROVED = '← back to approved';
+// The exit names what it returns to; it changes on the seal, never on a press.
+export const backLabel = (sealed: boolean): string =>
+  sealed ? BACK_TO_APPROVED : BACK_TO_DRAFT;
 
 const RESTORE_ARM_MS = 4000;
 // The armed label, spelled once. Its idle partner carries a version number and
