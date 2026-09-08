@@ -142,6 +142,7 @@ import {
 import { FrontMatterBlock } from './frontmatter.ts';
 import { litDecorations, sameRuns } from './lit.ts';
 import { MathBlock } from './math.ts';
+import { AdmonitionBlock, AdmonitionTitle } from './admonition.ts';
 import { NoteBlock, noteDecorations } from './note.ts';
 import {
   contextOf,
@@ -230,6 +231,8 @@ const schema = getSchema([
   // records paying for.
   FrontMatterBlock,
   MathBlock,
+  AdmonitionBlock,
+  AdmonitionTitle,
   Ins,
   Del,
   Highlight,
@@ -269,6 +272,8 @@ const FRAGMENT_NODES = [
   'note',
   'frontMatter',
   'mathBlock',
+  'admonition',
+  'admonitionTitle',
   'table',
   'tableRow',
   'tableCell',
@@ -294,6 +299,9 @@ const fragmentSchema = getSchema([
   // schema that deletes the author's metadata on open.
   FrontMatterBlock,
   MathBlock,
+  // The MkDocs container and its title, for the reason above.
+  AdmonitionBlock,
+  AdmonitionTitle,
   // The table nodes belong here for the same reason every other node does:
   // this schema is what decides whether a name galley writes into the fragment
   // can be built. A table left out of it is a table y-prosemirror deletes.

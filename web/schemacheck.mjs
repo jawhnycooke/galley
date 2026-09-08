@@ -174,6 +174,8 @@ export function checkDrift(entryPath = join(HERE, 'entry.ts')) {
     'NoteBlock',
     'FrontMatterBlock',
     'MathBlock',
+    'AdmonitionBlock',
+    'AdmonitionTitle',
     'Ins',
     'Del',
     'Highlight',

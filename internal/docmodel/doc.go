@@ -94,6 +94,33 @@ const (
 	// It carries no Inlines, so suggest.List cannot reach it and no mark can be
 	// hung on it — the same standing reason a code fence is literal text.
 	MathBlock BlockKind = "mathBlock"
+
+	// Admonition is a MkDocs Material admonition or content tab — one of
+	//
+	//	!!! note "Title"     ??? note "Title"     ???+ note "Title"     === "Tab"
+	//	    body, indented four spaces
+	//
+	// It is the third answer to the question dialects.go asks. Front matter
+	// and math are carried verbatim because their content is not markdown;
+	// `:::` directives and `> [!NOTE]` callouts are refused because their
+	// content IS markdown and carrying it verbatim would make the author's
+	// sentences unreviewable. This construct's body is markdown too, and it is
+	// MODELLED — a container, like Blockquote, whose Children are ordinary
+	// blocks — so every sentence inside it is prose the reviewer can mark.
+	//
+	// Attrs[MarkerAttr] is the marker; Attrs[TypeAttr] is the type word, empty
+	// for a tab. Children[0] is ALWAYS an AdmonitionTitle (empty when the
+	// source had no quoted title) and Children[1:] is the body, `block+`. The
+	// title is a child rather than an attribute because ydoc.writeBlock writes
+	// a block as either inlines or children, never both, and the title has to
+	// be editable text.
+	Admonition BlockKind = "admonition"
+
+	// AdmonitionTitle is the title line of an Admonition: one unmarked run in
+	// Inlines, verbatim (no markdown escaping either way — MkDocs reads the
+	// quoted string as-is, apart from `\"`). It exists only as Children[0] of
+	// an Admonition; TipTap's content expression puts it nowhere else.
+	AdmonitionTitle BlockKind = "admonitionTitle"
 )
 
 // Anchor values for a Note block's Attrs["anchor"].
@@ -113,11 +140,20 @@ const (
 // back agreeing with itself.
 const AlignAttr = "align"
 
+// MarkerAttr and TypeAttr are the Attrs keys an Admonition carries: which of
+// the four MkDocs markers opened it, and its type word (`note`, `check`, …;
+// empty for a `===` tab). Both are written into the CRDT as element attributes
+// and read by the browser's admonition node under the same names.
+const (
+	MarkerAttr = "marker"
+	TypeAttr   = "type"
+)
+
 // Block is a single block-level node in the document tree. Which fields are
 // meaningful depends on Kind: Paragraph and Heading carry Inlines, the RAW-TEXT
 // kinds (CodeBlock, FrontMatter, MathBlock) carry their bytes in Text, and
 // container kinds (Blockquote, the list kinds, ListItem, Table, TableRow,
-// TableCell, TableHeader) carry Children.
+// TableCell, TableHeader, Admonition) carry Children.
 type Block struct {
 	Kind    BlockKind
 	Attrs   map[string]string

@@ -129,6 +129,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import { NoteBlock, settledNotesKey } from './note.ts';
 import { FrontMatterBlock } from './frontmatter.ts';
 import { MathBlock } from './math.ts';
+import { AdmonitionBlock, AdmonitionTitle } from './admonition.ts';
 import { litKey, litPlugin, sameRuns } from './lit.ts';
 import { keyMethods } from './keys.ts';
 import { pendingMethods } from './pending.ts';
@@ -656,6 +657,12 @@ function init(opts?: { room?: string; wsURL?: string }): void {
       // internal/ydoc's TestEveryBlockKindExistsInTheBrowserSchema is the gate
       // that made this line unskippable.
       MathBlock,
+      // And the container under the same sentence: a MkDocs admonition or tab
+      // is written into the fragment as <admonition> holding an
+      // <admonitionTitle> and its body blocks, so a schema without both is a
+      // schema that DELETES the author's callout on open. See admonition.ts.
+      AdmonitionBlock,
+      AdmonitionTitle,
       Ins,
       Del,
       Highlight,
