@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -407,5 +408,30 @@ func TestALeadingThematicBreakIsNotFrontMatter(t *testing.T) {
 	blocks := Blocks("---\n\nA paragraph with no closing delimiter anywhere.\n")
 	if len(blocks) == 0 || blocks[0].Kind != KindRule {
 		t.Fatalf("want a leading rule block, got %+v", blocks)
+	}
+}
+
+func TestAnAdmonitionHeaderIsOneBlockAndItsBodyIsProse(t *testing.T) {
+	src := "Intro.\n\n!!! check \"Checkpoint\"\n    Run it. Then stop.\n\n    - one\n\nAfter.\n"
+	blocks := Blocks(src)
+	kinds := []Kind{}
+	for _, b := range blocks {
+		kinds = append(kinds, b.Kind)
+	}
+	want := []Kind{KindPara, KindAdmonition, KindPara, KindListItem, KindPara}
+	if fmt.Sprint(kinds) != fmt.Sprint(want) {
+		t.Fatalf("kinds = %v, want %v", kinds, want)
+	}
+	if blocks[1].Text != "!!! check \"Checkpoint\"" {
+		t.Fatalf("header block = %q", blocks[1].Text)
+	}
+	if KindAdmonition.Atomic() {
+		t.Fatal("an admonition header is not atomic")
+	}
+	if n := len(Sentences(blocks[1].Text, KindAdmonition)); n != 1 {
+		t.Fatalf("a header is one unit, got %d", n)
+	}
+	if n := len(Sentences(blocks[2].Text, blocks[2].Kind)); n != 2 {
+		t.Fatalf("the body is prose with two sentences, got %d", n)
 	}
 }

@@ -24,16 +24,17 @@ import (
 type Kind string
 
 const (
-	KindPara     Kind = "para"
-	KindHeading  Kind = "heading"
-	KindCode     Kind = "code"
-	KindTable    Kind = "table"
-	KindMath     Kind = "math"
-	KindRule     Kind = "rule"
-	KindFrontM   Kind = "frontmatter"
-	KindListItem Kind = "listitem"
-	KindQuote    Kind = "quote"
-	KindBoundary Kind = "boundary"
+	KindPara       Kind = "para"
+	KindHeading    Kind = "heading"
+	KindCode       Kind = "code"
+	KindTable      Kind = "table"
+	KindMath       Kind = "math"
+	KindRule       Kind = "rule"
+	KindFrontM     Kind = "frontmatter"
+	KindListItem   Kind = "listitem"
+	KindQuote      Kind = "quote"
+	KindAdmonition Kind = "admonition"
+	KindBoundary   Kind = "boundary"
 )
 
 // Atomic reports whether a block's content is NOT PROSE — code, a table,
@@ -57,6 +58,11 @@ var (
 	reTable    = regexp.MustCompile(`^\s*\|`)
 	reMath     = regexp.MustCompile(`^\s*\$\$\s*$`)
 	reRule     = regexp.MustCompile(`^\s*(\*\s*){3,}$|^\s*(-\s*){3,}$|^\s*(_\s*){3,}$`)
+	// A MkDocs admonition or tab HEADER. The body under it is ordinary prose,
+	// indented, and falls through to the arms below; only the header line is
+	// its own block, one unit, like a heading. The grammar is
+	// markdown.parseAdmonitionHeader's, loosened only by leading indent.
+	reAdmonition = regexp.MustCompile(`^\s*(!!!|\?\?\?\+?|===)[ \t]+(?:[A-Za-z][A-Za-z0-9_-]*(?:[ \t]+|$))?(?:"(?:[^"\\]|\\.)*")?[ \t]*$`)
 )
 
 // Blocks turns markdown source into the blocks a sentence may not cross.
@@ -141,6 +147,11 @@ func Blocks(src string) []Block {
 			i++
 			continue
 		}
+		if reAdmonition.MatchString(ln) {
+			out = append(out, Block{KindAdmonition, strings.TrimSpace(ln)})
+			i++
+			continue
+		}
 		if reListItem.MatchString(ln) || reQuote.MatchString(ln) {
 			kind := KindQuote
 			if reListItem.MatchString(ln) {
@@ -150,7 +161,8 @@ func Blocks(src string) []Block {
 			j := i + 1
 			for j < len(lines) && strings.TrimSpace(lines[j]) != "" &&
 				!reListItem.MatchString(lines[j]) && !reHeading.MatchString(lines[j]) &&
-				!reFence.MatchString(lines[j]) && !reTable.MatchString(lines[j]) {
+				!reFence.MatchString(lines[j]) && !reTable.MatchString(lines[j]) &&
+				!reAdmonition.MatchString(lines[j]) {
 				buf = append(buf, strings.TrimSpace(lines[j]))
 				j++
 			}
@@ -163,7 +175,8 @@ func Blocks(src string) []Block {
 		for j < len(lines) && strings.TrimSpace(lines[j]) != "" &&
 			!reHeading.MatchString(lines[j]) && !reFence.MatchString(lines[j]) &&
 			!reListItem.MatchString(lines[j]) && !reTable.MatchString(lines[j]) &&
-			!reQuote.MatchString(lines[j]) && !reMath.MatchString(lines[j]) {
+			!reQuote.MatchString(lines[j]) && !reMath.MatchString(lines[j]) &&
+			!reAdmonition.MatchString(lines[j]) {
 			buf = append(buf, strings.TrimSpace(lines[j]))
 			j++
 		}
@@ -261,7 +274,7 @@ func mask(runes []rune) []rune {
 // their block.
 func Sentences(text string, kind Kind) []string {
 	switch kind {
-	case KindHeading, KindMath, KindRule:
+	case KindHeading, KindMath, KindRule, KindAdmonition:
 		return []string{text}
 	case KindTable, KindCode, KindFrontM:
 		var out []string

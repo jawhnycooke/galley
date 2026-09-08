@@ -3362,6 +3362,10 @@ body.gly-revising .gly-dot {
   padding-left: 12px;
   color: var(--gly-muted);
 }
+.gly-versions-paper .gly-diff-admonition {
+  font: 12px var(--gly-mono);
+  color: var(--gly-muted);
+}
 /* A whole block gone, or arrived, is ONE change and reads as one. */
 .gly-versions-paper .gly-diff-gone,
 .gly-versions-paper .gly-diff-added {
