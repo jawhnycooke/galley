@@ -81,6 +81,10 @@ func schemaCanBuild(b docmodel.Block) bool {
 	// which is stricter than block+ and is its own hazard; see the report.
 	case docmodel.ListItem:
 		return len(b.Children) > 0 && b.Children[0].Kind == docmodel.Paragraph
+	// `content: 'admonitionTitle block+'` — the title is Children[0], never a
+	// Note, so it is the body (everything after it) that can be emptied.
+	case docmodel.Admonition:
+		return len(b.Children) > 1
 	// `content: 'tableRow+'` / `content: 'listItem+'`
 	case docmodel.Table, docmodel.BulletList, docmodel.OrderedList:
 		return len(b.Children) > 0
@@ -210,6 +214,25 @@ func TestDeletingANoteThatIsTheWholeOfALisItemOrABlockquote(t *testing.T) {
 				t.Errorf("AcceptAll wrote\n got:  %q\n want: %q", got, c.want)
 			}
 		})
+	}
+}
+
+// AN ADMONITION IS THE SAME BUG, WITH A TITLE THAT MUST NOT MOVE. Its content
+// rule is `admonitionTitle block+`, so a note that is the whole body empties
+// everything AFTER Children[0] — the refill has to land after the title, not
+// at the front, or the title stops being Children[0].
+func TestDeletingANoteThatIsTheWholeOfAnAdmonitionBody(t *testing.T) {
+	src := "!!! note \"N\"\n    {>>why<<}\n"
+	want := "!!! note \"N\"\n"
+	for _, out := range []docmodel.Doc{deleteOnlyThread(t, parseDoc(t, src)), suggest.AcceptAll(parseDoc(t, src))} {
+		if got := onOpen(out); got != want {
+			t.Errorf("wrote\n got:  %q\n want: %q", got, want)
+		}
+		b := out.Blocks[0]
+		if b.Kind != docmodel.Admonition || len(b.Children) != 2 ||
+			b.Children[0].Kind != docmodel.AdmonitionTitle || b.Children[1].Kind != docmodel.Paragraph {
+			t.Fatalf("got %#v, want [AdmonitionTitle, Paragraph]", b.Children)
+		}
 	}
 }
 

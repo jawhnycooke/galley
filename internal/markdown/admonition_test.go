@@ -131,6 +131,23 @@ func TestParse_Admonitions(t *testing.T) {
 	}
 }
 
+func TestAdmonition_SoleCommentBodyStaysLegal(t *testing.T) {
+	doc, comments, err := Parse([]byte("!!! note \"N\"\n    {>>a block note<<}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(comments) != 0 {
+		t.Fatalf("a standalone note is a Note block, not an inline comment: %v", comments)
+	}
+	b := doc.Blocks[0]
+	if b.Kind != docmodel.Admonition || len(b.Children) != 2 || b.Children[0].Kind != docmodel.AdmonitionTitle || b.Children[1].Kind != docmodel.Note {
+		t.Fatalf("got %#v", b)
+	}
+	if got := string(Serialize(doc)); got != "!!! note \"N\"\n    {>>a block note<<}\n" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestSerialize_Admonitions(t *testing.T) {
 	cases := []struct {
 		name string

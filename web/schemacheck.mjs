@@ -65,6 +65,7 @@ import {
 import { NoteBlock } from './note.ts';
 import { FrontMatterBlock } from './frontmatter.ts';
 import { MathBlock } from './math.ts';
+import { AdmonitionBlock, AdmonitionTitle } from './admonition.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -85,6 +86,8 @@ export const EXTENSIONS = [
   NoteBlock,
   FrontMatterBlock,
   MathBlock,
+  AdmonitionBlock,
+  AdmonitionTitle,
   Ins,
   Del,
   Highlight,
