@@ -42,3 +42,6 @@ web/node_modules/
 
 # Bare `go build ./cmd/galley-mint` drops binary at repo root; ignore it.
 /galley-mint
+
+# Session planning notes (plans, todo, lessons) — local working files, not part of the repo.
+ai_tasks/

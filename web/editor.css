@@ -3904,15 +3904,19 @@ body.gly-page .ProseMirror p.gly-shell-marker {
    in the sheet's flow would push everything under them down. And while it IS on
    screen the draft's paper is not, because two sheets in one column is the
    panel this deleted. */
-/* NEITHER PAPER MAY BE A SCROLL ANCHOR. They swap places — one is `display:
-   none` while the other is on screen — so the page grows and shrinks above the
-   viewport, and Chrome's scroll anchoring answers that by moving the scroll
-   offset to keep an anchor still. That adjustment lands AFTER leaveHistory has
-   put the reviewer's own position back, which is the one thing this mode
-   promises (history.ts). Measured: asked for 228, read back 330. */
-.gly-scrub-stage,
-.gly-scrub-paper,
-.ProseMirror {
+/* NOTHING ON THE PAGE MAY BE A SCROLL ANCHOR. The two papers swap places —
+   one is `display: none` while the other is on screen — so the page grows and
+   shrinks above the viewport, and Chrome's scroll anchoring answers that by
+   moving the scroll offset to keep an anchor still. That adjustment lands
+   AFTER leaveHistory has put the reviewer's own position back, which is the
+   one thing this mode promises (history.ts). Measured: asked for 228, read
+   back 330. Excluding the papers alone was not enough: the docslot above them
+   is hidden while a version is read and comes back on Esc, and the same
+   adjustment then followed ITS height (asked for 88, read back 134) — on
+   whichever runs happened not to flush layout in between, which is what made
+   the gate flicker. The paper is nearly the whole page and was already opted
+   out, so opting the root out costs the reviewer nothing. */
+html {
   overflow-anchor: none;
 }
 .gly-scrub-stage {

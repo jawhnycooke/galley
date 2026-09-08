@@ -8354,7 +8354,7 @@ function bindsContentField(src) {
 
 // --- arrival matching ---
 {
-  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN_DEL } =
+  const { matchBlocks, dedupeWas, quoteBlockIndex, PROBE_MIN_CTX } =
     await import('./rows.ts');
   const blocks = [
     'Intro paragraph.',
@@ -8377,20 +8377,54 @@ function bindsContentField(src) {
     m,
   );
   check('matchBlocks: unmatched is null', m[1] === null, m);
+  // A PURE DELETION IS FOUND BY THE WORDS AROUND IT. The deleted words are gone
+  // from the page, so they can never place the change; the region's surviving
+  // context is what is still there. On a real round `This isn't a toy example.`
+  // was removed from a paragraph and the paragraph got no strip at all.
   check(
-    'matchBlocks: an empty insertion matches by deletion text',
+    'matchBlocks: an empty insertion matches by the surviving context',
+    matchBlocks(
+      [
+        {
+          ins: '',
+          del: "This isn't a toy example.",
+          ctx: 'Closing, and this skill is where it ends.',
+        },
+      ],
+      blocks,
+    )[0] === 2,
+  );
+  // AND SO IS A TINY INSERTION: `three` → `four` is a real change on a real
+  // block, and four characters of it are not a probe.
+  check(
+    'matchBlocks: a one-word insertion matches by the surviving context',
+    matchBlocks(
+      [
+        {
+          ins: 'four',
+          del: 'three',
+          ctx: 'A long, structured research document covering everything.',
+        },
+      ],
+      blocks,
+    )[0] === 1,
+  );
+  check(
+    'matchBlocks: deleted words alone place nothing',
     matchBlocks(
       [{ ins: '', del: 'Closing, and this skill is where' }],
       blocks,
-    )[0] === 2,
+    )[0] === null,
   );
   // THE FLOOR IS THE WHOLE POINT: `, this skill` is twelve characters and it
   // occurs inside the third block AND inside anything else that says it. On the
   // real document a fragment that short matched the FRONTMATTER and hung a WAS
   // strip full of the wrong prose at the top of the paper.
   check(
-    'matchBlocks: a short DELETION probe is refused, not guessed',
-    PROBE_MIN_DEL === 20,
+    'matchBlocks: a short CONTEXT probe is refused, not guessed',
+    PROBE_MIN_CTX === 20 &&
+      matchBlocks([{ ins: '', del: '', ctx: ', this skill' }], blocks)[0] ===
+        null,
   );
   // AND AN INSERTION PROBE IS NOT HELD TO IT. The agent's new words did not
   // exist a version ago, so they are distinctive at a fraction of the length —
@@ -8402,10 +8436,6 @@ function bindsContentField(src) {
       [{ ins: 'structured research', del: 'a long structured doc' }],
       blocks,
     )[0] === 1,
-  );
-  check(
-    'matchBlocks: a 12-char deletion matches nothing',
-    matchBlocks([{ ins: '', del: ', this skill' }], blocks)[0] === null,
   );
   check(
     'dedupeWas: one WAS per block, the longest deletion',

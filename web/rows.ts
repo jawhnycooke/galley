@@ -100,32 +100,42 @@ function blockRange(doc: PMNode, index: number): [number, number] | null {
 // because they did not exist a version ago — so eight characters of them is
 // already an answer.
 //
-// A DELETION-ONLY probe is the opposite. The words are GONE from the version on
-// screen, so a match is a match on some OTHER block that happens to contain the
-// same run of characters — and a short one is not distinctive, it is COMMON: a
-// twelve-character deletion (`, this skill`) matched the document's frontmatter
-// and hung a WAS strip full of the wrong prose at the top of the paper. Twenty
-// characters of real prose picks out one block or none, and "none" is the
-// honest answer here: the strip is an enrichment, and a missing one costs the
-// reviewer nothing while a wrong one tells them the agent changed something it
-// never touched.
+// WHEN THE INSERTION IS TOO SHORT TO PROBE WITH — `three` → `four`, or nothing
+// inserted at all — the change is found by its CONTEXT: the region's surviving
+// words, which are on the page by definition. The DELETED words never are: they
+// are gone from the version on screen, so probing with them could only ever hit
+// some OTHER block that happens to say the same thing, and a real round that
+// removed one sentence from a paragraph got no strip at all that way. Context
+// is ordinary prose rather than freshly written words, so it is held to a
+// higher floor: a twelve-character run (`, this skill`) once matched the
+// document's frontmatter and hung a WAS strip full of the wrong prose at the
+// top of the paper. Twenty characters picks out one block or none, and "none"
+// is the honest answer here: the strip is an enrichment, and a missing one
+// costs the reviewer nothing while a wrong one tells them the agent changed
+// something it never touched.
 //
 // AND ONE WAS PER BLOCK. A round that edits three phrases in one paragraph
 // renders three regions, all matching that paragraph, and three strips stacked
 // under it read as three separate rewrites of the same words. The longest
 // deletion is kept because it is the one that shows most of what was there.
 const PROBE_MIN_INS = 8;
-export const PROBE_MIN_DEL = 20;
+export const PROBE_MIN_CTX = 20;
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 export function matchBlocks(
-  changes: { ins: string; del: string }[],
+  changes: { ins: string; ctx?: string }[],
   blocks: string[],
 ): (number | null)[] {
   const bs = blocks.map(norm);
   return changes.map((c) => {
     const ins = norm(c.ins).slice(0, 40);
-    const probe = ins || norm(c.del).slice(0, 40);
-    if (probe.length < (ins ? PROBE_MIN_INS : PROBE_MIN_DEL)) {
+    const ctx = norm(c.ctx ?? '').slice(0, 40);
+    const probe =
+      ins.length >= PROBE_MIN_INS
+        ? ins
+        : ctx.length >= PROBE_MIN_CTX
+          ? ctx
+          : '';
+    if (!probe) {
       return null;
     }
     const i = bs.findIndex((b) => b.includes(probe));
