@@ -420,23 +420,48 @@ func renderBlock(b docmodel.Block, alt bool) (string, bool) {
 // renderAdmonition writes the header line MkDocs reads — marker, type, quoted
 // title — and the body loose under it, every written line indented four
 // columns. Blank lines stay bare (renderListMarked's rule: indenting one puts
-// trailing whitespace into somebody's file), an empty title writes no quotes,
-// and an empty body writes the header alone; legalize's refill paragraph
-// renders to nothing, so it costs no line.
+// trailing whitespace into somebody's file); an empty body writes the header
+// alone, since legalize's refill paragraph renders to nothing and costs no
+// line.
+//
+// The header is built to be legal BY CONSTRUCTION rather than composed and
+// hoped for: parseAdmonitionHeader's grammar has two marker-specific rules —
+// a `===` tab is only a header with its quotes present (even empty: `=== ""`
+// parses back to a tab with an empty title), and a `!!!`/`???`/`???+`
+// admonition is only a header with a non-empty type word. A model can hold
+// either violation (an editor clears a tab's title, or a fresh node carries
+// TipTap's default empty type), and composing marker+type+title without
+// checking writes a line that reparses as prose — the four-space body then
+// reflows onto it, which is exactly the corruption this whole file exists to
+// prevent, now arriving from the model side. So the two cases are handled
+// here instead of asked about afterward: always quote a `===` title, and
+// substitute MkDocs' plainest type word, "note", for an empty `!!!`/`???`
+// type. Running the result back through parseAdmonitionHeader to verify it
+// would only be able to panic on a model defect, which this codebase does
+// not do for a write path — the by-construction guard is the fix, the
+// hostile-model test table is what proves it (admonition_test.go).
 func renderAdmonition(b docmodel.Block) string {
-	header := b.Attrs[docmodel.MarkerAttr]
-	if header == "" {
-		header = "!!!"
+	marker := b.Attrs[docmodel.MarkerAttr]
+	if marker == "" {
+		marker = "!!!"
 	}
-	if typ := b.Attrs[docmodel.TypeAttr]; typ != "" {
+	header := marker
+	if marker != "===" {
+		typ := b.Attrs[docmodel.TypeAttr]
+		if typ == "" {
+			typ = "note"
+		}
 		header += " " + typ
 	}
 	children := b.Children
 	if len(children) > 0 && children[0].Kind == docmodel.AdmonitionTitle {
-		if title := admonitionTitleText(children[0]); title != "" {
-			header += ` "` + strings.ReplaceAll(title, `"`, `\"`) + `"`
+		title := admonitionTitleText(children[0])
+		if title != "" || marker == "===" {
+			header += ` "` + escapeTitle(title) + `"`
 		}
 		children = children[1:]
+	} else if marker == "===" {
+		header += ` ""`
 	}
 	body := renderBlocksLoose(children)
 	if body == "" {

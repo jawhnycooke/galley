@@ -34,11 +34,18 @@ export const AdmonitionBlock = Node.create({
         parseHTML: (el) => el.getAttribute('data-marker') || '!!!',
         renderHTML: (attrs) => ({ 'data-marker': attrs.marker }),
       },
-      // The type word; empty for a tab.
+      // The type word. Defaults to 'note', MkDocs' plainest type, so a
+      // freshly inserted node's default pair (`!!!`, `note`) is a header the
+      // Go serializer can legally write — `!!!`/`???`/`???+` require a
+      // non-empty type. A tab (`===`) carries no type at all: the Go side
+      // never sends one, and `[data-marker='===']::before` in editor.css
+      // overrides the label to 'tab' regardless, so renderHTML omits
+      // `data-type` for a tab rather than writing the meaningless default.
       type: {
-        default: '',
-        parseHTML: (el) => el.getAttribute('data-type') || '',
-        renderHTML: (attrs) => ({ 'data-type': attrs.type }),
+        default: 'note',
+        parseHTML: (el) => el.getAttribute('data-type') || 'note',
+        renderHTML: (attrs) =>
+          attrs.marker === '===' ? {} : { 'data-type': attrs.type },
       },
     };
   },
@@ -63,6 +70,12 @@ export const AdmonitionBlock = Node.create({
 // reads the quoted title as a plain string and galley writes it back verbatim.
 // It is not in the `block` group, so the only place the schema lets it stand
 // is where the Go side writes it: first child of an admonition.
+//
+// `marks: ''` is self-consistent, not merely restrictive: the parser lifts the
+// title out of the quoted string in the header line before goldmark's inline
+// pass ever runs (admonition.go's parseAdmonitionHeader), so no markdown
+// source can put a mark on a title in the first place — there is nothing for
+// this schema to be forbidding that a document could otherwise have carried.
 export const AdmonitionTitle = Node.create({
   name: 'admonitionTitle',
   content: 'text*',

@@ -61,7 +61,13 @@ var (
 	// A MkDocs admonition or tab HEADER. The body under it is ordinary prose,
 	// indented, and falls through to the arms below; only the header line is
 	// its own block, one unit, like a heading. The grammar is
-	// markdown.parseAdmonitionHeader's, loosened only by leading indent.
+	// markdown.parseAdmonitionHeader's REGEX, loosened by leading indent AND
+	// by dropping the two marker-specific rules the Go parser checks after
+	// its match (a tab needs its quotes; an admonition needs a type word) —
+	// this is a diff view, not the parser, so a near-miss header like
+	// `=== note "x"` or a bare `!!! ` becomes its own block here while the
+	// parser would call it prose. The cost is only block granularity in a
+	// version diff, never bytes: it does not affect what Serialize writes.
 	reAdmonition = regexp.MustCompile(`^\s*(!!!|\?\?\?\+?|===)[ \t]+(?:[A-Za-z][A-Za-z0-9_-]*(?:[ \t]+|$))?(?:"(?:[^"\\]|\\.)*")?[ \t]*$`)
 )
 

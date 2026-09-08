@@ -89,8 +89,46 @@ func parseAdmonitionHeader(line []byte) (marker, typ, title string, ok bool) {
 	if marker != "===" && typ == "" {
 		return "", "", "", false
 	}
-	title = strings.ReplaceAll(string(m[3]), `\"`, `"`)
+	title = unescapeTitle(string(m[3]))
 	return marker, typ, title, true
+}
+
+// escapeTitle and unescapeTitle are the header's quoted-string escaping, one
+// pass each, used by both the parser (read) and the serializer (write). The
+// plan's original rule — "only `\"` is unescaped, `\\` is left alone" — is
+// superseded here: the serializer must be able to write a title containing a
+// backslash (a Windows path, a LaTeX fragment) without producing a header the
+// parser rejects, which means `\` has to round-trip through `\\` like `"`
+// does through `\"`. A sequential ReplaceAll can't do both at once (escaping
+// `"` first then `\` would double-escape the backslashes it just introduced;
+// escaping `\` first is fine on write, but unescaping is order-sensitive the
+// same way), so both directions walk the string once instead.
+func escapeTitle(s string) string {
+	var sb strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			sb.WriteString(`\\`)
+		case '"':
+			sb.WriteString(`\"`)
+		default:
+			sb.WriteByte(s[i])
+		}
+	}
+	return sb.String()
+}
+
+func unescapeTitle(s string) string {
+	var sb strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && (s[i+1] == '\\' || s[i+1] == '"') {
+			sb.WriteByte(s[i+1])
+			i++
+			continue
+		}
+		sb.WriteByte(s[i])
+	}
+	return sb.String()
 }
 
 type admonitionParser struct{}

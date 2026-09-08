@@ -44,6 +44,8 @@ func TestParseAdmonitionHeader(t *testing.T) {
 		{`!!!`, "", "", "", false},
 		{`!!! note "Title" trailing`, "", "", "", false},
 		{`a !!! note "Title"`, "", "", "", false},
+		{`!!! note "a\\b"`, "!!!", "note", `a\b`, true},
+		{`=== ""`, "===", "", "", true},
 	}
 	for _, c := range cases {
 		marker, typ, title, ok := parseAdmonitionHeader([]byte(c.line))
@@ -232,6 +234,88 @@ func TestSerialize_Admonitions(t *testing.T) {
 			}
 			if !docmodel.Equal(back, docmodel.Doc{Blocks: want}) {
 				t.Fatalf("did not reparse to itself:\n%#v", back.Blocks)
+			}
+		})
+	}
+}
+
+// admonitionModel builds a raw docmodel.Block the way the CRDT bridge can —
+// no parse ever produced it — so title and type can be anything, including
+// the two shapes Critical 1/2 in the mkdocs-final-review named: empty on a
+// marker that forbids it, or a title character that would otherwise break
+// out of the header's quotes.
+func admonitionModel(marker, typ, title string, body ...docmodel.Block) docmodel.Block {
+	attrs := map[string]string{docmodel.MarkerAttr: marker}
+	if typ != "" {
+		attrs[docmodel.TypeAttr] = typ
+	}
+	titleChild := docmodel.Block{Kind: docmodel.AdmonitionTitle}
+	if title != "" {
+		titleChild.Inlines = []docmodel.Inline{inlineText(title)}
+	}
+	children := append([]docmodel.Block{titleChild}, body...)
+	return docmodel.Block{Kind: docmodel.Admonition, Attrs: attrs, Children: children}
+}
+
+// TestSerialize_AdmonitionHostileModels is the test the review asked for
+// (Important 3): every one of these models is a shape markdown source cannot
+// express but the CRDT can hold — an editor clearing a tab's title, a fresh
+// node still carrying TipTap's default empty type, a title that ends in the
+// one character (`\`) that used to escape the closing quote instead of
+// itself. Before the by-construction fix in renderAdmonition, the first two
+// silently destroyed the admonition on the next parse (Critical 1) and the
+// backslash case corrupted the body that followed it (Critical 2); this
+// table is what proves the fix rather than just asserting it.
+func TestSerialize_AdmonitionHostileModels(t *testing.T) {
+	fence := docmodel.Block{Kind: docmodel.CodeBlock, Attrs: map[string]string{"language": "go"}, Text: "x := 1\n"}
+	cases := []struct {
+		name string
+		doc  []docmodel.Block
+	}{
+		{"tab with empty title", []docmodel.Block{admonitionModel("===", "", "", para("Body."))}},
+		{"admonition with empty type and a title", []docmodel.Block{admonitionModel("!!!", "", "T", para("Body."))}},
+		{"admonition with empty type and empty title", []docmodel.Block{admonitionModel("!!!", "", "", para("Body."))}},
+		{"title ending in a single backslash", []docmodel.Block{admonitionModel("!!!", "note", `a\`, para("Body."))}},
+		{"title containing a backslash-quote", []docmodel.Block{admonitionModel("!!!", "note", `x\"y`, para("Body."))}},
+		{"title containing a double backslash", []docmodel.Block{admonitionModel("!!!", "note", `x\\y`, para("Body."))}},
+		{"title that is only whitespace", []docmodel.Block{admonitionModel("!!!", "note", "   ", para("Body."))}},
+		{"collapsed admonition whose body ends in a fence", []docmodel.Block{admonitionModel("???+", "note", "T", para("Body."), fence)}},
+		{"TipTap default pair", []docmodel.Block{admonitionModel("!!!", "note", "", docmodel.Block{Kind: docmodel.Paragraph})}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := Serialize(docmodel.Doc{Blocks: c.doc})
+			back, _, err := Parse(out)
+			if err != nil {
+				t.Fatalf("reparse: %v", err)
+			}
+			if len(back.Blocks) != 1 || back.Blocks[0].Kind != docmodel.Admonition {
+				t.Fatalf("Serialize(%q) = %q, reparsed to %#v (want exactly one Admonition)", c.name, out, back.Blocks)
+			}
+			gotBodyLen := len(back.Blocks[0].Children) - 1 // minus the title
+			wantBodyLen := len(c.doc[0].Children) - 1
+			if gotBodyLen != wantBodyLen {
+				t.Fatalf("Serialize(%q) = %q, reparsed body has %d blocks, want %d", c.name, out, gotBodyLen, wantBodyLen)
+			}
+			// Byte-stable from the first write — for every case except the
+			// whitespace-only title, where extractCriticBlocks' trimLineEdges
+			// already treats an all-whitespace title exactly like an
+			// all-whitespace paragraph and empties it on the FIRST parse,
+			// before renderAdmonition ever sees it. That normalization is
+			// pre-existing and orthogonal to Critical 1/2 (which are about a
+			// header the parser rejects outright, not about content the
+			// parser legitimately discards) — this table checks that it
+			// converges rather than that it never happens.
+			out2 := Serialize(back)
+			if c.name != "title that is only whitespace" && string(out2) != string(out) {
+				t.Fatalf("not byte-stable from the first write:\nfirst:  %q\nsecond: %q", out, out2)
+			}
+			back2, _, err := Parse(out2)
+			if err != nil {
+				t.Fatalf("re-reparse: %v", err)
+			}
+			if out3 := Serialize(back2); string(out3) != string(out2) {
+				t.Fatalf("did not converge:\nsecond: %q\nthird:  %q", out2, out3)
 			}
 		})
 	}
