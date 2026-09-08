@@ -233,11 +233,17 @@ func endsWithParagraph(b docmodel.Block) bool {
 			}
 		}
 	case docmodel.Admonition:
-		// Walked from the end down to index 1: the title is index 0 and is
-		// written on the header line, which is never an open paragraph. A
-		// body that writes nothing leaves the header line, which closes
-		// itself.
-		for i := len(b.Children) - 1; i >= 1; i-- {
+		// Walked from the end down to the first BODY child: a title is
+		// written on the header line, which is never an open paragraph. The
+		// start index is computed the way renderAdmonition computes it, since
+		// a hand-built admonition need not carry a title at all and its first
+		// child is then body. A body that writes nothing leaves the header
+		// line, which closes itself.
+		start := 0
+		if len(b.Children) > 0 && b.Children[0].Kind == docmodel.AdmonitionTitle {
+			start = 1
+		}
+		for i := len(b.Children) - 1; i >= start; i-- {
 			if !rendersNothing(b.Children[i]) {
 				return endsWithParagraph(b.Children[i])
 			}

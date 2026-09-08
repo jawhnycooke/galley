@@ -64,7 +64,7 @@ A title with an escaped quote:
 !!! check "Say \"hi\""
     Body.
 
-Near misses stay prose: a sentence mentioning !!! note "x" mid-line, and
+Near misses stay prose: a sentence mentioning !!! note "x" mid-line, and a setext underline is a heading, which is pinned in the parser tests rather than here because ATX is the only heading spelling written back.
 
 # Setext
 

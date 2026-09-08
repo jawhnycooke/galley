@@ -111,6 +111,25 @@ func TestParse_Admonitions(t *testing.T) {
 			want: []docmodel.Block{{Kind: docmodel.Heading, Attrs: map[string]string{"level": "1"}, Inlines: []docmodel.Inline{inlineText("Title")}}},
 		},
 		{
+			name: "inline markup in a body is parsed",
+			src:  "!!! note \"N\"\n    a **bold** word\n",
+			want: []docmodel.Block{adm("!!!", "note", "N", docmodel.Block{Kind: docmodel.Paragraph, Inlines: []docmodel.Inline{
+				inlineText("a "),
+				{Text: "bold", Marks: []docmodel.Mark{{Kind: docmodel.Bold}}},
+				inlineText(" word"),
+			}})},
+		},
+		{
+			name: "a header inside a fence is code",
+			src:  "```\n!!! note \"N\"\n```\n",
+			want: []docmodel.Block{{Kind: docmodel.CodeBlock, Text: "!!! note \"N\"\n"}},
+		},
+		{
+			name: "a header inside a blockquote is the quote's",
+			src:  "> !!! note \"Q\"\n>     body\n",
+			want: []docmodel.Block{{Kind: docmodel.Blockquote, Children: []docmodel.Block{adm("!!!", "note", "Q", para("body"))}}},
+		},
+		{
 			name: "inside a list item",
 			src:  "- item\n  !!! note \"In\"\n      body\n",
 			want: []docmodel.Block{{Kind: docmodel.BulletList, Children: []docmodel.Block{
@@ -153,13 +172,49 @@ func TestSerialize_Admonitions(t *testing.T) {
 		name string
 		doc  []docmodel.Block
 		want string
+		// back is the shape the output reparses to, when that is not doc
+		// itself — a hand-built admonition can lack the title child every
+		// parse legalizes in.
+		back []docmodel.Block
 	}{
-		{"header only", []docmodel.Block{adm("!!!", "warning", "Empty", docmodel.Block{Kind: docmodel.Paragraph})}, "!!! warning \"Empty\"\n"},
-		{"no title", []docmodel.Block{adm("!!!", "note", "", para("Body."))}, "!!! note\n    Body.\n"},
-		{"tab", []docmodel.Block{adm("===", "", "Docker", para("Body."))}, "=== \"Docker\"\n    Body.\n"},
-		{"quote in title", []docmodel.Block{adm("!!!", "check", `Say "hi"`, para("Body."))}, "!!! check \"Say \\\"hi\\\"\"\n    Body.\n"},
-		{"blank lines stay bare", []docmodel.Block{adm("!!!", "note", "N", para("One."), para("Two."))}, "!!! note \"N\"\n    One.\n\n    Two.\n"},
-		{"followed by prose gets a blank line", []docmodel.Block{adm("!!!", "note", "N", para("Body.")), para("After.")}, "!!! note \"N\"\n    Body.\n\nAfter.\n"},
+		{"header only", []docmodel.Block{adm("!!!", "warning", "Empty", docmodel.Block{Kind: docmodel.Paragraph})}, "!!! warning \"Empty\"\n", nil},
+		{"no title", []docmodel.Block{adm("!!!", "note", "", para("Body."))}, "!!! note\n    Body.\n", nil},
+		{"tab", []docmodel.Block{adm("===", "", "Docker", para("Body."))}, "=== \"Docker\"\n    Body.\n", nil},
+		{"quote in title", []docmodel.Block{adm("!!!", "check", `Say "hi"`, para("Body."))}, "!!! check \"Say \\\"hi\\\"\"\n    Body.\n", nil},
+		{"blank lines stay bare", []docmodel.Block{adm("!!!", "note", "N", para("One."), para("Two."))}, "!!! note \"N\"\n    One.\n\n    Two.\n", nil},
+		{"followed by prose gets a blank line", []docmodel.Block{adm("!!!", "note", "N", para("Body.")), para("After.")}, "!!! note \"N\"\n    Body.\n\nAfter.\n", nil},
+		{
+			"titleless admonition followed by prose gets a blank line",
+			[]docmodel.Block{
+				{Kind: docmodel.Admonition, Attrs: map[string]string{docmodel.MarkerAttr: "!!!", docmodel.TypeAttr: "note"}, Children: []docmodel.Block{para("Body.")}},
+				para("After."),
+			},
+			"!!! note\n    Body.\n\nAfter.\n",
+			[]docmodel.Block{adm("!!!", "note", "", para("Body.")), para("After.")},
+		},
+		{
+			// The pair that makes the start index load-bearing. Only a TIGHT
+			// context asks needsBlankLine anything — at the top level every
+			// join is loose already — and there a titleless admonition read as
+			// "ends with nothing open" costs the blank line, which lets
+			// "After." lazily continue the body paragraph it is meant to follow.
+			"titleless admonition in a tight list item keeps its blank line",
+			[]docmodel.Block{{Kind: docmodel.BulletList, Children: []docmodel.Block{
+				{Kind: docmodel.ListItem, Children: []docmodel.Block{
+					para("Item."),
+					{Kind: docmodel.Admonition, Attrs: map[string]string{docmodel.MarkerAttr: "!!!", docmodel.TypeAttr: "note"}, Children: []docmodel.Block{para("Body.")}},
+					para("After."),
+				}},
+			}}},
+			"- Item.\n  !!! note\n      Body.\n\n  After.\n",
+			[]docmodel.Block{{Kind: docmodel.BulletList, Children: []docmodel.Block{
+				{Kind: docmodel.ListItem, Children: []docmodel.Block{
+					para("Item."),
+					adm("!!!", "note", "", para("Body.")),
+					para("After."),
+				}},
+			}}},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -171,7 +226,11 @@ func TestSerialize_Admonitions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reparse: %v", err)
 			}
-			if !docmodel.Equal(back, docmodel.Doc{Blocks: c.doc}) {
+			want := c.doc
+			if c.back != nil {
+				want = c.back
+			}
+			if !docmodel.Equal(back, docmodel.Doc{Blocks: want}) {
 				t.Fatalf("did not reparse to itself:\n%#v", back.Blocks)
 			}
 		})

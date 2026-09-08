@@ -43,6 +43,12 @@ import (
 // clothes. A refusal names the construct and the line, the way footnotes and
 // raw HTML are named, and destroys nothing.
 //
+// A THIRD ANSWER EXISTS for a construct whose body is prose: MODEL it as a
+// container so the prose is reviewable. MkDocs admonitions and tabs (`!!!`,
+// `???`, `???+`, `===` with a four-space body) take that road — see
+// admonition.go — and the three above could follow it; they are refused today
+// because nobody has needed them, not because refusal is the last word.
+//
 // EVERY TEST HERE IS EXACT, because a false refusal is a document that will not
 // open. A definition list needs a line beginning ":" and a space; a directive
 // needs a line beginning ":::"; a callout needs the blockquote's FIRST line to

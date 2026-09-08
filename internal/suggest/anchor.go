@@ -705,6 +705,8 @@ func removeBlockAt(d docmodel.Doc, path []int) docmodel.Doc {
 		return clone
 	}
 	parent.Children = removeAt(parent.Children, path[len(path)-1])
+	// The lone survivor is the TITLE, so the refill goes AFTER it: the only
+	// caller removes Note blocks, and a title is never a Note.
 	if parent.Kind == docmodel.Admonition && len(parent.Children) == 1 {
 		parent.Children = append(parent.Children, docmodel.Block{Kind: docmodel.Paragraph})
 	} else if len(parent.Children) == 0 && mustHoldABlock(parent.Kind) {
