@@ -116,7 +116,13 @@ func (s *EditServer) listWorkspace() (WorkspaceView, error) {
 	live := liveByKey()
 	err := filepath.WalkDir(s.Root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // an unreadable subtree is not a reason to list nothing
+			// AN UNREADABLE SUBTREE IS NOT A REASON TO LIST NOTHING. WalkDir
+			// hands the error here and asks what to do; returning it would
+			// abort the whole listing over one directory nobody can read, and
+			// SkipDir on a non-directory entry would skip its siblings too. So
+			// the entry is passed over and the walk goes on — deliberately the
+			// shape nilerr flags.
+			return nil //nolint:nilerr // see above
 		}
 		name := d.Name()
 		if d.IsDir() {
