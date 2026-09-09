@@ -353,6 +353,9 @@ try {
       ws.docs.some((d) => d.path === 'sub/page.html' && d.kind === 'html'),
     ws,
   );
+  const drawerBarClosed = await page.evaluate(
+    () => document.querySelector('.gly-doc-path').getBoundingClientRect().width,
+  );
   await page.click('.gly-doc-path');
   await page.waitForSelector('.gly-drawer:not([hidden])');
   await page.waitForFunction(
@@ -377,6 +380,9 @@ try {
   );
   await page.keyboard.press('Escape');
   await page.waitForSelector('.gly-drawer[hidden]', { state: 'attached' });
+  const drawerBarClosedAgain = await page.evaluate(
+    () => document.querySelector('.gly-doc-path').getBoundingClientRect().width,
+  );
   await page.keyboard.press(
     process.platform === 'darwin' ? 'Meta+k' : 'Control+k',
   );
@@ -396,13 +402,11 @@ try {
     focused === 'gly-drawer-filter' && filtered.join() === 'sibling.md',
     JSON.stringify({ focused, filtered }),
   );
-  const drawerBarAfter = await page.evaluate(
-    () => document.querySelector('.gly-doc-path').getBoundingClientRect().width,
-  );
   check(
-    'and the toggle kept its box while it opened and closed',
-    Math.abs(drawerBarBefore - drawerBarAfter) <= 1,
-    { drawerBarBefore, drawerBarAfter },
+    'and the toggle kept its box across closed, open, and closed again',
+    Math.abs(drawerBarClosed - drawerBarBefore) <= 1 &&
+      Math.abs(drawerBarBefore - drawerBarClosedAgain) <= 1,
+    { drawerBarClosed, drawerBarBefore, drawerBarClosedAgain },
   );
   const opened = await (
     await fetch(`${base}/_galley/workspace/open`, {

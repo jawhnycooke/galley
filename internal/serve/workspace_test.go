@@ -5,10 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -221,12 +224,21 @@ func TestOpenSpawnsOnceAndWaitsForTheRegistry(t *testing.T) {
 func TestOpenRefusesWhatIsNotUnderTheRoot(t *testing.T) {
 	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
 	root := t.TempDir()
-	writeTree(t, root, map[string]string{"a.md": "# A\n", "notes.txt": "x"})
+	writeTree(t, root, map[string]string{
+		"a.md":                       "# A\n",
+		"notes.txt":                  "x",
+		".galley/pages/x/content.md": "# X\n",
+		"node_modules/p/x.md":        "# P\n",
+		"sub/.draft.md":              "# Draft\n",
+	})
 	s := newEditServer(t, root, "a.md", "# A\n")
 	defer func() { _ = s.Close() }()
 	calls := 0
 	s.Spawn = fakeSpawner(t, &calls, "http://127.0.0.1:9", 0)
-	for _, rel := range []string{"../a.md", "/etc/passwd", "sub/../../a.md", "notes.txt", "missing.md", ""} {
+	for _, rel := range []string{
+		"../a.md", "/etc/passwd", "sub/../../a.md", "notes.txt", "missing.md", "",
+		".galley/pages/x/content.md", "node_modules/p/x.md", "sub/.draft.md",
+	} {
 		if code, _ := openDoc(t, s, rel); code != http.StatusBadRequest {
 			t.Errorf("open %q = %d, want 400", rel, code)
 		}
@@ -268,4 +280,40 @@ func TestOpenRefusesASymlinkOutsideTheRoot(t *testing.T) {
 	if calls != 0 {
 		t.Fatal("a refused open spawned something")
 	}
+}
+
+// TestStopChildrenSignalsEveryChildBeforeWaitingOnAny reproduces the strand:
+// two real child processes stand in for two editors this server started.
+// stopChildren must SIGTERM both before waiting on either, so a child that
+// were to ignore SIGTERM could never strand the other behind its own Wait.
+func TestStopChildrenSignalsEveryChildBeforeWaitingOnAny(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGTERM semantics differ on windows")
+	}
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	s := newEditServer(t, t.TempDir(), "a.md", "# A\n")
+
+	cmd1 := exec.Command("sleep", "30")
+	if err := cmd1.Start(); err != nil {
+		t.Fatal(err)
+	}
+	cmd2 := exec.Command("sleep", "30")
+	if err := cmd2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	s.children = []*os.Process{cmd1.Process, cmd2.Process}
+
+	start := time.Now()
+	s.stopChildren()
+	if elapsed := time.Since(start); elapsed >= 3*time.Second {
+		t.Fatalf("stopChildren took %s, want well under the 3s timeout", elapsed)
+	}
+
+	for _, p := range []*os.Process{cmd1.Process, cmd2.Process} {
+		if err := p.Signal(syscall.Signal(0)); err == nil {
+			t.Fatalf("pid %d is still alive after stopChildren", p.Pid)
+		}
+	}
+	_, _ = cmd1.Process.Wait()
+	_, _ = cmd2.Process.Wait()
 }

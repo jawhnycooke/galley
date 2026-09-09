@@ -50,6 +50,19 @@ type WorkspaceView struct {
 	Truncated bool           `json:"truncated"`
 }
 
+// listable is the walk's skip rules, restated as a predicate so the open
+// endpoint can share them: any segment with a leading dot, or named in
+// skippedDirs, makes the path unlisted, regardless of the walk's own
+// early-exit for efficiency.
+func listable(rel string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(rel), "/") {
+		if strings.HasPrefix(seg, ".") || skippedDirs[seg] {
+			return false
+		}
+	}
+	return true
+}
+
 // docKind is the listing's extension rule; "" means not listed.
 func docKind(name string) string {
 	switch strings.ToLower(filepath.Ext(name)) {
@@ -132,14 +145,17 @@ func (s *EditServer) listWorkspace() (WorkspaceView, error) {
 			return nil
 		}
 		kind := docKind(name)
-		if kind == "" || strings.HasPrefix(name, ".") {
+		if kind == "" {
+			return nil
+		}
+		rel, _ := filepath.Rel(s.Root, p)
+		if !listable(rel) {
 			return nil
 		}
 		if len(view.Docs) >= workspaceCap {
 			view.Truncated = true
 			return fs.SkipAll
 		}
-		rel, _ := filepath.Rel(s.Root, p)
 		doc := WorkspaceDoc{Path: filepath.ToSlash(rel), Kind: kind, Current: p == current}
 		key := docKey(p)
 		if rounds, err := versions.Open(key).List(); err == nil && len(rounds) > 0 {
@@ -239,6 +255,11 @@ func (s *EditServer) openWorkspaceDoc(rel string) openResult {
 }
 
 func (s *EditServer) spawnAndWait(abs, key string) openResult {
+	// DECISION: --root is the ONE flag, so an .html child inherits the whole
+	// workspace as its preview's site root rather than just its own
+	// directory — its preview can therefore reach assets anywhere under
+	// s.Root, not only beside the page. Same-site-guarded and localhost-only;
+	// accepted as the one-flag tradeoff rather than a second root concept.
 	args := append([]string{"edit", abs, "--no-open", "--root", s.Root}, s.ChildArgs...)
 	proc, err := s.Spawn(args)
 	if err != nil {
@@ -272,6 +293,9 @@ func (s *EditServer) resolveWorkspacePath(rel string) (string, int, error) {
 	abs := filepath.Join(s.Root, filepath.FromSlash(rel))
 	if !underDir(abs, s.Root) {
 		return bad("path may not leave the workspace root")
+	}
+	if relClean, err := filepath.Rel(s.Root, abs); err != nil || !listable(relClean) {
+		return bad("that document is not listed here")
 	}
 	// If the path is (or passes through) a symlink, its resolved target must
 	// still be under the root — under the root's own resolved target when
@@ -328,6 +352,11 @@ func (s *EditServer) stopChildren() {
 				continue // a test's stand-in
 			}
 			_ = p.Signal(syscall.SIGTERM)
+		}
+		for _, p := range children {
+			if p.Pid == os.Getpid() {
+				continue // a test's stand-in
+			}
 			_, _ = p.Wait()
 		}
 		close(done)
