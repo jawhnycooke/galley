@@ -194,8 +194,10 @@ import type { Mode, ModeUI } from './bar.ts';
 import type { ThemeChoice } from './theme.ts';
 import { makeMenu, openMenu, closeMenu, menuOpen } from './menu.ts';
 import type { DocMenu } from './menu.ts';
+import { drawerMethods } from './drawer.ts';
+import type { DrawerUI } from './drawer.ts';
 import type { OverallCard, CaptureCard } from './cards.ts';
-import type { BlockRef, ReviewerChange } from './wire';
+import type { BlockRef, ReviewerChange, WorkspaceView } from './wire';
 
 // The fragment field. Spelled once here, once in Go's ydoc.FragmentName.
 const FIELD = 'content';
@@ -868,6 +870,11 @@ class App implements AppState {
   // `overall` and `capture` it is never optional.
   menu: DocMenu;
 
+  // --- the drawer, this document's neighbours (web/drawer.ts) ---
+  drawer: DrawerUI | null;
+  drawerOpen: boolean;
+  workspace: WorkspaceView | null;
+
   // --- the composer, and the refused-keystroke note (web/composer.ts) ---
   composer: Composer;
   refusal: HTMLElement;
@@ -1041,6 +1048,13 @@ class App implements AppState {
     // The right-click menu, built once and on `body` — see web/menu.ts for
     // why `body` and never `.ProseMirror`.
     this.menu = makeMenu();
+    // The drawer, built once and on `body` for the menu's reason. initDrawer
+    // asks the server what else is under the root and decides from the answer
+    // whether the stored "open" is honoured.
+    this.workspace = null;
+    this.drawerOpen = false;
+    this.drawer = this.makeDrawer();
+    this.initDrawer();
     // THE ROUNDS, read-only, and additive in the strictest sense: nothing on
     // this page behaves differently because it exists. It builds its own
     // surface in body and its own control in the bar, and neither the rail,
@@ -2261,6 +2275,10 @@ Object.assign(App.prototype, verdictMethods);
 // constants it owns — are their own module too — see web/seal.ts — mixed in
 // for the same reason.
 Object.assign(App.prototype, sealMethods);
+// The drawer — the listing of this document's neighbours, the filter that is
+// also the palette, and the navigation to a chosen one — is its own module
+// too — see web/drawer.ts — mixed in for the same reason.
+Object.assign(App.prototype, drawerMethods);
 // The theme — reading the stored choice, painting data-theme and the header
 // button, and cycling auto → light → dark — is its own module too — see
 // web/theme.ts — mixed in for the same reason.

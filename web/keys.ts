@@ -23,10 +23,34 @@ export const keyMethods = {
   // the stepper, which is why it is listed as blurring rather than only
   // dismissing.
   onKey(this: AppShell, event: KeyboardEvent) {
+    // THE PALETTE'S ONE CHORD, before the modifier guard that keeps every
+    // other chord the browser's: Cmd/Ctrl+K opens the drawer with the filter
+    // focused, the convention every command palette uses.
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === 'k'
+    ) {
+      event.preventDefault();
+      this.openDrawer(true);
+      return;
+    }
     if (event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
     if (event.key === 'Escape') {
+      // THE DRAWER IS TOPMOST when it is open: it is a full-height overlay
+      // over everything the chain below dismisses. A filter with text clears
+      // first; a second Esc closes.
+      if (this.drawerOpen && this.drawer) {
+        if (this.drawer.filter.value) {
+          this.drawer.filter.value = '';
+          this.paintDrawer();
+        } else {
+          this.closeDrawer();
+        }
+        return;
+      }
       // Esc is the one key that acts INSIDE a field: it dismisses what is open,
       // and failing that hands focus back to the page so the rest of these keys
       // become available.

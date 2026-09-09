@@ -208,7 +208,7 @@
      full body size and full weight beside the title — two titles, one of them
      a path. Same claim as the `:root` mirror this file states above: a rule
      the fallback needs is a rule the fallback carries. */
-  .gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; opacity: 0.7; }
+  .gly-doc-path { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: inherit; font-weight: 400; opacity: 0.7; background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; }
   /* THE BAR HAS ONE FLEXIBLE CELL, AND IT SITS BETWEEN THE READOUT AND THE
      CONTROLS. Everything before it — the name and the ONE readout — is a
      readout whose width changes as the document does;
@@ -306,7 +306,7 @@
 <body>
 <header class="gly-bar">
   <span class="gly-doc"><span class="gly-mark" aria-hidden="true"></span><span class="gly-doc-name">{{.Title}}</span></span>
-  <span class="gly-doc-path" title="{{.Path}}">{{.Path}}</span>
+  <button class="gly-doc-path" type="button" title="{{.Path}}" aria-expanded="false">{{.Path}}</button>
   <span id="gly-status" class="gly-status" role="status" aria-live="polite"></span>
   <span class="gly-spacer"></span>
   <button id="gly-revise" type="button">Revise</button>
