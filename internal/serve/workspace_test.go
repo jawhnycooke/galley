@@ -293,27 +293,51 @@ func TestStopChildrenSignalsEveryChildBeforeWaitingOnAny(t *testing.T) {
 	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
 	s := newEditServer(t, t.TempDir(), "a.md", "# A\n")
 
-	cmd1 := exec.Command("sleep", "30")
+	// THE FIRST CHILD IGNORES SIGTERM, which is the whole test: the old
+	// one-loop stopChildren signalled it, blocked in Wait on it, and never
+	// reached the second child at all. Two-phase, the second child is
+	// signalled while the first is still sulking and dies at once.
+	cmd1 := exec.Command("sh", "-c", "trap '' TERM; sleep 30")
 	if err := cmd1.Start(); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = cmd1.Process.Kill(); _, _ = cmd1.Process.Wait() })
 	cmd2 := exec.Command("sleep", "30")
 	if err := cmd2.Start(); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = cmd2.Process.Kill(); _, _ = cmd2.Process.Wait() })
+	// The shell has to have installed its trap before the signal lands.
+	time.Sleep(200 * time.Millisecond)
+	s.childMu.Lock()
 	s.children = []*os.Process{cmd1.Process, cmd2.Process}
+	s.childMu.Unlock()
 
-	start := time.Now()
-	s.stopChildren()
-	if elapsed := time.Since(start); elapsed >= 3*time.Second {
-		t.Fatalf("stopChildren took %s, want well under the 3s timeout", elapsed)
+	// THE TEST REAPS THE SECOND CHILD ITSELF. A signalled child is a zombie
+	// until somebody waits on it, and kill(0) on a zombie still succeeds —
+	// so "is it alive" cannot be asked with a signal while stopChildren is
+	// blocked in Wait on the first child. Wait returning is the proof.
+	reaped := make(chan struct{})
+	go func() {
+		_, _ = cmd2.Process.Wait()
+		close(reaped)
+	}()
+	done := make(chan struct{})
+	go func() {
+		s.stopChildren()
+		close(done)
+	}()
+	select {
+	case <-reaped:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the second child was never signalled — stopChildren waited on the first before signalling the rest")
 	}
-
-	for _, p := range []*os.Process{cmd1.Process, cmd2.Process} {
-		if err := p.Signal(syscall.Signal(0)); err == nil {
-			t.Fatalf("pid %d is still alive after stopChildren", p.Pid)
-		}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stopChildren did not return within its own 3s bound")
 	}
-	_, _ = cmd1.Process.Wait()
-	_, _ = cmd2.Process.Wait()
+	if err := cmd1.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatal("the SIGTERM-ignoring child should still be alive — the fixture is not what the test thinks")
+	}
 }
