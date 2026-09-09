@@ -2502,13 +2502,14 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) {
 .gly-doc-path {
   flex: 1 1 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* THE PATH IS THE DRAWER'S DOOR. A button now, dressed as the text it was:
    the bar rule says a click moves nothing but itself, so the glyph that says
-   "there is a drawer" is a reserved span and only its direction changes. */
+   "there is a drawer" is a reserved span and only its direction changes.
+   The ellipsis moved to .gly-doc-path-text: the button itself is a flex row
+   (text + glyph), and a flex container cannot truncate its own children as
+   if it were one run of text — the glyph would clip along with the path. */
 .gly-bar .gly-doc-path {
   font: inherit;
   font-weight: 400;
@@ -2518,6 +2519,15 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) {
   color: var(--gly-muted);
   text-align: left;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gly-doc-path-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .gly-bar .gly-doc-path:hover {
   color: var(--gly-fg);
@@ -2525,7 +2535,7 @@ body.gly-composing .ProseMirror > *:not(.gly-composing-target) {
 .gly-drawer-glyph {
   display: inline-block;
   width: 1.2em;
-  margin-left: 4px;
+  flex: none;
   transition: transform 0.15s ease;
 }
 .gly-drawer-glyph.is-open {

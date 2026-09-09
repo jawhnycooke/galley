@@ -84,6 +84,16 @@ export function stateLine(doc: WorkspaceDoc): string {
 
 const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
+// Replaces the state cell's text without disturbing a `.gly-dot` child —
+// `chooseDoc` writes `starting…` and the failure sentence into the same
+// cell a live neighbour's dot lives in, and a plain `.textContent =` wipes
+// the dot along with the words.
+function setStateText(state: Element, text: string): void {
+  const dot = state.querySelector('.gly-dot');
+  state.textContent = text;
+  if (dot) state.prepend(dot);
+}
+
 export const drawerMethods = {
   makeDrawer(this: AppShell): DrawerUI {
     const root = document.createElement('aside');
@@ -140,7 +150,9 @@ export const drawerMethods = {
   openDrawer(this: AppShell, focusFilter = false): void {
     this.drawerOpen = true;
     storeDrawer('open');
-    void this.loadWorkspace().then(() => this.paintDrawer());
+    void this.loadWorkspace()
+      .then(() => this.paintDrawer())
+      .catch(() => {});
     this.paintDrawer();
     if (focusFilter && this.drawer) {
       this.drawer.filter.focus();
@@ -162,7 +174,9 @@ export const drawerMethods = {
   // then the stored state — but only when there is something to list. With
   // one document the drawer starts closed whatever was stored.
   initDrawer(this: AppShell): void {
-    void this.loadWorkspace().then((v) => {
+    // A failed fetch must not leave `#drawer` sitting in the URL forever —
+    // the hash is cleared and the (empty) drawer painted either way.
+    const settle = (v: WorkspaceView | null) => {
       const fromHash = location.hash === '#drawer';
       if (fromHash)
         history.replaceState(null, '', location.pathname + location.search);
@@ -171,7 +185,10 @@ export const drawerMethods = {
       const many = (v?.docs?.length ?? 0) > 1;
       this.drawerOpen = fromHash || (many && storedDrawer() === 'open');
       this.paintDrawer();
-    });
+    };
+    void this.loadWorkspace()
+      .then(settle)
+      .catch(() => settle(null));
   },
 
   paintDrawer(this: AppShell): void {
@@ -182,6 +199,9 @@ export const drawerMethods = {
     ui.glyph.classList.toggle('is-open', this.drawerOpen);
     if (!this.drawerOpen) return;
     const docs = drawerFilter(this.workspace?.docs ?? [], ui.filter.value);
+    // Rebuilding the rows drops any `.is-focus` from a prior ArrowUp/Down —
+    // on purpose, palette convention: a new query is a new list, so Enter
+    // with no arrow press yet falls back to the first (non-current) row.
     ui.list.textContent = '';
     for (const g of groupDocs(docs)) {
       const eyebrow = document.createElement('div');
@@ -249,7 +269,7 @@ export const drawerMethods = {
     );
     const state = row?.querySelector('.gly-drawer-state');
     if (row) row.disabled = true;
-    if (state) state.textContent = 'starting…';
+    if (state) setStateText(state, 'starting…');
     try {
       const res = await postJSON('/_galley/workspace/open', { path });
       if (!res.ok)
@@ -258,7 +278,7 @@ export const drawerMethods = {
       location.assign(url + '#drawer');
     } catch (e) {
       if (state)
-        state.textContent = e instanceof Error ? e.message : 'could not open';
+        setStateText(state, e instanceof Error ? e.message : 'could not open');
       if (row) row.disabled = false;
     }
   },
