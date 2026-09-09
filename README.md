@@ -10,6 +10,8 @@ Each time you send, and each time Claude answers, a copy of the file is saved be
 
 `galley edit` also accepts HTML files: `galley edit page.html` extracts the prose into a Markdown document, the review proceeds as normal, and every projection re-renders the page.
 
+**The drawer.** The path in the bar opens a list of every `.md` and `.html` under the workspace root — the document's directory, or `--root <dir>` to widen it. Choose one to jump to its editor; galley starts one if none is running and stops it with the one you started. `Cmd/Ctrl+K` opens the same list with a filter.
+
 ## Install
 
 ```sh

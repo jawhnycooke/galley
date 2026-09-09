@@ -1,5 +1,11 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -42,6 +48,7 @@ server.stderr.on('data', (d) => {
 });
 
 let browser;
+let childURL = '';
 let failures = 0;
 function check(name, ok, detail = '') {
   if (ok) console.log(`ok    ${name}`);
@@ -324,6 +331,102 @@ try {
       barControls.every((c) => !/census|versions/.test(c)),
     JSON.stringify(barControls),
   );
+
+  // --- the drawer: neighbours, the palette, and a child editor ---
+  //
+  // Three claims the server-side tests cannot make in a browser: the path in
+  // the bar opens the listing, Cmd+K is the same listing with the filter
+  // focused, and choosing a row lands on a SECOND editor this one started —
+  // which then dies with it.
+  writeFileSync(join(dir, 'sibling.md'), '# Sibling\n\nA neighbour.\n');
+  mkdirSync(join(dir, 'sub'), { recursive: true });
+  writeFileSync(
+    join(dir, 'sub', 'page.html'),
+    '<!doctype html><html><body><p>A page.</p></body></html>\n',
+  );
+  const ws = await (await fetch(`${base}/_galley/workspace`)).json();
+  check(
+    'the workspace lists the fixture and its two neighbours, and knows which is current',
+    ws.docs.length === 3 &&
+      ws.current === 'history-ux.md' &&
+      ws.docs.filter((d) => d.current).length === 1 &&
+      ws.docs.some((d) => d.path === 'sub/page.html' && d.kind === 'html'),
+    ws,
+  );
+  await page.click('.gly-doc-path');
+  await page.waitForSelector('.gly-drawer:not([hidden])');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.gly-drawer-row').length === 3,
+  );
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.gly-drawer-row')).map((r) => ({
+      path: r.dataset.path,
+      state: r.querySelector('.gly-drawer-state').textContent,
+      current: r.classList.contains('is-current'),
+    })),
+  );
+  check(
+    'the path in the bar opens the drawer, with one row per document and the states read off the rounds',
+    rows.length === 3 &&
+      rows.find((r) => r.path === 'sibling.md')?.state === 'untouched' &&
+      rows.find((r) => r.path === 'history-ux.md')?.current === true,
+    JSON.stringify(rows),
+  );
+  const drawerBarBefore = await page.evaluate(
+    () => document.querySelector('.gly-doc-path').getBoundingClientRect().width,
+  );
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.gly-drawer[hidden]', { state: 'attached' });
+  await page.keyboard.press(
+    process.platform === 'darwin' ? 'Meta+k' : 'Control+k',
+  );
+  await page.waitForSelector('.gly-drawer:not([hidden])');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.gly-drawer-row').length === 3,
+  );
+  const focused = await page.evaluate(() => document.activeElement?.className);
+  await page.keyboard.type('sib');
+  const filtered = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.gly-drawer-row')).map(
+      (r) => r.dataset.path,
+    ),
+  );
+  check(
+    'Cmd+K opens the drawer with the filter focused, and typing narrows the rows',
+    focused === 'gly-drawer-filter' && filtered.join() === 'sibling.md',
+    JSON.stringify({ focused, filtered }),
+  );
+  const drawerBarAfter = await page.evaluate(
+    () => document.querySelector('.gly-doc-path').getBoundingClientRect().width,
+  );
+  check(
+    'and the toggle kept its box while it opened and closed',
+    Math.abs(drawerBarBefore - drawerBarAfter) <= 1,
+    { drawerBarBefore, drawerBarAfter },
+  );
+  const opened = await (
+    await fetch(`${base}/_galley/workspace/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: 'sibling.md' }),
+    })
+  ).json();
+  const childOk = opened.url && (await fetch(opened.url)).ok;
+  check(
+    'opening a neighbour starts a child editor that answers',
+    !!childOk,
+    opened,
+  );
+  const ws2 = await (await fetch(`${base}/_galley/workspace`)).json();
+  check(
+    'and the listing now shows it live',
+    ws2.docs.find((d) => d.path === 'sibling.md')?.url === opened.url,
+    ws2,
+  );
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.gly-drawer[hidden]', { state: 'attached' });
+  childURL = opened.url;
 
   // At load nothing is pending, so the verdict on offer is Approve, and the
   // footer's `.gly-approve-zero` face is fg-on-bg with no glow — see
@@ -2585,6 +2688,19 @@ try {
 } finally {
   if (browser) await browser.close();
   server.kill('SIGTERM');
+  await new Promise((resolve) => server.once('exit', resolve));
+  if (childURL) {
+    let gone = false;
+    for (let i = 0; i < 25 && !gone; i += 1) {
+      try {
+        await fetch(childURL);
+      } catch {
+        gone = true;
+      }
+      if (!gone) await new Promise((r) => setTimeout(r, 200));
+    }
+    check('the child editor died with the workspace that started it', gone);
+  }
   try {
     rmSync(dir, { recursive: true, force: true });
   } catch {
