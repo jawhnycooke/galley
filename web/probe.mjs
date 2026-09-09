@@ -8203,6 +8203,55 @@ function bindsContentField(src) {
   );
 }
 
+// --- drawer.ts: the four decisions the drawer makes without a DOM ---
+{
+  const { drawerFilter, readDrawer, groupDocs, stateLine } =
+    await import('./drawer.ts');
+  const docs = [
+    {
+      path: 'guide/getting-started.md',
+      kind: 'md',
+      rounds: 3,
+      last: { reason: 'landed', at: 0, authors: 'agent' },
+    },
+    { path: 'guide/reference.md', kind: 'md', rounds: 0 },
+    {
+      path: 'index.html',
+      kind: 'html',
+      rounds: 1,
+      last: { reason: 'opened', at: 0, authors: '' },
+      url: 'http://x',
+    },
+  ];
+  check(
+    'drawer: the filter is a case-insensitive substring of the path',
+    drawerFilter(docs, 'REF')
+      .map((d) => d.path)
+      .join() === 'guide/reference.md' &&
+      drawerFilter(docs, '').length === 3 &&
+      drawerFilter(docs, 'zzz').length === 0,
+  );
+  check(
+    'drawer: rows group by folder, root last as "."',
+    groupDocs(docs)
+      .map((g) => g.folder)
+      .join('|') === 'guide|.',
+  );
+  check(
+    'drawer: the state line reads the rounds',
+    stateLine(docs[1]) === 'untouched' &&
+      stateLine(docs[0]) === '3 rounds · agent revised' &&
+      stateLine(docs[2]) === '1 round · opened',
+  );
+  check(
+    'drawer: the stored value is open or closed, nothing else',
+    readDrawer('open') === 'open' &&
+      readDrawer('closed') === 'closed' &&
+      readDrawer('x') === 'closed' &&
+      readDrawer(null) === 'closed',
+  );
+}
+
 // --- tokens: editor.css and edit.html declare the same :root, and the two light blocks agree ---
 {
   const fs = await import('node:fs');

@@ -57,6 +57,27 @@ type EditServer struct {
 	RuntimePath string
 	Room        string
 
+	// Root is the workspace this document belongs to: the directory the
+	// drawer lists (GET /_galley/workspace) and the containment every open
+	// (POST /_galley/workspace/open) is checked against. Absolute. Defaults
+	// to the document's own directory; `--root` widens it, and page mode's
+	// site root IS it. The document is always under it — SetRoot refuses
+	// otherwise, the way page mode refuses a page outside its site root.
+	Root string
+
+	// ChildArgs is what a child editor inherits from this one — the hooks the
+	// CLI was started with — appended to `edit <file> --no-open --root <Root>`.
+	ChildArgs []string
+	// Spawn starts a child `galley edit`. The CLI installs the real one
+	// (os.Executable); tests install one that advertises a fake. Nil means
+	// opening an unserved document is refused with a sentence.
+	Spawn Spawner
+	// children are the editors this one started, so Ctrl-C here ends them.
+	childMu   sync.Mutex
+	children  []*os.Process
+	inflight  map[string]chan openResult
+	spawnWait time.Duration
+
 	// Notify, when set, fires after the document settles — same contract as
 	// Server.Notify.
 	Notify *Notifier
@@ -466,6 +487,7 @@ func NewEdit(mdPath string) (*EditServer, error) {
 		MdPath:      abs,
 		RuntimePath: DefaultRuntimePath(abs),
 		Room:        room,
+		Root:        filepath.Dir(abs),
 		doc:         doc,
 		yjs:         yjs,
 		root:        root,
@@ -488,7 +510,9 @@ func NewEdit(mdPath string) (*EditServer, error) {
 		// `galley wait` rides that decision. Leaving it nil until a flag
 		// supplied a command would make pull — which needs no command at all —
 		// depend on push being configured.
-		Notify: &Notifier{},
+		Notify:    &Notifier{},
+		spawnWait: 10 * time.Second,
+		inflight:  map[string]chan openResult{},
 	}
 
 	// {>>note<<} markers extracted from THIS parse. Project never re-emits
@@ -584,6 +608,7 @@ func (s *EditServer) Doc() *crdt.Doc { return s.doc }
 // mirrors. It closes peer connections, so it must run AFTER the final Flush:
 // a projection that has not reached disk by then never will.
 func (s *EditServer) Close() error {
+	s.stopChildren()
 	// The import watcher first: it calls mutate, and a mutation landing after
 	// the final flush is a write nothing will ever project. Stopping the
 	// watcher does NOT close the window — the lease survives a shutdown so a
@@ -1024,6 +1049,9 @@ func (s *EditServer) Handler() http.Handler {
 	mux.HandleFunc("/_galley/stop", s.handleStop)
 	// The sealed page's way back — see seal.go.
 	mux.HandleFunc("/_galley/reopen", s.handleReopen)
+	// The drawer: the neighbours of this document, and the way to one of them.
+	mux.HandleFunc("/_galley/workspace", s.handleWorkspace)
+	mux.HandleFunc("/_galley/workspace/open", s.handleWorkspaceOpen)
 	mux.HandleFunc("/_galley/ack", s.handleAck)
 	// The reviewer taking the document back mid-window — see handoff.go.
 	mux.HandleFunc("/_galley/handoff/cancel", s.handleHandoffCancel)

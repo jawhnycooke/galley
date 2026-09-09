@@ -104,6 +104,13 @@ export interface ChangeView {
   note?: string;
 }
 
+export interface WorkspaceView {
+  root: string;
+  current: string;
+  docs: WorkspaceDoc[] | null;
+  truncated: boolean;
+}
+
 export interface BlockRef {
   key: string;
   kind: string;
@@ -123,4 +130,19 @@ export interface Region {
   y: number;
   w: number;
   h: number;
+}
+
+export interface WorkspaceDoc {
+  path: string;
+  kind: string;
+  rounds: number;
+  last?: WorkspaceLast;
+  url?: string;
+  current?: boolean;
+}
+
+export interface WorkspaceLast {
+  reason: string;
+  at: number;
+  authors: string;
 }

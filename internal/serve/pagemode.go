@@ -132,6 +132,7 @@ func newEditPage(htmlPath, siteRoot string) (*EditServer, error) {
 	}
 	es.pageMode = true
 	es.pagePath = abs
+	es.Root = rootDir
 	es.pageRoot = pr
 	es.previewRel = previewRel
 

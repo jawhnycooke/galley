@@ -120,11 +120,14 @@ import type {
   Region,
   ReviseStateView,
   ReviewerChange,
+  WorkspaceDoc,
+  WorkspaceView,
 } from './wire';
 import type { Composer } from './composer.ts';
 import type { Mode, ModeUI } from './bar.ts';
 import type { OverallCard, CaptureCard } from './cards.ts';
 import type { DocMenu, MenuItem } from './menu.ts';
+import type { DrawerUI } from './drawer.ts';
 import type { ReviseWatchView } from './verdict.ts';
 import type { growthWatch } from './card.ts';
 import type { ThemeChoice } from './theme.ts';
@@ -418,6 +421,15 @@ export interface AppState {
   // unconditional (`this.menu = makeMenu()` in the constructor), so unlike
   // `overall` and `capture` it is never optional.
   menu: DocMenu;
+
+  // --- the drawer, this document's neighbours (web/drawer.ts) ---
+  //
+  // Built once, on `body`, like the menu above and for the same reason. The
+  // listing is whatever the last GET answered; `null` until the first one
+  // lands, which is why paintDrawer reads it through `?.`.
+  drawer: DrawerUI | null;
+  drawerOpen: boolean;
+  workspace: WorkspaceView | null;
 
   // --- the composer, and the refused-keystroke note (web/composer.ts) ---
   composer: Composer;
@@ -722,6 +734,18 @@ export interface AppMethods {
   applyTheme(): void;
   cycleTheme(): void;
   makeThemeButton(): void;
+
+  // --- the drawer (web/drawer.ts) ---
+  makeDrawer(): DrawerUI;
+  loadWorkspace(): Promise<WorkspaceView | null>;
+  openDrawer(focusFilter?: boolean): void;
+  closeDrawer(): void;
+  toggleDrawer(): void;
+  initDrawer(): void;
+  paintDrawer(): void;
+  drawerRow(d: WorkspaceDoc): HTMLButtonElement;
+  moveDrawerFocus(step: number): void;
+  chooseDoc(path: string): Promise<void>;
 
   // --- the one derived phase (web/phase.ts) ---
   phase(): Phase;

@@ -12,7 +12,7 @@ galley edit docs/plan.md
 
 That opens your document in a browser page. The document is the page: there is no preview pane and no side-by-side source. You are editing the file.
 
-The model is one paragraph. You edit the draft directly, and those edits are the document. You attach instructions to spans of text, or to the whole document, for work you want the agent to do. Pressing **Revise** commits the draft as a version and sends the instructions as one round. The agent revises the file in place; its saves stream back into your page as it works, and its return commits the next version. You read what changed, give another instruction if you need one, and repeat until you approve.
+The model is one paragraph. Your edits are the document. You attach instructions to text, or to the whole document, for the agent. **Revise** commits a version and sends them as one round; the agent edits the file in place, its saves stream into your page, and its return commits the next version. Read what changed, instruct again if needed, and repeat until you approve.
 
 Every round is a version. Nothing is a proposal you have to accept.
 
