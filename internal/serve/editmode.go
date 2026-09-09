@@ -57,6 +57,14 @@ type EditServer struct {
 	RuntimePath string
 	Room        string
 
+	// Root is the workspace this document belongs to: the directory the
+	// drawer lists (GET /_galley/workspace) and the containment every open
+	// (POST /_galley/workspace/open) is checked against. Absolute. Defaults
+	// to the document's own directory; `--root` widens it, and page mode's
+	// site root IS it. The document is always under it — SetRoot refuses
+	// otherwise, the way page mode refuses a page outside its site root.
+	Root string
+
 	// Notify, when set, fires after the document settles — same contract as
 	// Server.Notify.
 	Notify *Notifier
@@ -466,6 +474,7 @@ func NewEdit(mdPath string) (*EditServer, error) {
 		MdPath:      abs,
 		RuntimePath: DefaultRuntimePath(abs),
 		Room:        room,
+		Root:        filepath.Dir(abs),
 		doc:         doc,
 		yjs:         yjs,
 		root:        root,
@@ -1024,6 +1033,8 @@ func (s *EditServer) Handler() http.Handler {
 	mux.HandleFunc("/_galley/stop", s.handleStop)
 	// The sealed page's way back — see seal.go.
 	mux.HandleFunc("/_galley/reopen", s.handleReopen)
+	// The drawer: the neighbours of this document, and the way to one of them.
+	mux.HandleFunc("/_galley/workspace", s.handleWorkspace)
 	mux.HandleFunc("/_galley/ack", s.handleAck)
 	// The reviewer taking the document back mid-window — see handoff.go.
 	mux.HandleFunc("/_galley/handoff/cancel", s.handleHandoffCancel)

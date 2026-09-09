@@ -64,6 +64,7 @@ var wireRoots = []any{
 	askView{},
 	diffView{},
 	changeView{},
+	WorkspaceView{},
 }
 
 const wirePath = "../../web/wire.d.ts"
