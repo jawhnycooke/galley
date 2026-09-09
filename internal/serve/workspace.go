@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/schuettc/galley/internal/registry"
 	"github.com/schuettc/galley/internal/versions"
@@ -176,4 +179,151 @@ func (s *EditServer) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(view)
+}
+
+// Spawner starts a child `galley edit` for the given arguments, returning its
+// process so this server can wait for it to advertise and, later, stop it.
+type Spawner func(args []string) (*os.Process, error)
+
+type openResult struct {
+	url  string
+	code int
+	err  error
+}
+
+// THE WAY TO A NEIGHBOUR. If somebody is already serving it, that is the
+// answer; otherwise this server starts a child editor for it and waits for
+// the child to say where it is, through the same registry a channel reads.
+// Two clicks on one row share one child: the second waits on the first's
+// result rather than starting a second server on the same file.
+func (s *EditServer) openWorkspaceDoc(rel string) openResult {
+	abs, code, err := s.resolveWorkspacePath(rel)
+	if err != nil {
+		return openResult{code: code, err: err}
+	}
+	key := docKey(abs)
+	if url := liveByKey()[key]; url != "" {
+		return openResult{url: url, code: http.StatusOK}
+	}
+	if s.Spawn == nil {
+		return openResult{code: http.StatusNotImplemented, err: fmt.Errorf("this editor was started without a spawner — run `galley edit %s` yourself", rel)}
+	}
+	s.childMu.Lock()
+	ch, waiting := s.inflight[key]
+	if !waiting {
+		ch = make(chan openResult, 1)
+		s.inflight[key] = ch
+	}
+	s.childMu.Unlock()
+	if waiting {
+		res := <-ch
+		ch <- res // put it back for the next waiter
+		return res
+	}
+	res := s.spawnAndWait(abs, key)
+	s.childMu.Lock()
+	delete(s.inflight, key)
+	s.childMu.Unlock()
+	ch <- res
+	return res
+}
+
+func (s *EditServer) spawnAndWait(abs, key string) openResult {
+	args := append([]string{"edit", abs, "--no-open", "--root", s.Root}, s.ChildArgs...)
+	proc, err := s.Spawn(args)
+	if err != nil {
+		return openResult{code: http.StatusInternalServerError, err: fmt.Errorf("could not start an editor for %s: %w", filepath.Base(abs), err)}
+	}
+	s.childMu.Lock()
+	s.children = append(s.children, proc)
+	s.childMu.Unlock()
+	deadline := time.Now().Add(s.spawnWait)
+	for time.Now().Before(deadline) {
+		if url := liveByKey()[key]; url != "" {
+			return openResult{url: url, code: http.StatusOK}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return openResult{code: http.StatusGatewayTimeout, err: fmt.Errorf("the editor for %s did not come up within %s", filepath.Base(abs), s.spawnWait)}
+}
+
+// resolveWorkspacePath is the containment check: relative, no `..`, under
+// Root after cleaning and after resolving symlinks, a listed kind, a file.
+func (s *EditServer) resolveWorkspacePath(rel string) (string, int, error) {
+	bad := func(why string) (string, int, error) { return "", http.StatusBadRequest, fmt.Errorf("%s", why) }
+	if rel == "" || filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") {
+		return bad("path must be relative to the workspace root")
+	}
+	for _, seg := range strings.Split(filepath.ToSlash(rel), "/") {
+		if seg == ".." {
+			return bad("path may not leave the workspace root")
+		}
+	}
+	abs := filepath.Join(s.Root, filepath.FromSlash(rel))
+	if !underDir(abs, s.Root) {
+		return bad("path may not leave the workspace root")
+	}
+	// If the path is (or passes through) a symlink, its resolved target must
+	// still be under the root — under the root's own resolved target when
+	// that succeeds, or under the root literally otherwise.
+	if real, err := filepath.EvalSymlinks(abs); err == nil {
+		allowedRoot := s.Root
+		if rootReal, err := filepath.EvalSymlinks(s.Root); err == nil {
+			allowedRoot = rootReal
+		}
+		if !underDir(real, allowedRoot) {
+			return bad("path resolves outside the workspace root")
+		}
+	}
+	if docKind(abs) == "" {
+		return bad("only .md and .html documents open here")
+	}
+	if st, err := os.Stat(abs); err != nil || !st.Mode().IsRegular() {
+		return bad("no such document under the workspace root")
+	}
+	return abs, http.StatusOK, nil
+}
+
+func (s *EditServer) handleWorkspaceOpen(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Path string `json:"path"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	res := s.openWorkspaceDoc(in.Path)
+	if res.err != nil {
+		http.Error(w, res.err.Error(), res.code)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"url": res.url})
+}
+
+// stopChildren is Close's share of the drawer: SIGTERM to every editor this
+// one started (each projects and withdraws itself on the way down), and a
+// bounded wait so a stuck child cannot hold Ctrl-C hostage.
+func (s *EditServer) stopChildren() {
+	s.childMu.Lock()
+	children := s.children
+	s.children = nil
+	s.childMu.Unlock()
+	if len(children) == 0 {
+		return
+	}
+	done := make(chan struct{})
+	go func() {
+		for _, p := range children {
+			if p.Pid == os.Getpid() {
+				continue // a test's stand-in
+			}
+			_ = p.Signal(syscall.SIGTERM)
+			_, _ = p.Wait()
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+	}
 }

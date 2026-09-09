@@ -7,7 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/schuettc/galley/internal/registry"
 )
@@ -139,5 +142,130 @@ func TestSetRootRefusesADocumentOutsideIt(t *testing.T) {
 	}
 	if s.Root != filepath.Dir(s.MdPath) {
 		t.Fatalf("default root = %q, want the document's directory", s.Root)
+	}
+}
+
+// fakeSpawner stands in for `galley edit`: it advertises the document it was
+// asked for, after a delay, from a process that is this test's own.
+func fakeSpawner(t *testing.T, calls *int, url string, delay time.Duration) Spawner {
+	return func(args []string) (*os.Process, error) {
+		*calls++
+		abs := args[1]
+		go func() {
+			time.Sleep(delay)
+			_ = registry.Write(registry.Entry{URL: url, Room: "child-" + filepath.Base(abs), Page: docKey(abs), PID: os.Getpid()})
+		}()
+		return os.FindProcess(os.Getpid())
+	}
+}
+
+func openDoc(t *testing.T, s *EditServer, rel string) (int, string) {
+	t.Helper()
+	rec := post(t, s.Handler(), "/_galley/workspace/open", map[string]any{"path": rel})
+	return rec.Code, rec.Body.String()
+}
+
+func TestOpenAttachesToARunningEditor(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{"a.md": "# A\n", "b.md": "# B\n"})
+	s := newEditServer(t, root, "a.md", "# A\n")
+	defer func() { _ = s.Close() }()
+	_ = registry.Write(registry.Entry{URL: "http://127.0.0.1:1234", Room: "b-room", Page: filepath.Join(root, "b.md"), PID: os.Getpid()})
+	calls := 0
+	s.Spawn = fakeSpawner(t, &calls, "http://127.0.0.1:9", 0)
+	code, body := openDoc(t, s, "b.md")
+	if code != http.StatusOK || !strings.Contains(body, "http://127.0.0.1:1234") || calls != 0 {
+		t.Fatalf("attach: %d %s (spawned %d)", code, body, calls)
+	}
+}
+
+func TestOpenSpawnsOnceAndWaitsForTheRegistry(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{"a.md": "# A\n", "sub/b.md": "# B\n"})
+	s := newEditServer(t, root, "a.md", "# A\n")
+	defer func() { _ = s.Close() }()
+	s.ChildArgs = []string{"--on-revise", "true"}
+	calls := 0
+	var seen []string
+	s.Spawn = func(args []string) (*os.Process, error) {
+		seen = args
+		return fakeSpawner(t, &calls, "http://127.0.0.1:4321", 300*time.Millisecond)(args)
+	}
+	var wg sync.WaitGroup
+	codes := make([]int, 2)
+	bodies := make([]string, 2)
+	for i := range codes {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			codes[i], bodies[i] = openDoc(t, s, "sub/b.md")
+		}(i)
+	}
+	wg.Wait()
+	for i := range codes {
+		if codes[i] != http.StatusOK || !strings.Contains(bodies[i], "http://127.0.0.1:4321") {
+			t.Fatalf("open %d: %d %s", i, codes[i], bodies[i])
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("spawned %d times for one document", calls)
+	}
+	want := []string{"edit", filepath.Join(root, "sub", "b.md"), "--no-open", "--root", root, "--on-revise", "true"}
+	if strings.Join(seen, " ") != strings.Join(want, " ") {
+		t.Fatalf("args = %v, want %v", seen, want)
+	}
+}
+
+func TestOpenRefusesWhatIsNotUnderTheRoot(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{"a.md": "# A\n", "notes.txt": "x"})
+	s := newEditServer(t, root, "a.md", "# A\n")
+	defer func() { _ = s.Close() }()
+	calls := 0
+	s.Spawn = fakeSpawner(t, &calls, "http://127.0.0.1:9", 0)
+	for _, rel := range []string{"../a.md", "/etc/passwd", "sub/../../a.md", "notes.txt", "missing.md", ""} {
+		if code, _ := openDoc(t, s, rel); code != http.StatusBadRequest {
+			t.Errorf("open %q = %d, want 400", rel, code)
+		}
+	}
+	if calls != 0 {
+		t.Fatal("a refused open spawned something")
+	}
+}
+
+func TestOpenTimesOutWhenTheChildNeverAdvertises(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{"a.md": "# A\n", "b.md": "# B\n"})
+	s := newEditServer(t, root, "a.md", "# A\n")
+	defer func() { _ = s.Close() }()
+	s.spawnWait = 400 * time.Millisecond
+	s.Spawn = func(args []string) (*os.Process, error) { return os.FindProcess(os.Getpid()) }
+	if code, _ := openDoc(t, s, "b.md"); code != http.StatusGatewayTimeout {
+		t.Fatalf("open = %d, want 504", code)
+	}
+}
+
+func TestOpenRefusesASymlinkOutsideTheRoot(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{"a.md": "# A\n"})
+	outside := t.TempDir()
+	writeTree(t, outside, map[string]string{"secret.md": "# S\n"})
+	if err := os.Symlink(filepath.Join(outside, "secret.md"), filepath.Join(root, "escape.md")); err != nil {
+		t.Fatal(err)
+	}
+	s := newEditServer(t, root, "a.md", "# A\n")
+	defer func() { _ = s.Close() }()
+	calls := 0
+	s.Spawn = fakeSpawner(t, &calls, "http://127.0.0.1:9", 0)
+	if code, _ := openDoc(t, s, "escape.md"); code != http.StatusBadRequest {
+		t.Fatalf("open escape.md = %d, want 400", code)
+	}
+	if calls != 0 {
+		t.Fatal("a refused open spawned something")
 	}
 }
