@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -83,9 +84,8 @@ func newEditFlags() (*flag.FlagSet, *editFlags) {
 		onSettle: fs.String("on-settle", "", "shell command to run once the document settles in live mode "+
 			"(e.g. 'muster nudge galley')"),
 		quiet: fs.Duration("quiet", 8*time.Second, "how long the document must sit unchanged before --on-settle fires"),
-		root: fs.String("root", "", "site root to serve preview assets from, for an HTML page (default: the page's own "+
-			"directory). Set it to the site root so a subpage's ../shared assets resolve in the preview "+
-			"as they do when the whole site is served from that root."),
+		root: fs.String("root", "", "the workspace root the document drawer lists (default: the document's own "+
+			"directory). For an HTML page it is also the site root the preview serves assets from."),
 	}
 	return fs, v
 }
@@ -134,6 +134,18 @@ func runEdit(args []string, out, errw io.Writer) error {
 	// same second.
 	srv.SeedNotify()
 
+	// WHAT A CHILD EDITOR INHERITS: the hooks, so a document opened from the
+	// drawer answers Revise the way this one does; and the spawner, which is
+	// this very binary.
+	if *onRevise != "" {
+		srv.ChildArgs = append(srv.ChildArgs, "--on-revise", *onRevise)
+	}
+	if *onSettle != "" {
+		srv.ChildArgs = append(srv.ChildArgs, "--on-settle", *onSettle)
+	}
+	srv.ChildArgs = append(srv.ChildArgs, "--quiet", quiet.String())
+	srv.Spawn = spawnEditor
+
 	// Reuse the port this document last served on so a restart does not 404 the
 	// reviewer's open tab (friction #5). Only when the reviewer did not pin one:
 	// an explicit --port is an instruction, not a default to override. A
@@ -179,6 +191,9 @@ func runEdit(args []string, out, errw io.Writer) error {
 	fmt.Printf("document  %s\n", srv.MdPath)
 	fmt.Printf("room      %s\n", srv.Room)
 	fmt.Printf("serving   %s\n", url)
+	if ws, err := srv.Workspace(); err == nil {
+		fmt.Printf("root      %s (%d documents)\n", srv.Root, len(ws.Docs))
+	}
 	for _, line := range editStartupLines(filepath.Base(srv.MdPath), *onRevise, *onSettle, *quiet) {
 		fmt.Println(line)
 	}
@@ -376,21 +391,69 @@ func editStartupLines(mdBase, onRevise, onSettle string, quiet time.Duration) []
 // file extension: .html and .htm open the page-backed editor via
 // serve.NewEditPage; every other extension (including .md) uses serve.NewEdit.
 func routeEdit(path, root string) (*serve.EditServer, error) {
+	var srv *serve.EditServer
+	var err error
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".html", ".htm":
 		if root != "" {
-			return serve.NewEditPageRoot(path, root)
+			srv, err = serve.NewEditPageRoot(path, root)
+		} else {
+			srv, err = serve.NewEditPage(path)
 		}
-		return serve.NewEditPage(path)
 	default:
-		if root != "" {
-			return nil, fmt.Errorf("--root applies to an HTML page, not %s", filepath.Ext(path))
+		srv, err = serve.NewEdit(path)
+		// --root is the workspace the drawer lists; page mode already read
+		// it as the site root, which is the same directory by the same name.
+		if err == nil && root != "" {
+			if rerr := srv.SetRoot(root); rerr != nil {
+				_ = srv.Close()
+				return nil, rerr
+			}
 		}
-		return serve.NewEdit(path)
 	}
+	return srv, err
 }
 
 const reviseShutdownGrace = 5 * time.Second
+
+// spawnEditor starts a child `galley edit` for the drawer: the same binary,
+// the same environment (so the session id — and with it the channel's
+// ownership — is the parent's), its output on our stderr under the file's
+// name so two editors' lines are told apart.
+func spawnEditor(args []string) (*os.Process, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(exe, args...)
+	cmd.Env = os.Environ()
+	prefix := "[" + filepath.Base(args[1]) + "] "
+	cmd.Stdout = prefixWriter{w: os.Stderr, prefix: prefix}
+	cmd.Stderr = prefixWriter{w: os.Stderr, prefix: prefix}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	// cmd.Process is not Wait'd here: stopChildren (serve/workspace.go) owns
+	// the wait, as the parent's one place that tears children down on exit.
+	return cmd.Process, nil
+}
+
+type prefixWriter struct {
+	w      io.Writer
+	prefix string
+}
+
+func (p prefixWriter) Write(b []byte) (int, error) {
+	for _, line := range strings.SplitAfter(string(b), "\n") {
+		if line == "" {
+			continue
+		}
+		if _, err := io.WriteString(p.w, p.prefix+line); err != nil {
+			return 0, err
+		}
+	}
+	return len(b), nil
+}
 
 // announceEdit and withdrawEdit are EditServer's equivalent of Server's
 // Announce/Withdraw methods, which EditServer does not have. serve.Runtime and

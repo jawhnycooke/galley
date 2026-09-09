@@ -93,3 +93,35 @@ func TestAgentPromptPlainMDHasNoPageWarning(t *testing.T) {
 		t.Errorf("agentPrompt(%q) should not contain page-backed paragraph:\n%s", doc, got)
 	}
 }
+
+func TestRootWidensAMarkdownWorkspace(t *testing.T) {
+	t.Setenv("GALLEY_LIVE_DIR", t.TempDir())
+	root := t.TempDir()
+	sub := filepath.Join(root, "guide")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mdPath := filepath.Join(sub, "doc.md")
+	if err := os.WriteFile(mdPath, []byte("# T\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := routeEdit(mdPath, root)
+	if err != nil {
+		t.Fatalf("--root on markdown: %v", err)
+	}
+	defer func() { _ = srv.Close() }()
+	if srv.Root != root {
+		t.Fatalf("root = %q, want %q", srv.Root, root)
+	}
+	plain, err := routeEdit(mdPath, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = plain.Close() }()
+	if plain.Root != sub {
+		t.Fatalf("default root = %q, want the document's directory %q", plain.Root, sub)
+	}
+	if _, err := routeEdit(mdPath, t.TempDir()); err == nil {
+		t.Fatal("a root that does not contain the document was accepted")
+	}
+}

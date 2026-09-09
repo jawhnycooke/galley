@@ -106,6 +106,10 @@ func underDir(p, dir string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
+// Workspace exposes listWorkspace to callers outside the package, namely the
+// CLI's startup line reporting the workspace's document count.
+func (s *EditServer) Workspace() (WorkspaceView, error) { return s.listWorkspace() }
+
 func (s *EditServer) listWorkspace() (WorkspaceView, error) {
 	view := WorkspaceView{Root: s.Root, Docs: []WorkspaceDoc{}}
 	current := s.documentPath()
